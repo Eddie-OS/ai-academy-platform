@@ -1,0 +1,42 @@
+# 版本的唯一权威来源。对应《开发实施文档》3.6 选型汇总表。
+# 纪律：新增依赖前先查 CLAUDE.md 第二节技术栈表；同一件事只允许一个库。
+
+[versions]
+springBoot = "3.2.11"
+mybatisPlus = "3.5.7"
+postgresql = "42.7.4"
+flyway = "10.20.1"
+easyexcel = "3.3.4"
+springdoc = "2.3.0"
+archunit = "1.3.0"
+testcontainers = "1.20.3"
+
+[libraries]
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-security-test = { module = "org.springframework.security:spring-security-test" }
+spring-web = { module = "org.springframework:spring-web" }
+spring-context = { module = "org.springframework:spring-context" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+slf4j-api = { module = "org.slf4j:slf4j-api" }
+jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
+
+mybatis-plus = { module = "com.baomidou:mybatis-plus-spring-boot3-starter", version.ref = "mybatisPlus" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+easyexcel = { module = "com.alibaba:easyexcel", version.ref = "easyexcel" }
+springdoc-webmvc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+
+[plugins]
+springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }

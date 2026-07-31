@@ -1,0 +1,60 @@
+plugins {
+    alias(libs.plugins.springBoot)
+}
+
+// app：Spring Boot 启动类 + Web 层 + 权限拦截器 + 跨模块编排的应用服务（AR-4）。
+// 它依赖全部 15 个领域模块，因此 ArchUnit 的架构测试放在本模块（唯一能看到全部包的地方）。
+
+dependencies {
+    implementation(project(":common"))
+
+    implementation(project(":platform:people"))
+    implementation(project(":platform:statemachine"))
+    implementation(project(":platform:audit"))
+    implementation(project(":platform:dataimport"))
+    implementation(project(":platform:storage"))
+    implementation(project(":platform:escalation"))
+    implementation(project(":platform:dict"))
+
+    implementation(project(":business:demand"))
+    implementation(project(":business:course"))
+    implementation(project(":business:lecturer"))
+    implementation(project(":business:training"))
+    implementation(project(":business:kase"))
+
+    implementation(project(":aggregate:metrics"))
+    implementation(project(":aggregate:warning"))
+    implementation(project(":aggregate:worklist"))
+
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.mybatis.plus)
+    implementation(libs.flyway.core)
+    implementation(libs.springdoc.webmvc)
+
+    runtimeOnly(libs.postgresql)
+    runtimeOnly(libs.flyway.postgresql)
+
+    testImplementation(libs.spring.security.test)
+    testImplementation(libs.archunit.junit5)
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveFileName.set("ai-academy-app.jar")
+}
+
+// 部署时生成两个共享账号的口令哈希（规则 SEC5）。用法：
+//   ./gradlew :app:printPasswordHash -Ppassword='你的口令'
+tasks.register<JavaExec>("printPasswordHash") {
+    group = "application"
+    description = "生成共享账号口令的 BCrypt 哈希"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.aiacademy.app.security.PasswordHashTool")
+    doFirst {
+        val password = project.findProperty("password")?.toString()
+            ?: throw GradleException("请用 -Ppassword='你的口令' 传入口令")
+        args = listOf(password)
+    }
+}

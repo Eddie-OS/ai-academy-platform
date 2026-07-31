@@ -1,0 +1,109 @@
+# 生产部署：一台台式机、三个容器（《开发实施文档》4.4.1，决策 C13 / BLOCK-03）。
+#
+# 三个容器而不是四个：前端不是一个运行时服务，构建产物被打进 nginx 镜像作为静态资源。
+#
+# 明确不包含：Redis、MinIO、消息队列、K8s、第二个 app 实例（一期不做项第 16～18 条）。
+#
+# 每个容器都设内存硬限额。单机最危险的故障模式是「一次大导入把 JVM 堆撑大 →
+# 操作系统开始 swap → PostgreSQL 变慢 → 请求堆积 → JVM 堆继续涨」的连锁反应；
+# 设了限额，最坏情况是这一次导入失败，而不是整个系统卡死。
+
+name: aiacademy
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: aiacademy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-aiacademy}
+      POSTGRES_USER: ${DB_USER:-aiacademy}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?数据库口令必须通过 .env 提供}
+      TZ: Asia/Shanghai
+      # 64G 物理内存留一半余量给操作系统页缓存，这对 PostgreSQL 性能很重要
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    command:
+      - postgres
+      - -c
+      - shared_buffers=4GB
+      - -c
+      - effective_cache_size=12GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - log_min_duration_statement=1000
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-aiacademy} -d ${DB_NAME:-aiacademy}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 16g
+    # 只对 app 暴露，不映射到宿主机端口
+    expose:
+      - '5432'
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: aiacademy-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: ${DB_NAME:-aiacademy}
+      DB_USER: ${DB_USER:-aiacademy}
+      DB_PASSWORD: ${DB_PASSWORD:?数据库口令必须通过 .env 提供}
+      OPERATOR_PASSWORD_HASH: ${OPERATOR_PASSWORD_HASH:?运营账号口令哈希必须通过 .env 提供}
+      VIEWER_PASSWORD_HASH: ${VIEWER_PASSWORD_HASH:?用户账号口令哈希必须通过 .env 提供}
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: '-Xms2g -Xmx8g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8'
+    volumes:
+      # 附件存本地磁盘（C13），FileStorage 接口保留以便二期换回 MinIO。
+      # 生产机是 Windows（BLOCK-05），这两个目录必须是 Windows 宿主路径而不是容器内路径：
+      # 写成 /data/... 会落进 WSL2 虚拟机的文件系统，宿主机上的备份脚本与外置硬盘都碰不到它。
+      - ${ATTACHMENT_DIR:?附件目录必须通过 .env 提供 Windows 宿主路径}:/data/attachments
+      - ${LOG_DIR:?日志目录必须通过 .env 提供 Windows 宿主路径}:/var/log/aiacademy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/actuator/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 12g
+    expose:
+      - '8080'
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: aiacademy-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - '80:80'
+    environment:
+      TZ: Asia/Shanghai
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+volumes:
+  postgres-data:

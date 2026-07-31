@@ -1,0 +1,25 @@
+# 构建产物
+backend/**/build/
+backend/.gradle/
+frontend/dist/
+frontend/node_modules/
+
+# 敏感信息（规则 SEC4／CF：口令与凭据不进代码库）
+.env
+*.pem
+*.key
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# 日志与本地数据
+*.log
+logs/
+data/
+
+# 操作系统
+.DS_Store
+Thumbs.db

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  骨架示例的手写 SQL。阶段 1 建完真实业务表后本文件删除。
+
+  两条纪律在这里体现：
+  1. 逻辑删除（SEC2）：一切查询都要带 deleted = false，并配部分索引。
+  2. 刻意使用 PostgreSQL 专有语法（3.3）：需求文档 15.1 有大量「符合条件的计数」，
+     COUNT(*) FILTER (WHERE ...) 一条 SQL 能算完一整张指标卡。
+-->
+<mapper namespace="com.aiacademy.app.skeleton.repository.SkeletonSampleMapper">
+
+    <select id="countByState"
+            resultType="com.aiacademy.app.skeleton.domain.SampleStateCount">
+        SELECT sample_state AS sampleState,
+               COUNT(*)     AS total
+        FROM sys_skeleton_sample
+        WHERE deleted = FALSE
+        GROUP BY sample_state
+        ORDER BY sample_state
+    </select>
+
+</mapper>

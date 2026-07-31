@@ -1,0 +1,25 @@
+# 本地开发环境（4.4.2 两套环境之一）。
+# Docker Compose 只起 postgres，app 用 IDE 或 bootRun 直接跑。
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aiacademy
+    username: aiacademy
+    password: aiacademy
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+aiacademy:
+  accounts:
+    # 本地开发口令用 {noop} 明文，方便调试。
+    # 生产环境若出现 {noop}，SharedAccountCredentialsCheck 会让应用启动失败（规则 SEC5）。
+    operator:
+      password-hash: "{noop}operator123"
+    viewer:
+      password-hash: "{noop}viewer123"
+
+logging:
+  level:
+    com.aiacademy: DEBUG
+    org.springframework.jdbc.core: DEBUG

@@ -1,0 +1,28 @@
+# 本地开发环境（4.4.2）：只起 PostgreSQL，app 与前端用 IDE / npm run dev 直接跑。
+# 用法：docker compose -f docker-compose.local.yml up -d
+
+name: aiacademy-local
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: aiacademy-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aiacademy
+      POSTGRES_USER: aiacademy
+      POSTGRES_PASSWORD: aiacademy
+      TZ: Asia/Shanghai
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aiacademy -d aiacademy']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-local-data:

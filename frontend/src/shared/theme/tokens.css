@@ -1,0 +1,289 @@
+/*
+ * Design Token 全量清单，对应《设计基础规范 V1.1》附录 A。
+ *
+ * 两层结构（A.2）：底层是原始值 Primitive，上层是语义别名 Semantic。
+ * 组件只允许引用语义别名，不允许引用原始值，也不允许硬编码规范外的数值（A.4）。
+ *
+ * 命名规则（A.1）：--{类别}-{语义}-{档位／状态}，全小写连字符分隔。
+ */
+
+:root {
+  /* ===========================================================================
+   * 原始值 · 品牌色阶（2.2）
+   * 500 与 600 分工不同：500 是品牌识别色，600 才是可承载白字的交互色。
+   * =========================================================================== */
+  --color-brand-50: #e8eeff;
+  --color-brand-100: #d6e0ff;
+  --color-brand-200: #b8c9ff;
+  --color-brand-300: #94adff;
+  --color-brand-400: #7594ff;
+  --color-brand-500: #5b82ff;
+  --color-brand-600: #4e70db;
+  --color-brand-700: #3e5ab0;
+  --color-brand-800: #2e4385;
+  --color-brand-900: #1f2d59;
+
+  /* ===========================================================================
+   * 原始值 · 中性色阶（2.3）
+   * =========================================================================== */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f5f7fa;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d2d6dc;
+  --color-neutral-400: #acb3bd;
+  --color-neutral-500: #8a929e;
+  --color-neutral-600: #667085;
+  --color-neutral-700: #4b5563;
+  --color-neutral-800: #333b47;
+  --color-neutral-900: #1a1f29;
+  --color-ink: #000000;
+
+  /* ===========================================================================
+   * 原始值 · 语义色四件套（2.4）
+   * -bg 与 -solid 取自需求文档 13.4.1a，不得改动；-text 与 -text-on-bg 由设计规范补齐。
+   * =========================================================================== */
+  --color-success-bg: #dcfce7;
+  --color-success-solid: #22c55e;
+  --color-success-text: #178841;
+  --color-success-text-on-bg: #16803d;
+
+  --color-warning-bg: #fef3c7;
+  --color-warning-solid: #f59e0b;
+  --color-warning-text: #a46a07;
+  --color-warning-text-on-bg: #986207;
+
+  --color-danger-bg: #fee2e2;
+  --color-danger-solid: #ef4444;
+  --color-danger-text: #d73d3d;
+  --color-danger-text-on-bg: #bf3636;
+
+  --color-info-bg: #e0f2fe;
+  --color-info-solid: #0ea5e9;
+  --color-info-text: #0b7db1;
+  --color-info-text-on-bg: #0a74a3;
+
+  /* ===========================================================================
+   * 语义别名 · 文本（A.3）
+   * =========================================================================== */
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-heading: var(--color-neutral-800);
+  --color-text-body: var(--color-neutral-700);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-disabled: var(--color-neutral-400);
+  --color-text-link: var(--color-brand-600);
+  --color-text-inverse: var(--color-neutral-0);
+
+  /* ===========================================================================
+   * 语义别名 · 背景与边框（A.3）
+   * =========================================================================== */
+  --color-bg-page: var(--color-neutral-100);
+  --color-bg-surface: var(--color-neutral-0);
+  --color-bg-hover: var(--color-neutral-50);
+  --color-bg-selected: var(--color-brand-50);
+  --color-bg-header: var(--color-neutral-100);
+
+  --color-border-divider: var(--color-neutral-200);
+  /* 表单控件边框不能用 neutral-200：WCAG 要求界面组件边界与背景对比度 ≥ 3:1（2.3） */
+  --color-border-control: var(--color-neutral-500);
+  --color-border-focus: var(--color-brand-500);
+
+  /* ===========================================================================
+   * 语义别名 · 动作与图标（A.3）
+   * =========================================================================== */
+  --color-action-primary-bg: var(--color-brand-600);
+  --color-action-primary-bg-hover: var(--color-brand-700);
+  --color-action-primary-bg-active: var(--color-brand-800);
+  --color-action-danger-bg: var(--color-danger-text);
+  --color-action-danger-bg-hover: var(--color-danger-text-on-bg);
+  --color-action-danger-bg-active: #a82f2f;
+  --color-icon-default: var(--color-neutral-500);
+  --color-icon-active: var(--color-brand-600);
+
+  /* ===========================================================================
+   * 语义别名 · 三色灯（A.3、2.5）
+   * 刻意不叫 --color-light-*：light 在色彩 Token 里通常表示「浅色」。
+   * 健康态指向中性色，从命名上就阻断「蓝灯 = 健康」的误用。
+   * =========================================================================== */
+  --color-warn-blue: #0ea5e9;
+  --color-warn-blue-bg: var(--color-info-bg);
+  --color-warn-yellow: #f59e0b;
+  --color-warn-yellow-bg: var(--color-warning-bg);
+  --color-warn-red: #ef4444;
+  --color-warn-red-bg: var(--color-danger-bg);
+  --color-warn-healthy: var(--color-neutral-600);
+
+  /* ===========================================================================
+   * 语义别名 · 三类新增状态标签（A.3、2.10）
+   * 取值与灯色浅底相同，但语义上是两回事（EX5：有效期提示不占用灯色、不进三色灯统计），
+   * 因此别名必须分开，将来才能各自独立变更。
+   * =========================================================================== */
+  --color-expiry-warn-bg: #fef3c7;
+  --color-expiry-over-bg: #fee2e2;
+  --color-stage-current-bg: var(--color-brand-50);
+  --color-stage-ready-bg: var(--color-brand-100);
+  --color-stage-text: var(--color-brand-700);
+  --color-pending-bg: #e0f2fe;
+  --color-pending-text: #0a74a3;
+  --color-archived-bg: var(--color-neutral-200);
+  --color-archived-text: var(--color-neutral-700);
+
+  /* ===========================================================================
+   * 字族与字号（3.1、3.2）
+   * Inter 在前、中文字体在后：反序会让数字用比例字形，表格中数字无法对齐。
+   * =========================================================================== */
+  --font-family-base: Inter, 'Noto Sans SC', 'PingFang SC', 'HarmonyOS Sans SC',
+    'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  --text-h1-size: 2rem;          /* 32px */
+  --text-h1-line: 3rem;          /* 48px */
+  --text-h1-weight: 700;
+  --text-h2-size: 1.5rem;        /* 24px */
+  --text-h2-line: 2.25rem;       /* 36px */
+  --text-h2-weight: 600;
+  --text-h3-size: 1.125rem;      /* 18px */
+  --text-h3-line: 1.75rem;       /* 28px */
+  --text-h3-weight: 600;
+  --text-h4-size: 1rem;          /* 16px */
+  --text-h4-line: 1.5rem;        /* 24px */
+  --text-h4-weight: 600;
+  --text-body-lg-size: 1rem;
+  --text-body-lg-line: 1.5rem;
+  --text-body-size: 0.875rem;    /* 14px 正文与表格单元格默认 */
+  --text-body-line: 1.375rem;    /* 22px */
+  --text-body-strong-weight: 600;
+  --text-body-sm-size: 0.8125rem; /* 13px */
+  --text-body-sm-line: 1.25rem;   /* 20px */
+  --text-caption-size: 0.75rem;   /* 12px */
+  --text-caption-line: 1.125rem;  /* 18px */
+  --text-metric-size: 1.75rem;    /* 28px */
+  --text-metric-line: 2.25rem;
+  --text-metric-weight: 600;
+  --text-metric-lg-size: 2.5rem;  /* 40px */
+  --text-metric-lg-line: 3rem;
+  --text-metric-lg-weight: 700;
+
+  /* ===========================================================================
+   * 间距标尺（4.1）· 基准 4px，不允许 5px、7px、18px 这类非标值
+   * =========================================================================== */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* ===========================================================================
+   * 页面框架尺寸（4.2、4.5）
+   * =========================================================================== */
+  --size-header-height: 56px;
+  --size-sidebar-expanded: 240px;
+  --size-sidebar-collapsed: 64px;
+  --size-page-header-min-height: 64px;
+  --size-filter-bar-height: 56px;
+  --size-content-min-width: 1440px;
+
+  /* ===========================================================================
+   * 圆角（4.6）
+   * =========================================================================== */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ===========================================================================
+   * 阴影与遮罩（4.7）· 统一取 neutral-900 加透明度，不用纯黑
+   * =========================================================================== */
+  --elev-0: none;
+  --elev-1: 0 1px 2px 0 rgba(26, 31, 41, 0.06);
+  --elev-2: 0 2px 8px 0 rgba(26, 31, 41, 0.08);
+  --elev-3: 0 4px 16px 0 rgba(26, 31, 41, 0.1);
+  --elev-4: 0 8px 32px 0 rgba(26, 31, 41, 0.14);
+  --elev-sticky: 0 2px 4px 0 rgba(26, 31, 41, 0.06);
+  --overlay: rgba(26, 31, 41, 0.45);
+
+  /* ===========================================================================
+   * 边框（4.8）· 只用 1px，不使用 2px
+   * =========================================================================== */
+  --border-hairline: 1px solid var(--color-border-divider);
+  --border-control: 1px solid var(--color-border-control);
+  --border-strong: 1px solid var(--color-neutral-300);
+  --border-error: 1px solid var(--color-danger-text);
+  --border-focus-ring: 0 0 0 3px rgba(91, 130, 255, 0.2);
+
+  /* ===========================================================================
+   * 层级（4.7）
+   * =========================================================================== */
+  --z-page-header: 10;
+  --z-table-header: 20;
+  --z-sidebar: 100;
+  --z-topbar: 200;
+  --z-dropdown: 500;
+  --z-drawer: 800;
+  --z-mask: 900;
+  --z-modal: 1000;
+  --z-toast: 1100;
+
+  /* ===========================================================================
+   * 动效（8.1、8.2）· 进入比退出慢是刻意的
+   * =========================================================================== */
+  --motion-instant: 50ms;
+  --motion-fast: 100ms;
+  --motion-quick: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 250ms;
+  --motion-emphasis: 400ms;
+
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-linear: linear;
+}
+
+/* 减弱动效偏好（8.5）：尊重系统设置 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html {
+  /* 字号单位用 rem，根字号 16px，以满足文本缩放至 200% 仍可用（3.4） */
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  min-width: var(--size-content-min-width);
+  font-family: var(--font-family-base);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text-body);
+  background: var(--color-bg-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 表格数字与指标数字必须等宽，保证纵向对齐（3.3） */
+.tabular-nums,
+table,
+.metric-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 表头字号 13px / 行高 20px / 字重 600（设计规范 5.13 表头规格，实测高度 44px）。
+   AntD 5 的 Table 只有 cellFontSize 一个字号 Token，表头与单元格共用，
+   而规范要求表头 13px、单元格 14px，因此这一档只能在 CSS 层覆盖。 */
+.ant-table-thead > tr > th {
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+}

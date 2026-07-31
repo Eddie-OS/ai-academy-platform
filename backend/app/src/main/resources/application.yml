@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: ai-academy-platform
+  profiles:
+    default: local
+  jackson:
+    # 规则 API-4：时间一律 ISO-8601 带时区；纯日期字段 yyyy-MM-dd
+    default-property-inclusion: always
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      # 规则 F/P5：附件 200MB。真正的大文件走分片上传（阶段 1 TD-7），这里的上限只作兜底
+      max-file-size: 200MB
+      max-request-size: 210MB
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # 规则 DB-1：全部 DDL 走 Flyway，禁止手工执行
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+server:
+  port: 8080
+  servlet:
+    session:
+      # 需求 6.1.6：无操作 2 小时失效。绝对有效期 8 小时由 SessionLifetimeFilter 保证
+      timeout: 2h
+      cookie:
+        name: AIACADEMY_SESSION
+        http-only: true
+        same-site: lax
+  compression:
+    enabled: true
+  error:
+    include-stacktrace: never
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    # 打印慢 SQL 用日志级别控制，不引 APM（一期不做项）
+  global-config:
+    banner: false
+    db-config:
+      # 规则 SEC2：全系统逻辑删除
+      logic-delete-field: deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+aiacademy:
+  accounts:
+    # 全平台只有这两个共享账号（需求文档 6.1、决策 C04）。
+    # 口令为委派编码器格式：生产必须是 {bcrypt}$2a$...，见 application-prod.yml
+    operator:
+      username: operator
+      display-name: 运营账号
+    viewer:
+      username: viewer
+      display-name: 用户账号
