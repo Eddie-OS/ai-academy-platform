@@ -1,0 +1,12 @@
+# 集成测试专用配置。数据源由 IntegrationTest 的 @DynamicPropertySource 指向 Testcontainers 容器，
+# 这里只补两个共享账号的口令——SharedAccountCredentialsCheck 要求它们非空（规则 SEC5）。
+aiacademy:
+  accounts:
+    operator:
+      password-hash: "{noop}operator-test"
+    viewer:
+      password-hash: "{noop}viewer-test"
+
+logging:
+  level:
+    com.aiacademy: DEBUG

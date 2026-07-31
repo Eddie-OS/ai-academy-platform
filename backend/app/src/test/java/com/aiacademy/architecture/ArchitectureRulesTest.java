@@ -61,6 +61,8 @@ class ArchitectureRulesTest {
                     .because("AR-1：业务模块 " + module
                             + " 不得 import 其他业务模块的类。需求↔课程这类跨模块关系放在 "
                             + ROOT + ".app.application 的应用服务里编排（AR-4）")
+                    // 5 个业务模块到阶段 2 才有类。届时删掉这一行——那时它才真正开始检查东西
+                    .allowEmptyShould(true)
                     .check(classesUnderTest);
         }
     }
@@ -113,6 +115,8 @@ class ArchitectureRulesTest {
                 .should(beReadOnlyTransactional())
                 .because("AR-3：metrics／warning／worklist 的查询不得持有事务写权限，"
                         + "保证指标计算不会意外修改业务数据")
+                // 三个聚合模块到阶段 3 才有类
+                .allowEmptyShould(true)
                 .check(classesUnderTest);
     }
 
@@ -123,6 +127,8 @@ class ArchitectureRulesTest {
                 .should().haveNameMatching("(save|insert|update|delete|remove|create)[A-Z].*")
                 .because("AR-3：聚合模块只读。任务派生等写操作由 worklist 的事件监听在业务侧完成，"
                         + "不是聚合查询的职责")
+                // 同上，阶段 3 删
+                .allowEmptyShould(true)
                 .check(classesUnderTest);
     }
 

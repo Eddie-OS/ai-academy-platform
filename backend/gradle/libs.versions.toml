@@ -9,7 +9,9 @@ flyway = "10.20.1"
 easyexcel = "3.3.4"
 springdoc = "2.3.0"
 archunit = "1.3.0"
-testcontainers = "1.20.3"
+# 1.21.4 是 1.x 线最后一版，也是修掉「Docker Engine 29 拒收 API v1.32」的版本。
+# 1.20.x 捆绑的 docker-java 会退回 v1.32，而 Engine 29 的最低 API 是 1.40，握手直接 400。
+testcontainers = "1.21.4"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -19,6 +21,7 @@ spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-aop = { module = "org.springframework.boot:spring-boot-starter-aop" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
 spring-web = { module = "org.springframework:spring-web" }

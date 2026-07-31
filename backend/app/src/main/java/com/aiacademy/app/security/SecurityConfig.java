@@ -112,4 +112,15 @@ public class SecurityConfig {
         registration.addUrlPatterns("/*");
         return registration;
     }
+
+    @Bean
+    public FilterRegistrationBean<OperatorContextFilter> operatorContextFilter(CurrentAccount currentAccount) {
+        FilterRegistrationBean<OperatorContextFilter> registration =
+                new FilterRegistrationBean<>(new OperatorContextFilter(currentAccount));
+        // 必须排在 Spring Security 过滤器链（默认 -100）之后，否则 SecurityContext 还没装好，
+        // 每个请求都会被记成 SYSTEM 操作。
+        registration.setOrder(0);
+        registration.addUrlPatterns("/*");
+        return registration;
+    }
 }

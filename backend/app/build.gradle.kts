@@ -39,6 +39,11 @@ dependencies {
 
     testImplementation(libs.spring.security.test)
     testImplementation(libs.archunit.junit5)
+
+    // 建库脚本必须在真实 PostgreSQL 上验证：生成列、部分索引、GIN + pg_trgm、TIMESTAMPTZ
+    // 这些用到的都是 PostgreSQL 专有能力，H2 一类的内存库跑不了，跑通了也证明不了什么。
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.junit)
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

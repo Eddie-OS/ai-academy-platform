@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     java
     alias(libs.plugins.springBoot) apply false
 }
