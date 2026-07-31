@@ -1,5 +1,7 @@
 package com.aiacademy.platform.people.service;
 
+import com.aiacademy.common.api.PageQuery;
+import com.aiacademy.common.api.PageResult;
 import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.platform.audit.AuditLog;
@@ -17,11 +19,14 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 人员台账的写入口（需求 14.3）。
+ * 人员台账（需求 14.3）：三个写方法给导入 Handler 用，查询方法给其余模块与前端下拉用。
  *
- * <p>一期<b>没有人员台账页面</b>（阶段 1 只做登录、导入中心、配置中心三个页面），这三个写方法的
- * 调用方是人员导入 Handler（阶段 1C）。它们现在就存在，是因为「导入的每一行最终落到哪张表的哪些列」
+ * <p>一期<b>没有人员台账页面</b>（阶段 1 只做登录、导入中心、配置中心三个页面），写方法的调用方
+ * 是人员导入 Handler（阶段 1C）。它们现在就存在，是因为「导入的每一行最终落到哪张表的哪些列」
  * 应当由台账自己定义，而不是由导入框架直接拼 SQL。
+ *
+ * <p><b>没有对外的写接口</b>：需求第 14 章明确六类数据「全部由运营人员手工导入并维护」，
+ * 台账的唯一入口是导入。给它加一个 REST 写接口就多出一条绕过批次号与撤销能力的旁路。
  *
  * <p>三个方法都带 {@link AuditLog}：需求 5.12 要求全部写操作留痕，这张表的每一行都来自导入或
  * 手工维护，改错一个工号会让后续签到导入整批校验失败，追溯需要知道是谁改的。
@@ -37,6 +42,28 @@ public class EmployeeService implements AuditSnapshotSource {
 
     public Optional<Employee> findByNo(String employeeNo) {
         return Optional.ofNullable(mapper.findByNo(employeeNo));
+    }
+
+    /**
+     * 人员台账列表（需求 14.3）。一期没有人员台账页面，调用方是各处的人员下拉与导入前的核对。
+     *
+     * <p>关键词两侧补 {@code %} 在这里而不是在 SQL 里：SQL 里写 {@code '%' || #{keyword} || '%'}
+     * 会让传进来的 {@code %} 变成通配符，运营搜一个含 {@code %} 的姓名就会搜出全表。
+     */
+    @Transactional(readOnly = true)
+    public PageResult<Employee> list(String keyword, String deptName, String personType,
+                                     String personState, PageQuery page) {
+        String like = (keyword == null || keyword.isBlank()) ? null : "%" + keyword.trim() + "%";
+        long total = mapper.count(like, deptName, personType, personState);
+        return PageResult.of(
+                mapper.list(like, deptName, personType, personState,
+                        page.getPageSize(), (int) page.offset()),
+                total, page);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<String> deptNames() {
+        return mapper.distinctDeptNames();
     }
 
     /**

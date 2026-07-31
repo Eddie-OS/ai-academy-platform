@@ -1,6 +1,7 @@
 package com.aiacademy.platform.storage.controller;
 
 import com.aiacademy.common.api.R;
+import com.aiacademy.common.security.WriteApi;
 import com.aiacademy.platform.storage.domain.Attachment;
 import com.aiacademy.platform.storage.domain.AttachmentOwnerType;
 import com.aiacademy.platform.storage.domain.AttachmentScene;
@@ -50,6 +51,7 @@ public class AttachmentController {
      *
      * @param scene 场景码，决定大小上限（规则 F1）。上限按业务位置分，不是全局配置
      */
+    @WriteApi
     @PostMapping("/uploads")
     public R<UploadTicket> initUpload(@RequestBody InitUploadRequest body) {
         return R.ok(attachments.initUpload(body.fileName(), body.fileSize(),
@@ -69,6 +71,7 @@ public class AttachmentController {
      * 传一个分片。用 PUT 而不是 POST：同一序号重传必须是覆盖，这正是 PUT 的语义，
      * 而断点续传要求边界上的那一片可以重传。
      */
+    @WriteApi
     @PutMapping("/uploads/{uploadId}/chunks/{index}")
     public R<Long> uploadChunk(@PathVariable String uploadId,
                                @PathVariable int index,
@@ -81,6 +84,7 @@ public class AttachmentController {
     }
 
     /** 通知合并（开发 5.7.2 第 6～9 步），含真实类型校验（规则 F2）。 */
+    @WriteApi
     @PostMapping("/uploads/{uploadId}/completion")
     public R<Attachment> complete(@PathVariable String uploadId) {
         return R.ok(attachments.complete(uploadId));
@@ -95,6 +99,7 @@ public class AttachmentController {
     }
 
     /** 业务保存时关联附件（开发 5.7.2 第 10 步）。没有这一步，附件 24 小时后会被当孤儿清理。 */
+    @WriteApi
     @PostMapping("/{id}/references")
     public R<Void> link(@PathVariable long id, @RequestBody LinkRequest body) {
         attachments.link(id, AttachmentOwnerType.of(body.refType()), body.refId(),
@@ -105,6 +110,7 @@ public class AttachmentController {
     public record LinkRequest(String refType, long refId, String refField, int seqNo) {
     }
 
+    @WriteApi
     @DeleteMapping("/{id}/references")
     public R<Void> unlink(@PathVariable long id, @RequestBody LinkRequest body) {
         attachments.unlink(id, AttachmentOwnerType.of(body.refType()), body.refId(), body.refField());
@@ -133,6 +139,7 @@ public class AttachmentController {
     }
 
     /** 逻辑删除（规则 F5）。文件不删——历史版本快照可能仍引用同一个文件对象。 */
+    @WriteApi
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable long id) {
         attachments.delete(id);

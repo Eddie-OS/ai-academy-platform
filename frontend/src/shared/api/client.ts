@@ -28,7 +28,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');
-  if (init.body) {
+  if (init.body && !(init.body instanceof FormData)) {
+    // FormData 的 Content-Type 必须由浏览器带上 boundary 生成，手工设置会让后端解析不出分片
     headers.set('Content-Type', 'application/json');
   }
   if (method !== 'GET' && method !== 'HEAD') {
@@ -75,4 +76,22 @@ export const api = {
   put: <T>(path: string, payload?: unknown) =>
     request<T>(path, { method: 'PUT', body: payload === undefined ? undefined : JSON.stringify(payload) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  /** 文件上传。分片上传另见 storage 模块的接口，这里只管一次性的导入文件 */
+  postFile: <T>(path: string, file: File, field = 'file') => {
+    const form = new FormData();
+    form.append(field, file);
+    return request<T>(path, { method: 'POST', body: form });
+  },
 };
+
+/** 查询串拼装：null／undefined／空串一律不出现在 URL 里，避免后端把空串当成筛选值。 */
+export function query(params: Record<string, string | number | boolean | null | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && value !== undefined && value !== '') {
+      search.set(key, String(value));
+    }
+  }
+  const text = search.toString();
+  return text ? `?${text}` : '';
+}

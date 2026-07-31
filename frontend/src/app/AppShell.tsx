@@ -23,6 +23,8 @@ import {
   OPERATION_PAGES,
 } from './navigation';
 import { useAuthStore } from '@/shared/store/authStore';
+import { useOnline } from '@/shared/hooks/useOnline';
+import { OfflineBanner } from '@/shared/ui/PageState';
 import { layout, neutral, space } from '@/shared/theme/designTokens';
 
 const { Header, Sider, Content } = Layout;
@@ -55,6 +57,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const account = useAuthStore((state) => state.account);
   const logout = useAuthStore((state) => state.logout);
+  const online = useOnline();
 
   const isOperator = account?.operator ?? false;
 
@@ -165,6 +168,7 @@ export function AppShell() {
         </Sider>
 
         <Content style={{ padding: layout.contentPadding, background: neutral[100] }}>
+          {!online && <OfflineBanner onRetry={() => window.location.reload()} />}
           <Outlet />
           {!isOperator && (
             <Text

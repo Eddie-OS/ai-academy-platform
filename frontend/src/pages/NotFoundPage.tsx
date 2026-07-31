@@ -1,24 +1,18 @@
-import { Button, Card, Result } from 'antd';
+import { Button } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { PageState } from '@/shared/ui/PageState';
 
-/**
- * 404。设计规范要求 7 个全局状态页（加载/空/无结果/无权限/错误/离线/404），
- * 其余 6 个在阶段 1 与前端基础件一并实现。
- */
+/** 404（设计规范 7.5）。七个全局状态页共用 {@link PageState}，这里只提供动作。 */
 export function NotFoundPage() {
   const navigate = useNavigate();
   return (
-    <Card>
-      <Result
-        status="404"
-        title="页面不存在"
-        subTitle="链接可能已失效，或该页面属于二期范围。"
-        extra={
-          <Button type="primary" onClick={() => navigate('/')}>
-            返回总看板
-          </Button>
-        }
-      />
-    </Card>
+    <PageState
+      variant="notFound"
+      action={
+        <Button type="primary" onClick={() => navigate('/')}>
+          返回总看板
+        </Button>
+      }
+    />
   );
 }

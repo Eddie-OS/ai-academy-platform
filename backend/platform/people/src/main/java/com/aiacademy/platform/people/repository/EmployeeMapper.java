@@ -42,6 +42,56 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
     java.util.List<Employee> findByNos(@Param("employeeNos") java.util.Collection<String> employeeNos);
 
     /**
+     * 人员台账列表（需求 14.3）。筛选：工号／姓名关键词、部门、人员类型、人员状态。
+     *
+     * <p>关键词用 {@code ILIKE} 而不是 {@code LIKE}：运营搜「张」和搜工号「e0001」应当都能命中，
+     * 而工号在库里是大写。这张表最多几千行，不需要为它引 pg_trgm 索引。
+     *
+     * <p>排序固定「在职优先、再按工号」：负责人与讲师下拉都从这里取数，把离职的人排在前面
+     * 会让运营在下拉里第一眼看到不该选的人（需求 14.3：离职人员不可被新选为负责人或讲师）。
+     */
+    @Select("""
+            <script>
+            SELECT * FROM org_employee
+             WHERE deleted = FALSE
+            <if test="keyword != null"> AND (employee_no ILIKE #{keyword} OR employee_name ILIKE #{keyword})</if>
+            <if test="deptName != null"> AND dept_name = #{deptName}</if>
+            <if test="personType != null"> AND person_type = #{personType}</if>
+            <if test="personState != null"> AND person_state = #{personState}</if>
+             ORDER BY CASE WHEN person_state = '在职' THEN 0 ELSE 1 END, employee_no
+             LIMIT #{limit} OFFSET #{offset}
+            </script>
+            """)
+    java.util.List<Employee> list(@Param("keyword") String keyword,
+                                  @Param("deptName") String deptName,
+                                  @Param("personType") String personType,
+                                  @Param("personState") String personState,
+                                  @Param("limit") int limit,
+                                  @Param("offset") int offset);
+
+    @Select("""
+            <script>
+            SELECT COUNT(*) FROM org_employee
+             WHERE deleted = FALSE
+            <if test="keyword != null"> AND (employee_no ILIKE #{keyword} OR employee_name ILIKE #{keyword})</if>
+            <if test="deptName != null"> AND dept_name = #{deptName}</if>
+            <if test="personType != null"> AND person_type = #{personType}</if>
+            <if test="personState != null"> AND person_state = #{personState}</if>
+            </script>
+            """)
+    long count(@Param("keyword") String keyword,
+               @Param("deptName") String deptName,
+               @Param("personType") String personType,
+               @Param("personState") String personState);
+
+    /** 部门下拉。V1.2 起部门是自由文本（N18），可选值只能从已有数据里取。 */
+    @Select("""
+            SELECT DISTINCT dept_name FROM org_employee
+             WHERE deleted = FALSE ORDER BY dept_name
+            """)
+    java.util.List<String> distinctDeptNames();
+
+    /**
      * 整行覆盖除工号以外的全部字段（需求 14.3：工号已存在则更新其余全部字段）。
      *
      * <p><b>不用 MyBatis-Plus 的 {@code updateById}</b>：它默认只更新非 null 字段，于是导入文件里

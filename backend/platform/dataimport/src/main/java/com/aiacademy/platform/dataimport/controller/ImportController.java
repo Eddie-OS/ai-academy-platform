@@ -3,6 +3,7 @@ package com.aiacademy.platform.dataimport.controller;
 import com.aiacademy.common.api.PageQuery;
 import com.aiacademy.common.api.PageResult;
 import com.aiacademy.common.api.R;
+import com.aiacademy.common.security.WriteApi;
 import com.aiacademy.platform.dataimport.domain.ImportBatch;
 import com.aiacademy.platform.dataimport.domain.ImportPreview;
 import com.aiacademy.platform.dataimport.domain.ImportType;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * 导入中心（需求 13.8.2 的三个区域、13.8.3 的三步向导、13.8.5 的撤销）。
@@ -36,8 +38,11 @@ import java.time.OffsetDateTime;
  * 合成一个接口就没有「先校验后写入」（规则 I3）可言了。
  *
  * <p><b>写接口的运营账号限制由 {@code PermissionInterceptor} 统一完成</b>（规则 AR-7）：
- * 本类没有任何账号类型判断。规则 I7「导入仅运营账号可用」的读侧（批次列表、错误报告下载
- * 也不该对查看账号开放）要等 1D 的权限注解，当前读接口按纪律 PMI-2 无差别开放。
+ * 本类只用 {@link WriteApi} 声明开放范围，不做任何账号类型判断。
+ *
+ * <p>规则 I7「导入仅运营账号可用」只约束写侧。读接口（批次列表、原文件与错误报告下载）
+ * 按纪律 PMI-2 对两个账号无差别开放：一期读权限完全无差异，给读接口单独加限制既无依据，
+ * 也会让「无权限」状态页出现在一个本该人人可看的页面上。
  */
 @RestController
 @RequestMapping("/api/imports")
@@ -52,6 +57,27 @@ public class ImportController {
     public ImportController(ImportService imports, ImportBatchQuery batches) {
         this.imports = imports;
         this.batches = batches;
+    }
+
+    /**
+     * 6 类导入的清单（需求 13.8.2 区域 A）。
+     *
+     * <p>存在这个接口只有一个理由：<b>不让前端手写这 6 个中文名</b>（纪律 STK-1）。
+     * 前端的导入类型下拉、模板下载按钮、批次列表筛选项都取自这里，枚举增删时不会漏改某一处。
+     *
+     * @param code 路径用的小写连字符名（规则 API-1），如 {@code training-feedback}
+     */
+    public record ImportTypeOption(String code, String label, String templateFileName, boolean appendOnly) {
+
+        static ImportTypeOption of(ImportType type) {
+            return new ImportTypeOption(type.name().toLowerCase().replace('_', '-'), type.label(),
+                    type.templateFileName(), type.appendOnly());
+        }
+    }
+
+    @GetMapping("/types")
+    public R<List<ImportTypeOption>> types() {
+        return R.ok(java.util.Arrays.stream(ImportType.values()).map(ImportTypeOption::of).toList());
     }
 
     /**
@@ -72,6 +98,7 @@ public class ImportController {
     }
 
     /** 第一步：上传并校验，不写业务数据（规则 I3）。 */
+    @WriteApi
     @PostMapping("/{type}/uploads")
     public R<ImportPreview> upload(@PathVariable String type, @RequestParam("file") MultipartFile file) {
         try {
@@ -82,12 +109,14 @@ public class ImportController {
     }
 
     /** 第二步：确认写入。重复提交返回 DUPLICATE_SUBMIT（规则 I8）。 */
+    @WriteApi
     @PostMapping("/{batchNo}/confirmation")
     public R<ImportBatch> confirm(@PathVariable String batchNo) {
         return R.ok(imports.confirm(batchNo));
     }
 
     /** 撤销整批（需求 13.8.5，规则 RB1～RB9）。 */
+    @WriteApi
     @PostMapping("/{batchNo}/revocation")
     public R<RevokeResult> revoke(@PathVariable String batchNo) {
         return R.ok(imports.revoke(batchNo));

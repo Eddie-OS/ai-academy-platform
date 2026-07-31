@@ -1,6 +1,9 @@
 package com.aiacademy.architecture;
 
 import com.aiacademy.common.security.AccountType;
+import com.aiacademy.common.security.WriteApi;
+import com.aiacademy.common.security.WriteAudience;
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -14,6 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+
+import java.lang.annotation.Annotation;
+import java.util.List;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
@@ -31,6 +41,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 class ArchitectureRulesTest {
 
     private static final String ROOT = "com.aiacademy";
+
+    /** 写映射注解全集。{@code @RequestMapping(method = POST)} 这种写法本项目不用（API-1 用专用注解）。 */
+    private static final List<Class<? extends Annotation>> WRITE_MAPPINGS =
+            List.of(PostMapping.class, PutMapping.class, PatchMapping.class, DeleteMapping.class);
 
     private static JavaClasses classesUnderTest;
 
@@ -207,6 +221,46 @@ class ArchitectureRulesTest {
     }
 
     // -------------------------------------------------------------------------
+    // E1-5 全部写接口有权限注解
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("出口准则 E1-5：每个写接口（POST/PUT/PATCH/DELETE）都必须声明 @WriteApi")
+    void e1_5_everyWriteEndpointDeclaresAudience() {
+        methods().that().areDeclaredInClassesThat().resideInAPackage("..controller..")
+                .and(areWriteMappings())
+                .should().beAnnotatedWith(WriteApi.class)
+                .because("出口准则 E1-5 与纪律 PMI-1：写接口默认拒绝，开放范围必须在接口上写明。"
+                        + "漏注解的接口在运行时会被 PermissionInterceptor 直接拒绝，"
+                        + "补注解时请顺便确认需求 6.2 的权限矩阵里有对应一行")
+                .check(classesUnderTest);
+    }
+
+    @Test
+    @DisplayName("E1-5 配套：USER_ALLOWED 只允许出现在案例模块——白名单就是需求 6.2.5 的那两条")
+    void e1_5_userWritableWhitelistStaysAtTwo() {
+        methods().that().areAnnotatedWith(WriteApi.class)
+                .and(haveAudience(WriteAudience.USER_ALLOWED))
+                .should().beDeclaredInClassesThat().resideInAPackage(ROOT + ".business.kase..")
+                .because("需求 6.2.5：用户账号唯一可写的是案例点赞与案例评论。"
+                        + "在别处出现这一档，等于绕过权限矩阵给只读账号开了写口子")
+                // 案例模块到阶段 2 才有 Controller
+                .allowEmptyShould(true)
+                .check(classesUnderTest);
+    }
+
+    @Test
+    @DisplayName("E1-5 配套：ANONYMOUS 只允许出现在登录接口所在的类")
+    void e1_5_anonymousWritesOnlyForLogin() {
+        methods().that().areAnnotatedWith(WriteApi.class)
+                .and(haveAudience(WriteAudience.ANONYMOUS))
+                .should().beDeclaredInClassesThat().haveSimpleName("AuthController")
+                .because("未登录可写的只有登录与登出。多出一条就意味着有写接口对匿名请求开放，"
+                        + "而一期的访问控制点只有登录态（规则 F3、SEC1）")
+                .check(classesUnderTest);
+    }
+
+    // -------------------------------------------------------------------------
     // 一期不做的 18 项：把最容易被"顺手引入"的组件写成断言
     // -------------------------------------------------------------------------
 
@@ -261,6 +315,30 @@ class ArchitectureRulesTest {
     // -------------------------------------------------------------------------
     // 自定义条件
     // -------------------------------------------------------------------------
+
+    /**
+     * 写映射 = 带 POST／PUT／PATCH／DELETE 的方法。
+     *
+     * <p>按注解识别而不是按方法名：{@code delete(...)} 可能是个读接口，
+     * 而 {@code confirm(...)} 是个写接口，名字说明不了 HTTP 语义。
+     */
+    private static DescribedPredicate<JavaMethod> areWriteMappings() {
+        return new DescribedPredicate<>("are annotated with a write @RequestMapping") {
+            @Override
+            public boolean test(JavaMethod method) {
+                return WRITE_MAPPINGS.stream().anyMatch(method::isAnnotatedWith);
+            }
+        };
+    }
+
+    private static DescribedPredicate<JavaMethod> haveAudience(WriteAudience audience) {
+        return new DescribedPredicate<>("declare audience " + audience) {
+            @Override
+            public boolean test(JavaMethod method) {
+                return method.getAnnotationOfType(WriteApi.class).value() == audience;
+            }
+        };
+    }
 
     private static ArchCondition<JavaMethod> beReadOnlyTransactional() {
         return new ArchCondition<>("be annotated with @Transactional(readOnly = true)") {

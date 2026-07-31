@@ -3,6 +3,8 @@ package com.aiacademy.app.web.controller;
 import com.aiacademy.app.security.AccountInfo;
 import com.aiacademy.app.security.LoginService;
 import com.aiacademy.common.api.R;
+import com.aiacademy.common.security.WriteApi;
+import com.aiacademy.common.security.WriteAudience;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
@@ -32,6 +34,8 @@ public class AuthController {
                                @NotBlank(message = "请输入密码") String password) {
     }
 
+    /** 登录时还没有账号类型可判，且用户账号也必须能登录，因此是全项目仅两个 ANONYMOUS 之一。 */
+    @WriteApi(WriteAudience.ANONYMOUS)
     @PostMapping("/login")
     public R<AccountInfo> login(@Validated @RequestBody LoginRequest body,
                                 HttpServletRequest request,
@@ -39,6 +43,7 @@ public class AuthController {
         return R.ok(loginService.login(body.username(), body.password(), request, response));
     }
 
+    @WriteApi(WriteAudience.ANONYMOUS)
     @PostMapping("/logout")
     public R<Void> logout(HttpServletRequest request) {
         loginService.logout(request);

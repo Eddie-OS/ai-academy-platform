@@ -8,8 +8,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * 全部 {@code /api} 请求经过权限拦截器。
  *
- * <p>纪律 PMI-1：不允许为某个 Controller 单独排除拦截；需要放行的接口在
- * {@link PermissionInterceptor} 内的白名单集合中声明，白名单是可被审计的一处。
+ * <p>纪律 PMI-1：不允许为某个 Controller 单独排除拦截。需要对用户账号或未登录者开放的写接口，
+ * 由接口自己用 {@link com.aiacademy.common.security.WriteApi} 声明开放范围，
+ * 判定仍然只在 {@link PermissionInterceptor} 一处发生。
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {

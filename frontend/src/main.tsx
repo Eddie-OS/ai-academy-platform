@@ -1,11 +1,12 @@
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { App as AntdApp, ConfigProvider, Spin } from 'antd';
+import { App as AntdApp, ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { antdTheme } from '@/shared/theme/antdTheme';
 import { AppRoutes } from '@/app/AppRoutes';
+import { PageState } from '@/shared/ui/PageState';
 import { useAuthStore } from '@/shared/store/authStore';
 import './shared/theme/tokens.css';
 
@@ -30,9 +31,10 @@ function Bootstrap() {
   }, [bootstrap]);
 
   if (!resolved) {
+    // 整页加载只用于首次进入应用（设计规范 7.4），页面内的数据加载走骨架屏
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <Spin size="large" />
+        <PageState variant="loading" />
       </div>
     );
   }
