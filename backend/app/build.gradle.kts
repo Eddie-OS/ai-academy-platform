@@ -40,6 +40,10 @@ dependencies {
     testImplementation(libs.spring.security.test)
     testImplementation(libs.archunit.junit5)
 
+    // 导入测试要现场造 .xlsx。用与生产同一个库写文件，测的才是真实的读写对称性；
+    // 手工拼 OOXML 或提交二进制夹具文件都会让「模板改了但夹具没改」变成不可见的失败
+    testImplementation(libs.easyexcel)
+
     // 建库脚本必须在真实 PostgreSQL 上验证：生成列、部分索引、GIN + pg_trgm、TIMESTAMPTZ
     // 这些用到的都是 PostgreSQL 专有能力，H2 一类的内存库跑不了，跑通了也证明不了什么。
     testImplementation(libs.testcontainers.postgresql)

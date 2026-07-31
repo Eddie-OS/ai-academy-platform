@@ -6,6 +6,10 @@ aiacademy:
       password-hash: "{noop}operator-test"
     viewer:
       password-hash: "{noop}viewer-test"
+  storage:
+    # 导入原文件、错误报告与附件落临时目录。默认值 ./data 会把测试产物写进模块目录，
+    # 而这些文件（尤其 5000 行导入的原文件）不该进工作区，更不该被误提交
+    root: ${java.io.tmpdir}/ai-academy-test
 
 logging:
   level:

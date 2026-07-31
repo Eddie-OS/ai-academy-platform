@@ -23,6 +23,25 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
     Employee findByNo(@Param("employeeNo") String employeeNo);
 
     /**
+     * 批量按工号查在册人员。
+     *
+     * <p><b>这是 P4 能不能达标的关键一条</b>（开发 5.6.3 细节三）：六类导入里有五类要校验工号存在，
+     * 5000 行逐行 {@code findByNo} 就是 5000 次往返，60 秒预算全花在这上面。正确做法是先收集本次
+     * 文件里全部工号，一次 {@code IN} 查询建 Map，再逐行查 Map。
+     *
+     * <p>调用方须保证集合非空——MyBatis 的 {@code foreach} 对空集合会生成 {@code IN ()}，
+     * PostgreSQL 直接报语法错。
+     */
+    @Select("""
+            <script>
+            SELECT * FROM org_employee
+             WHERE deleted = FALSE AND employee_no IN
+             <foreach collection="employeeNos" item="no" open="(" separator="," close=")">#{no}</foreach>
+            </script>
+            """)
+    java.util.List<Employee> findByNos(@Param("employeeNos") java.util.Collection<String> employeeNos);
+
+    /**
      * 整行覆盖除工号以外的全部字段（需求 14.3：工号已存在则更新其余全部字段）。
      *
      * <p><b>不用 MyBatis-Plus 的 {@code updateById}</b>：它默认只更新非 null 字段，于是导入文件里

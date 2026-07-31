@@ -50,19 +50,6 @@ class SchemaConventionTest {
             "sys_attachment_ref"));
 
     /**
-     * 阶段 0 的骨架示例表，不属于业务表清单，因此下面几处断言把它排除在外。
-     *
-     * <p><b>删除时点定在 1C</b>（原计划 1B 末）：它目前是全项目唯一的写接口，E0 冒烟测试靠它验
-     * 「未登录 401 / 查看账号写入 403 / 统一响应格式与 traceId」共 7 项断言。1B 末删掉的话，
-     * 这些断言在 1C 期间只能对着占位接口打空转；而 1C 的导入中心会带来第一个真实写接口，
-     * 到那时把冒烟测试改指到它、同一次提交里 DROP 本表，不产生任何过渡代码。
-     *
-     * <p>删除时要一并去掉下面三处 {@code actual.remove(SKELETON_TABLE)}——留着它们等于永久允许
-     * 一张叫这个名字的表带 version 列而不被规则 K1 拦住。
-     */
-    private static final String SKELETON_TABLE = "sys_skeleton_sample";
-
-    /**
      * 公共字段模板（6.1.2）的豁免表及理由。
      *
      * <p>豁免不是「忘了加」，每一条都要说得出为什么。给追加写的日志表加 deleted 列，等于给
@@ -99,7 +86,6 @@ class SchemaConventionTest {
     @DisplayName("6.2 表清单的每张表都已建出，且没有建多余的表")
     void 表清单与实际建表一致() {
         Set<String> actual = new TreeSet<>(MigratedSchema.tableNames());
-        actual.remove(SKELETON_TABLE);
 
         assertThat(actual)
                 .describedAs("与开发实施文档 6.2 表清单的差异（多出或缺少）")
@@ -141,7 +127,6 @@ class SchemaConventionTest {
     @DisplayName("规则 K1：version 列只许出现在需求、课程、案例三张表上")
     void 乐观锁范围不得扩大() {
         Set<String> actual = new TreeSet<>(MigratedSchema.tablesHavingColumn("version"));
-        actual.remove(SKELETON_TABLE);
 
         assertThat(actual)
                 .describedAs("给全部表加 version 会让导入与批量写入的实现复杂化且收益为零（开发 5.10）")
@@ -152,7 +137,6 @@ class SchemaConventionTest {
     @DisplayName("出口准则 E1-2：每个有状态机的对象表都有 last_state_changed_at")
     void 有状态机的表都能记录状态变更时间() {
         Set<String> actual = new TreeSet<>(MigratedSchema.tablesHavingColumn("last_state_changed_at"));
-        actual.remove(SKELETON_TABLE);
 
         assertThat(actual)
                 .describedAs("状态机引擎在这些对象上要更新 last_state_changed_at，缺列则 E1-2 无法满足")

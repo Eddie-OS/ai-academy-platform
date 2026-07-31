@@ -11,6 +11,7 @@ import com.aiacademy.platform.people.repository.EmployeeMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +37,22 @@ public class EmployeeService implements AuditSnapshotSource {
 
     public Optional<Employee> findByNo(String employeeNo) {
         return Optional.ofNullable(mapper.findByNo(employeeNo));
+    }
+
+    /**
+     * 批量按工号查。空集合返回空 Map，不落到 SQL——{@code IN ()} 是语法错误。
+     *
+     * <p>五类导入都要校验工号存在，逐行查会让 P4 的 60 秒预算耗在往返上（开发 5.6.3 细节三）。
+     */
+    public Map<String, Employee> findByNos(Collection<String> employeeNos) {
+        if (employeeNos == null || employeeNos.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Employee> byNo = new LinkedHashMap<>();
+        for (Employee employee : mapper.findByNos(employeeNos)) {
+            byNo.put(employee.getEmployeeNo(), employee);
+        }
+        return byNo;
     }
 
     @Transactional
