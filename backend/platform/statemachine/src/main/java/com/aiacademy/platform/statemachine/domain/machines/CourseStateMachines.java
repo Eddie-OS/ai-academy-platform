@@ -63,18 +63,24 @@ public final class CourseStateMachines {
                         .exitingWarningScope(),
                 of("精品案例", "ARCHIVE_AFTER_CASE_PUBLISHED", "案例上架后归档", "案例归档")
                         .exitingWarningScope(),
-                // 需求表格第 15 行：立项 / 开发 / 自检 / 优化 → 关闭课程开发 → 已关闭
-                of("立项", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS),
-                of("开发", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS),
-                of("自检", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS),
-                of("优化", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS)));
+                // 需求表格第 15 行：立项 / 开发 / 自检 / 优化 → 关闭课程开发 → 已关闭。
+                // 需求 V1.3 给这一行补上了原先漏标的「退出预警范围」——目标状态与第 7 行同为终态
+                // 「已关闭」，预警行为不可能不同。
+                of("立项", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS)
+                        .exitingWarningScope(),
+                of("开发", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS)
+                        .exitingWarningScope(),
+                of("自检", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS)
+                        .exitingWarningScope(),
+                of("优化", "CLOSE_DEVELOPMENT", "关闭课程开发", "已关闭", Effect.CLOSE_RELATED_TASKS)
+                        .exitingWarningScope()));
     }
 
     /**
      * 需求 5.4.1 课程开发状态。值域「待开发 / 开发中 / 自检中」。
      *
-     * <p>需求 5.13 的「状态值数」列写 2，与本表和课程字段清单第 14 项（需求文档 1348 行，
-     * 值域明确为三值）都不一致。<b>5.13 是汇总清单，两个独立来源一致，按三值实现。</b>
+     * <p>需求 5.13 的「状态值数」列曾写 2，与本表和课程字段清单第 14 项（值域明确为三值）都不一致。
+     * 按两个独立来源一致的三值实现，<b>需求 V1.3 已把 5.13 改为 3</b>。
      */
     public static StateMachineDef developmentSubState() {
         return new SimpleStateMachineDef("课程开发子状态", OBJECT_TYPE, "课程开发状态", List.of(
