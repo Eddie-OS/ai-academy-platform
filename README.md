@@ -82,7 +82,7 @@ Remove-Item Env:HTTP_PROXY,Env:HTTPS_PROXY -ErrorAction SilentlyContinue
 
 ## 二、造数
 
-造数脚本是**后续全部阶段的基础设施，不是可选项**（开发实施文档 8.4）。
+造数脚本是**后续全部阶段的基础设施，不是可选项**（《阶段 0　工程骨架与决策关闭》范围表）。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\seed\seed.ps1
