@@ -1,7 +1,7 @@
 -- =============================================================================
 -- 造数脚本。《开发实施文档》8.4 明确：这个脚本是后续全部阶段的基础设施，不是可选项。
 --
--- 阶段 1 版本：100 条人员台账 + 1 条带完整状态停滞特征的需求。
+-- 阶段 1 版本：100 条人员台账 + 1 条带完整状态停滞特征的需求 + 1 条可导入反馈的培训场次。
 -- 阶段 0 时人员数据落在骨架示例表上，真实表建好后目标表换成 org_employee 与 biz_demand，
 -- 结构与规模不变（V1_009 已 DROP 骨架表）。
 --
@@ -73,6 +73,67 @@ VALUES ('XQ2026070001',
         3)
 ON CONFLICT (demand_no) DO NOTHING;
 
+-- -----------------------------------------------------------------------------
+-- 一条最小的培训链路：课程 → 培训计划 → 讲师 → 培训场次。
+--
+-- 造它的唯一动因是**两类反馈导入在空库下一行也导不进去**：反馈行必须挂在一个
+-- 已开课／已结束／已归档的场次上（需求 14.6 A 列）。阶段 1 还没有场次维护界面
+-- （那是阶段 2 的培训驾驶舱），因此这条链路只能由造数脚本直接写表。
+--
+-- 场次号固定为 JH2026070001-01：人工验收动作 5（匿名反馈工号列为 NULL）要拿它当入参，
+-- 随机生成的话每次验收都得先查一次库。
+--
+-- 场次状态取「已结束」而不是「已开课」：反馈通常在结束后才收齐，这也是需求 14.6
+-- 允许「已结束」的原因。用它做验收数据，顺带覆盖了这个状态分支。
+-- -----------------------------------------------------------------------------
+INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
+                        initiated_date, expect_publish_date, validity_period,
+                        main_state, publish_state, created_by, created_at, updated_at)
+VALUES ('KC2026070001', '示例课程（供培训场次挂载）', '内部端到端课程', 'AI_DEMAND', 'E0001',
+        CURRENT_DATE - 60, CURRENT_DATE - 20, '12 个月',
+        '发布', '已发布', 'operator', NOW() - INTERVAL '60 days', NOW() - INTERVAL '20 days')
+ON CONFLICT (course_no) DO NOTHING;
+
+-- E0002 是造数生成的在职讲师（person_type = 讲师）。讲师表与人员台账是两张表，
+-- 讲师身份不由人员台账的 person_type 决定（C04：台账不承载权限与身份）。
+INSERT INTO biz_lecturer (lecturer_no, lecturer_name, employee_no, source_dept,
+                          expertise_domains, teaching_direction, join_type, joined_date,
+                          training_state, trial_qualified, pool_state,
+                          created_by, created_at, updated_at)
+SELECT 'JS2026070001', e.employee_name, e.employee_no, e.dept_name,
+       '["AI需求"]'::jsonb, '内部端到端课程', '运营手动添加', CURRENT_DATE - 90,
+       '可上岗', TRUE, '在池',
+       'operator', NOW() - INTERVAL '90 days', NOW() - INTERVAL '90 days'
+FROM org_employee e
+WHERE e.employee_no = 'E0002'
+ON CONFLICT (lecturer_no) DO NOTHING;
+
+INSERT INTO biz_training_plan (plan_no, plan_name, course_id, owner_no, target_scope,
+                               plan_start_date, plan_end_date, plan_state,
+                               created_by, created_at, updated_at)
+SELECT 'PX2026070001', '示例培训计划', c.id, 'E0001', '全员',
+       CURRENT_DATE - 30, CURRENT_DATE + 30, '执行中',
+       'operator', NOW() - INTERVAL '30 days', NOW() - INTERVAL '30 days'
+FROM biz_course c
+WHERE c.course_no = 'KC2026070001'
+ON CONFLICT (plan_no) DO NOTHING;
+
+INSERT INTO biz_training_session (session_no, plan_id, session_name, course_id, lecturer_id,
+                                  training_date, start_time, end_time, duration_hours,
+                                  training_form, venue, student_scope, plan_attendee_count,
+                                  session_state, created_by, created_at, updated_at,
+                                  last_state_changed_at)
+SELECT 'JH2026070001-01', p.id, '示例培训场次（已结束，可导入反馈）', c.id, l.id,
+       CURRENT_DATE - 7, '14:00', '16:00', 2.0,
+       '线下', '培训室 A', '全员', 30,
+       '已结束', 'operator', NOW() - INTERVAL '20 days', NOW() - INTERVAL '7 days',
+       NOW() - INTERVAL '7 days'
+FROM biz_training_plan p
+         JOIN biz_course c ON c.course_no = 'KC2026070001'
+         JOIN biz_lecturer l ON l.lecturer_no = 'JS2026070001'
+WHERE p.plan_no = 'PX2026070001'
+ON CONFLICT (session_no) DO NOTHING;
+
 COMMIT;
 
 -- 造数结果自检
@@ -91,3 +152,13 @@ SELECT demand_no,
 FROM biz_demand
 WHERE deleted = FALSE
 ORDER BY demand_no;
+
+SELECT s.session_no,
+       s.session_state,
+       l.lecturer_name AS 讲师,
+       c.course_no     AS 课程
+FROM biz_training_session s
+         JOIN biz_lecturer l ON l.id = s.lecturer_id
+         JOIN biz_course c ON c.id = s.course_id
+WHERE s.deleted = FALSE
+ORDER BY s.session_no;

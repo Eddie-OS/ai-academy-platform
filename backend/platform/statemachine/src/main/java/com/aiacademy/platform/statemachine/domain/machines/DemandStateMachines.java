@@ -90,13 +90,18 @@ public final class DemandStateMachines {
      *
      * <p>归档的前置「业务验收状态=验收通过」是 C9 三处例外之一，硬阻断：
      * 未验收通过的需求点归档要被拒绝并提示「该需求尚未业务验收通过」（验收点 A1-8）。
+     *
+     * <p><b>源表第 1 行的前置「出口一：解决方案状态=已发布／出口二：需求开发状态=已上线」
+     * 刻意没有实现</b>：C9 把本期允许的业务前置校验限定为三处，并明确「除此之外开发不得自行
+     * 添加任何前置校验」，而这一条不在那三处里。需求 5.2.5 与 C9 在这里对不上，
+     * 已记入 {@code docs/文档待修清单.md} 的 D-7 待业务方裁决；在裁决之前按 C9 办。
      */
     public static StateMachineDef deliveryMark() {
         return new SimpleStateMachineDef("需求交付标记", OBJECT_TYPE, "需求交付标记", Set.of("已归档"), List.of(
                 of(null, "MARK_DELIVERED", "标记交付使用", "已交付",
                         Effect.SET_DELIVERED_AT),
                 of("已交付", "ARCHIVE", "归档", "已归档",
-                        Effect.REQUIRE_ACCEPTANCE_PASSED)
+                        Effect.REQUIRE_ACCEPTANCE_PASSED, Effect.SET_ARCHIVED_AT)
                         .exitingWarningScope()));
     }
 

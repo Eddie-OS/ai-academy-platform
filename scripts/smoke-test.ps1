@@ -7,7 +7,11 @@
 #
 # 1C 起断言对象从骨架示例接口改为导入中心与附件接口（骨架表与四层代码已由 V1_009 删除）。
 # 选它们的理由：附件的「申请上传 → 传分片 → 合并」是 JSON + multipart 都覆盖、且真的往
-# sys_attachment 写行的最短写路径，不需要在 PowerShell 里现造 .xlsx。
+# sys_attachment 写行的最短写路径。
+#
+# 阶段 1 人工验收（阶段文档第六章动作 2、3、5）追加了三段导入断言，需要真的 .xlsx：
+# 做法是下载后端模板再往里插数据行，见 New-DataFile。E1-7 那段依赖造数脚本写的培训场次，
+# 远端栈上查不到场次时报 SKIP 而不是 FAIL。
 
 $ErrorActionPreference = 'Stop'
 
@@ -45,6 +49,30 @@ function ConvertTo-Text($content) {
     return $content
 }
 
+# 响应头是 application/json 不带 charset（Spring 默认就不带），PowerShell 5.1 于是按
+# ISO-8859-1 解码，「人员」变成「äººå」。断言里凡是比中文的全会假红，而假红比不测更糟：
+# 下次真出问题时没人会当回事。
+#
+# 成功响应直接拿 RawContentStream 的原始字节按 UTF-8 解。
+function Read-Utf8Body($response) {
+    $stream = $response.RawContentStream
+    if (-not $stream) { return ConvertTo-Text $response.Content }
+    $stream.Position = 0
+    $reader = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+    $text = $reader.ReadToEnd()
+    $stream.Position = 0
+    return $text
+}
+
+# 4xx/5xx 时响应流已被 Invoke-WebRequest 读空，只剩 ErrorDetails 里那个已经解错的字符串，
+# 拿不到原始字节。ISO-8859-1 是 0x00–0xFF 的一对一映射，把字符按它转回字节再按 UTF-8 重解
+# 即可无损还原。仅在响应头确实没声明 charset 时才做，声明了的话这么转反而会转坏。
+function Repair-Utf8($text, $contentType) {
+    if (-not $text -or ($contentType -and $contentType -match 'charset')) { return $text }
+    return [System.Text.Encoding]::UTF8.GetString(
+        [System.Text.Encoding]::GetEncoding(28591).GetBytes($text))
+}
+
 function Get-CsrfHeaders($session) {
     $headers = @{}
     $token = $session.Cookies.GetCookies($base) | Where-Object { $_.Name -eq 'XSRF-TOKEN' }
@@ -55,10 +83,13 @@ function Get-CsrfHeaders($session) {
 # 4xx/5xx 时 Invoke-WebRequest 已把响应流读空，响应体只在 ErrorDetails 里，
 # 因此优先取它，取不到再退回读流。
 function Read-ErrorResponse($errorRecord) {
-    $raw = $errorRecord.ErrorDetails.Message
     $resp = $errorRecord.Exception.Response
+    # 三元运算符是 PowerShell 7 才有的，5.1 上只能这么写
+    $contentType = if ($resp) { $resp.ContentType } else { $null }
+    $raw = Repair-Utf8 $errorRecord.ErrorDetails.Message $contentType
     if (-not $raw -and $resp) {
-        $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
+        $reader = New-Object System.IO.StreamReader($resp.GetResponseStream(),
+            [System.Text.Encoding]::UTF8)
         $raw = $reader.ReadToEnd()
     }
     return @{
@@ -87,13 +118,120 @@ function Invoke-Api($session, $method, $path, $body) {
         $response = Invoke-WebRequest @params
         return @{
             Status  = [int]$response.StatusCode
-            Body    = (ConvertTo-Text $response.Content | ConvertFrom-Json)
+            Body    = (Read-Utf8Body $response | ConvertFrom-Json)
             TraceId = $response.Headers['X-Trace-Id']
             Bytes   = $response.Content
         }
     } catch [System.Net.WebException] {
         return Read-ErrorResponse $_
     }
+}
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+# xlsx 是 zip 容器，PowerShell 5.1 没有 Excel 库，因此**不自己造 xlsx，而是往后端下发的模板里
+# 追加数据行**：解开 zip、往 sheet1.xml 的 </sheetData> 前插 <row>、再压回去。
+#
+# 这样做不只是省事，它还消掉了一个失败模式：手写的表头一旦与模板差一个字，
+# 上传就会被判「表头不一致」，而这个错看起来像是被测功能坏了，不像是脚本自己写错了。
+#
+# 模板第 1 行是表头、第 2 行是 [示例] 行（规则 I2），所以数据从第 3 行起——
+# 这正是运营「下载模板、在示例行下面接着填」的行号，错误报告里的行号能直接拿来核对。
+function New-DataFile($templateBytes, $rows) {
+    # 只传一行时 PowerShell 会把 @(@('a','b')) 拍平成 @('a','b')，于是「1 行 7 列」被当成
+    # 「7 行 1 列」，导入端报出 28 个必填错。收到扁平数组就还原成单行
+    if ($rows.Count -gt 0 -and $rows[0] -isnot [System.Array]) { $rows = @(, $rows) }
+
+    $path = Join-Path $env:TEMP ('smoke-' + [Guid]::NewGuid().ToString('N') + '.xlsx')
+    [System.IO.File]::WriteAllBytes($path, $templateBytes)
+
+    $zip = [System.IO.Compression.ZipFile]::Open($path, 'Update')
+    try {
+        $entry = $zip.GetEntry('xl/worksheets/sheet1.xml')
+        $stream = $entry.Open()
+        $reader = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+        $xml = $reader.ReadToEnd()
+        $reader.Dispose()
+
+        $builder = New-Object System.Text.StringBuilder
+        $rowNo = 3
+        foreach ($row in $rows) {
+            [void]$builder.Append("<row r=`"$rowNo`">")
+            for ($i = 0; $i -lt $row.Count; $i++) {
+                $text = [string]$row[$i]
+                if ($text -eq '') { continue }   # 空单元格整个不写，解析端按空值处理
+                $column = [char](65 + $i)
+                $escaped = [System.Security.SecurityElement]::Escape($text)
+                [void]$builder.Append("<c r=`"$column$rowNo`" t=`"inlineStr`"><is><t>$escaped</t></is></c>")
+            }
+            [void]$builder.Append('</row>')
+            $rowNo++
+        }
+
+        # 用 String.Replace 而不是 -replace：插入的 XML 里若出现 $ 会被正则替换当成分组引用
+        $xml = $xml.Replace('</sheetData>', $builder.ToString() + '</sheetData>')
+        $xml = [regex]::Replace($xml, '<dimension ref="A1:([A-Z]+)\d+"\s*/>',
+            ('<dimension ref="A1:$1' + ($rowNo - 1) + '"/>'))
+
+        $stream = $entry.Open()
+        $stream.SetLength(0)
+        $writer = New-Object System.IO.StreamWriter($stream, (New-Object System.Text.UTF8Encoding($false)))
+        $writer.Write($xml)
+        $writer.Dispose()
+    } finally {
+        $zip.Dispose()
+    }
+
+    $bytes = [System.IO.File]::ReadAllBytes($path)
+    Remove-Item $path -Force
+    return $bytes
+}
+
+# 读回 xlsx（只用来核对错误报告的内容）。EasyExcel 写出来的是 inlineStr，
+# 但共享字符串的分支也一并处理：换个写法就读不出来的读取器，验收时会误报成功能坏了。
+function Read-XlsxRows($bytes) {
+    $path = Join-Path $env:TEMP ('smoke-' + [Guid]::NewGuid().ToString('N') + '.xlsx')
+    [System.IO.File]::WriteAllBytes($path, $bytes)
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($path)
+    try {
+        $shared = @()
+        $sharedEntry = $zip.GetEntry('xl/sharedStrings.xml')
+        if ($sharedEntry) {
+            $reader = New-Object System.IO.StreamReader($sharedEntry.Open(), [System.Text.Encoding]::UTF8)
+            $sharedXml = [xml]$reader.ReadToEnd()
+            $reader.Dispose()
+            if ($sharedXml.sst.si) { $shared = @($sharedXml.sst.si | ForEach-Object { [string]$_.t }) }
+        }
+
+        $reader = New-Object System.IO.StreamReader($zip.GetEntry('xl/worksheets/sheet1.xml').Open(),
+            [System.Text.Encoding]::UTF8)
+        $sheet = [xml]$reader.ReadToEnd()
+        $reader.Dispose()
+
+        $rows = @()
+        foreach ($row in @($sheet.worksheet.sheetData.row)) {
+            $cells = @()
+            foreach ($cell in @($row.c)) {
+                if ($cell.t -eq 'inlineStr') {
+                    $cells += [string]$cell.'is'.t
+                } elseif ($cell.t -eq 's') {
+                    $cells += [string]$shared[[int]$cell.v]
+                } else {
+                    $cells += [string]$cell.v
+                }
+            }
+            $rows += , $cells
+        }
+        return $rows
+    } finally {
+        $zip.Dispose()
+        Remove-Item $path -Force
+    }
+}
+
+# 上传一个文件走第一步校验，返回 ImportPreview。
+function Invoke-Upload($session, $type, $fileName, $bytes) {
+    return Invoke-Multipart $session 'POST' "/api/imports/$type/uploads" $fileName $bytes
 }
 
 # 二进制下载（模板、原文件、错误报告）。不解析 JSON，只把字节和响应头带回来。
@@ -137,7 +275,7 @@ function Invoke-Multipart($session, $method, $path, $fileName, $bytes) {
             -ContentType "multipart/form-data; boundary=$boundary" -Body $stream.ToArray()
         return @{
             Status  = [int]$response.StatusCode
-            Body    = (ConvertTo-Text $response.Content | ConvertFrom-Json)
+            Body    = (Read-Utf8Body $response | ConvertFrom-Json)
             TraceId = $response.Headers['X-Trace-Id']
         }
     } catch [System.Net.WebException] {
@@ -271,6 +409,161 @@ foreach ($type in @('people', 'attendance', 'lecturer', 'attendee', 'training-fe
     Assert "$type 模板是合法 xlsx 且带 RFC 5987 中文文件名" `
         ($isXlsx -and $template.Disposition -match "filename\*=UTF-8''") `
         "status=$($template.Status) disposition=$($template.Disposition)"
+}
+
+Write-Host ''
+Write-Host '规则 I3 I4  先校验后写入：错误报告指出行号与原因（人工验收动作 2）' -ForegroundColor Cyan
+
+# 工号带运行时间戳：人员导入按工号 upsert，复用同一个工号会让下一次运行走 UPDATE 分支，
+# 断言的语义就悄悄变了（本该验「新增 2 行」，实际验的是「更新 2 行」）
+$runTag = (Get-Date).ToString('MMddHHmmss')
+$noA = "ACC$runTag-A"
+$noB = "ACC$runTag-B"
+$noC = "ACC$runTag-C"
+
+$peopleTemplate = Invoke-Download $operator.Session '/api/imports/templates/people'
+
+# 第 4 行两个错（姓名空、人员类型非法），第 5 行一个错（邮箱格式）。
+# 三个错分布在两行上，才能验出报告是逐条列而不是每行只报第一条
+$badFile = New-DataFile $peopleTemplate.Bytes @(
+    @($noA, '验收甲', '客服中心', '高级工程师', 'acc-a@example.com', '两者', '在职'),
+    @($noB, '', '客服中心', '', '', '教员', '在职'),
+    @($noC, '验收丙', '客服中心', '', 'not-an-email', '学员', '在职')
+)
+$badUpload = Invoke-Upload $operator.Session 'people' '人员导入-含错行.xlsx' $badFile
+$preview = $badUpload.Body.data
+Assert '含错行的文件上传后不允许确认（规则 I3）' `
+    ($badUpload.Status -eq 200 -and $preview.canConfirm -eq $false -and $preview.errorCount -eq 3) `
+    "status=$($badUpload.Status) canConfirm=$($preview.canConfirm) errorCount=$($preview.errorCount)"
+
+function Find-Problem($problems, $rowNo, $column) {
+    return $problems | Where-Object { $_.rowNo -eq $rowNo -and $_.column -eq $column } | Select-Object -First 1
+}
+$emptyName = Find-Problem $preview.errors 4 '姓名'
+$badType = Find-Problem $preview.errors 4 '人员类型'
+$badEmail = Find-Problem $preview.errors 5 '邮箱'
+Assert '错误定位到第 4 行「姓名」，原因是必填项为空' `
+    ($emptyName -and $emptyName.reason -eq '必填项不能为空') "problem=$($emptyName | ConvertTo-Json -Compress)"
+Assert '错误定位到第 4 行「人员类型」，原因给出可选值且带上原值' `
+    ($badType -and $badType.reason -match '只能填' -and $badType.value -eq '教员') `
+    "problem=$($badType | ConvertTo-Json -Compress)"
+Assert '错误定位到第 5 行「邮箱」，同一次上传里两行的错都报出来' `
+    ($badEmail -and $badEmail.reason -match '邮箱格式') "problem=$($badEmail | ConvertTo-Json -Compress)"
+
+$report = Invoke-Download $operator.Session "/api/imports/$($preview.batchNo)/error-report"
+$reportRows = Read-XlsxRows $report.Bytes
+Assert '错误报告可下载，表头是「行号 列名 错误值 级别 错误原因」（规则 I4）' `
+    ($report.Status -eq 200 -and ($reportRows[0] -join ',') -eq '行号,列名,错误值,级别,错误原因') `
+    "header=$($reportRows[0] -join ',')"
+$reportedType = $reportRows | Where-Object { $_[0] -eq '4' -and $_[1] -eq '人员类型' } | Select-Object -First 1
+Assert '报告里第 4 行「人员类型」一行齐全：行号、列名、原值、级别、原因' `
+    ($reportedType -and $reportedType[2] -eq '教员' -and $reportedType[3] -eq '错误' -and $reportedType[4] -match '只能填') `
+    "row=$($reportedType -join ' | ')"
+Assert '报告行数 = 表头 + 3 条错误，没有把正确行也列进去' `
+    ($reportRows.Count -eq 4) "count=$($reportRows.Count)"
+
+$confirmBad = Invoke-Api $operator.Session 'POST' "/api/imports/$($preview.batchNo)/confirmation" $null
+Assert '校验失败的批次不能确认写入（规则 I3 硬阻断）' `
+    ($confirmBad.Status -ge 400 -and $confirmBad.Body.code -eq 'IMPORT_VALIDATION_FAILED') `
+    "status=$($confirmBad.Status) code=$($confirmBad.Body.code)"
+
+Write-Host ''
+Write-Host 'E1-6  整批撤销后数据回到原状（人工验收动作 3）' -ForegroundColor Cyan
+
+# 第一批：新增两个人。撤销它验的是 INSERT 行的回滚（逻辑删除）
+$insertFile = New-DataFile $peopleTemplate.Bytes @(
+    @($noA, '验收甲', '客服中心', '高级工程师', 'acc-a@example.com', '两者', '在职'),
+    @($noB, '验收乙', '客服中心', '专员', 'acc-b@example.com', '学员', '在职')
+)
+$insertUpload = Invoke-Upload $operator.Session 'people' '人员导入-新增.xlsx' $insertFile
+$batchInsert = $insertUpload.Body.data
+Assert '干净文件校验通过，预览显示新增 2 行、更新 0 行' `
+    ($batchInsert.canConfirm -eq $true -and $batchInsert.insertRows -eq 2 -and $batchInsert.updateRows -eq 0) `
+    "preview=$($batchInsert | ConvertTo-Json -Compress)"
+
+$confirmInsert = Invoke-Api $operator.Session 'POST' "/api/imports/$($batchInsert.batchNo)/confirmation" $null
+Assert '确认写入后批次是「已写入 / 成功」' `
+    ($confirmInsert.Status -eq 200 -and $confirmInsert.Body.data.batchState -eq '已写入' `
+        -and $confirmInsert.Body.data.importResult -eq '成功') `
+    "batch=$($confirmInsert.Body.data | ConvertTo-Json -Compress)"
+
+$confirmAgain = Invoke-Api $operator.Session 'POST' "/api/imports/$($batchInsert.batchNo)/confirmation" $null
+Assert '重复确认返回 DUPLICATE_SUBMIT（规则 I8 幂等）' `
+    ($confirmAgain.Status -ge 400 -and $confirmAgain.Body.code -eq 'DUPLICATE_SUBMIT') `
+    "status=$($confirmAgain.Status) code=$($confirmAgain.Body.code)"
+
+# 第二批：把甲的姓名与部门改掉。撤销它验的是 UPDATE 行的回滚——
+# 这是撤销里真正难的一半：逻辑删除只要置个标记，还原前值要靠快照里的 JSONB
+$updateFile = New-DataFile $peopleTemplate.Bytes @(
+    @($noA, '验收甲改名', '培训部', '高级工程师', 'acc-a@example.com', '两者', '在职')
+)
+$updateUpload = Invoke-Upload $operator.Session 'people' '人员导入-改名.xlsx' $updateFile
+$batchUpdate = $updateUpload.Body.data
+Assert '同一工号再导入一次被识别为更新而不是新增' `
+    ($batchUpdate.canConfirm -eq $true -and $batchUpdate.updateRows -eq 1 -and $batchUpdate.insertRows -eq 0) `
+    "preview=$($batchUpdate | ConvertTo-Json -Compress)"
+$confirmUpdate = Invoke-Api $operator.Session 'POST' "/api/imports/$($batchUpdate.batchNo)/confirmation" $null
+Assert '改名批次写入成功' ($confirmUpdate.Status -eq 200) "status=$($confirmUpdate.Status)"
+
+$revokeUpdate = Invoke-Api $operator.Session 'POST' "/api/imports/$($batchUpdate.batchNo)/revocation" $null
+Assert '撤销改名批次：回滚 1 行、跳过 0 行' `
+    ($revokeUpdate.Status -eq 200 -and $revokeUpdate.Body.data.revokedRows -eq 1 `
+        -and $revokeUpdate.Body.data.skippedRows -eq 0) `
+    "result=$($revokeUpdate.Body.data | ConvertTo-Json -Compress)"
+
+$revokeTwice = Invoke-Api $operator.Session 'POST' "/api/imports/$($batchUpdate.batchNo)/revocation" $null
+Assert '已撤销的批次不可重复撤销（规则 RB4）' `
+    ($revokeTwice.Status -ge 400 -and $revokeTwice.Body.code -eq 'DUPLICATE_SUBMIT') `
+    "status=$($revokeTwice.Status) code=$($revokeTwice.Body.code)"
+
+$revokeInsert = Invoke-Api $operator.Session 'POST' "/api/imports/$($batchInsert.batchNo)/revocation" $null
+Assert '撤销新增批次：2 行全部回滚' `
+    ($revokeInsert.Status -eq 200 -and $revokeInsert.Body.data.revokedRows -eq 2 `
+        -and $revokeInsert.Body.data.skippedRows -eq 0) `
+    "result=$($revokeInsert.Body.data | ConvertTo-Json -Compress)"
+
+$revokedBatch = Invoke-Api $operator.Session 'GET' "/api/imports/$($batchInsert.batchNo)" $null
+Assert '撤销后批次结果标记为「已撤销」，留痕不删（规则 RB5）' `
+    ($revokedBatch.Body.data.importResult -eq '已撤销') `
+    "importResult=$($revokedBatch.Body.data.importResult)"
+
+$sourceAfterRevoke = Invoke-Download $operator.Session "/api/imports/$($batchInsert.batchNo)/source-file"
+Assert '撤销后原文件仍可下载（改完重导是常态）' `
+    ($sourceAfterRevoke.Status -eq 200 -and $sourceAfterRevoke.Bytes[0] -eq 0x50) `
+    "status=$($sourceAfterRevoke.Status)"
+
+# 注意：本节只验到 HTTP 这一层。「撤销后库里真的回到原状」必须直接查表才算验过，
+# 而查表要连库，这个脚本要能打远端栈，所以不在这里连。
+# 查库那一步与它的实际输出见 docs/E1-阶段1人工验收报告.md 动作 3。
+
+Write-Host ''
+Write-Host 'E1-7  匿名反馈不落身份信息（人工验收动作 5 的导入侧）' -ForegroundColor Cyan
+
+$feedbackTemplate = Invoke-Download $operator.Session '/api/imports/templates/training-feedback'
+$sessionNo = 'JH2026070001-01'   # 造数脚本固定生成的已结束场次
+$feedbackFile = New-DataFile $feedbackTemplate.Bytes @(
+    @($sessionNo, '', '5', "匿名反馈-$runTag"),
+    @($sessionNo, 'E0001', '4', "实名反馈-$runTag")
+)
+$feedbackUpload = Invoke-Upload $operator.Session 'training-feedback' '学员反馈导入.xlsx' $feedbackFile
+$feedbackPreview = $feedbackUpload.Body.data
+
+if ($feedbackUpload.Status -eq 200 -and $feedbackPreview.canConfirm -eq $true) {
+    Assert '工号留空的反馈行校验通过（选填列，留空即匿名）' `
+        ($feedbackPreview.insertRows -eq 2) "preview=$($feedbackPreview | ConvertTo-Json -Compress)"
+    Assert '追加语义提示已给出（规则 FB5：已有 N 条、本次追加 M 条）' `
+        (($feedbackPreview.notes -join ' ') -match '已有 \d+ 条反馈，本次将追加 \d+ 条') `
+        "notes=$($feedbackPreview.notes -join ' / ')"
+    $confirmFeedback = Invoke-Api $operator.Session 'POST' "/api/imports/$($feedbackPreview.batchNo)/confirmation" $null
+    Assert '匿名 + 实名两行一起写入成功' `
+        ($confirmFeedback.Status -eq 200 -and $confirmFeedback.Body.data.importResult -eq '成功') `
+        "status=$($confirmFeedback.Status)"
+    Write-Host "  批次号 $($feedbackPreview.batchNo)，用它查库核对 submitter_no 是否为 NULL" -ForegroundColor DarkGray
+} else {
+    # 场次是造数脚本写的，不是导入进来的。远端栈上没造过数时这里必然过不去，
+    # 报「跳过」而不是「失败」——否则每次打生产栈都会红一片，红灯就不再有意义
+    Write-Host "  SKIP  场次 $sessionNo 不存在，先跑 scripts\seed\seed.ps1 造数（本地）" -ForegroundColor Yellow
+    Write-Host "        服务端返回：$($feedbackPreview.errors | ConvertTo-Json -Compress)" -ForegroundColor DarkGray
 }
 
 Write-Host ''

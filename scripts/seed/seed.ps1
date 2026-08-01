@@ -25,4 +25,5 @@ docker exec -e PGCLIENTENCODING=UTF8 $container `
     psql -U aiacademy -d aiacademy -v ON_ERROR_STOP=1 -f /tmp/seed.sql
 if ($LASTEXITCODE -ne 0) { throw '造数失败' }
 
-Write-Host '造数完成：org_employee 100 条（其中 20 条离职）+ biz_demand 1 条（状态停滞 12 天）。'
+Write-Host ('造数完成：org_employee 100 条（其中 20 条离职）+ biz_demand 1 条（状态停滞 12 天）' +
+    ' + 培训链路 1 套（课程／计划／讲师／场次 JH2026070001-01，已结束）。')

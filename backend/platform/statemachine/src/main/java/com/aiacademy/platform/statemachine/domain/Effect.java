@@ -63,6 +63,17 @@ public final class Effect {
     /** 需求归档的前置：业务验收状态必须为「验收通过」。C9 三处例外之一，硬阻断。 */
     public static final String REQUIRE_ACCEPTANCE_PASSED = "REQUIRE_ACCEPTANCE_PASSED";
 
+    /**
+     * 5.2.5「前置与终态」第 2 条：归档时写归档时间。
+     *
+     * <p>交付侧一直有 {@link #SET_DELIVERED_AT}，归档侧却没有对称的码——这是阶段 1 人工验收
+     * 逐行对着需求 5.2.5 看时发现的漏项（那张表是 16 张里唯一不进 CSV、机器比不到的一张）。
+     *
+     * <p>副作用码是给阶段 2 实现方的清单。缺这一个的表现是「归档成功了，但归档时间是空的」：
+     * 字段清单第 36 项要求它自动写入，漏写不报任何错，只会在需要按归档时间统计时才暴露。
+     */
+    public static final String SET_ARCHIVED_AT = "SET_ARCHIVED_AT";
+
     // --- 课程（5.3～5.6） --------------------------------------------------
 
     /**
