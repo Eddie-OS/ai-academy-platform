@@ -1,0 +1,23 @@
+/*
+ * 头像。尺寸由 --avatar-size 传入，取值限于 2.4 的 5 档（类型 AvatarSize 已卡住）。
+ *
+ * 字号取尺寸的 45%：24px 档得 11px、40px 档得 18px、56px 档得 25px ——
+ * 写死一个字号的话，24 档的字快顶满圆、56 档的字缩在正中间像个点。
+ */
+
+.v2-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--avatar-size);
+  box-sizing: border-box;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: calc(var(--avatar-size) * 0.45);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--avatar-size);
+  /* 姓名首字是汉字，字面本身带边距，居中靠 flex 而不是行高 */
+  user-select: none;
+}

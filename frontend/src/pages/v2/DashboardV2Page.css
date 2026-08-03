@@ -1,0 +1,720 @@
+/*
+ * P01 总看板（《设计文档 V2.0》第 5 章）。
+ *
+ * 九个区域的坐标来自文档 5「区域坐标」表。正文左右边界由壳层的 --content-x 保证
+ * （侧栏 218 + 24 = 242，右侧 1586 - 24 = 1562，宽正好 1320），
+ * 因此这里只需要管纵向位置与每行的列宽。
+ *
+ * 行间距是 16／19／16／15 四个不同值，不是一个统一的 gap。它们是从设计稿实测出来的，
+ * L1 容差只有 2px，用统一值会让 R4 那一行差 4px 直接失败。所以逐行写死。
+ */
+
+@import './panel.css';
+
+.dash {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-row {
+  display: flex;
+  gap: 11px;
+}
+
+/*
+ * 两个栅格区域都写 grid-template-rows: 1fr，这一行不是多余的。
+ *
+ * 不写的话行高是 auto，而 auto 行的高度取内容的最小尺寸 —— 容器上的 height 管不住它。
+ * 入口卡里的 <img> 会按<b>自然高度</b>参与这个计算（`flex:1` 与 `min-height:0` 都压不下去，
+ * 因为容器自身没有确定高度可分配），于是卡片长到 295px、把 216px 的区域撑破 79px，
+ * 底部三个统计数落到下一行区域上、被后绘制的白底面板盖住。
+ *
+ * <p>这个故障不报错也不影响区域断言：区域元素自己的 boundingBox 仍是 216px。
+ * 现在由 expectContentWithinRegions 兜住。
+ */
+.dash-kpis,
+.dash-entries {
+  display: grid;
+  grid-template-rows: 1fr;
+  gap: var(--grid-gap);
+}
+
+/* R3 六张 KPI：y=86 h=124。顶栏 70 + 16 = 86 */
+.dash-kpis {
+  grid-template-columns: repeat(6, 1fr);
+  height: 124px;
+  margin-top: 16px;
+}
+
+/* R4 五张业务入口卡：y=229 h=216。R3 结束于 210，+19 = 229 */
+.dash-entries {
+  grid-template-columns: repeat(5, 1fr);
+  height: 216px;
+  margin-top: 19px;
+}
+
+/* R5+R6：y=461 h=282。R4 结束于 445，+16 = 461 */
+.dash-row-mid {
+  height: 282px;
+  margin-top: 16px;
+}
+
+/* R7+R8+R9：y=758 h=211。R5 结束于 743，+15 = 758 */
+.dash-row-bottom {
+  height: 211px;
+  margin-top: 15px;
+  /* R7 807 + 13 + R8 239 + 11 + R9 250 = 1320。两个间距不等宽，同样是实测值 */
+  gap: 0;
+}
+
+/*
+ * 产品模式：四条横带按设计稿的行高比例分掉整个窗口高度。
+ *
+ * <h3>为什么是 flex-basis: 0 而不是 flex: 1 1 auto</h3>
+ *
+ * 曾经写成 `flex: 1 1 auto` + `height: auto`，页面下方的空白没消掉，反而把最后一行顶出了视口。
+ * 原因在 basis：`auto` 意味着基准取内容测量值，而入口卡里的插画按<b>自然高度</b>参与测量，
+ * 一张 800px 高的插画让 R4 的基准比整个视口还高，四条横带的基准之和远超可用高度，
+ * flex 只能按 shrink 收，收出来的结果既不是设计比例也装不下。
+ *
+ * basis 写 0 之后基准全部归零，<b>整个高度</b>按 grow 的比值分配 ——
+ * 比值就用设计稿的四个行高（124/216/282/211），于是任何窗口高度下四条横带的相对比例
+ * 都和设计稿一致，插画跟着卡片等比放大而不是抢占别人的空间。
+ *
+ * min-height 是下限：视口比设计稿矮时横带不再压缩，改由正文区滚动。
+ *
+ * 回归模式（html[data-regression]）一点都不改：L1 断言要逐个比对区域的实测高度。
+ */
+html:not([data-regression]) .dash {
+  flex: 1;
+  min-height: 0;
+}
+
+html:not([data-regression]) .dash-kpis {
+  height: auto;
+  flex: 124 1 0;
+  min-height: 124px;
+}
+
+html:not([data-regression]) .dash-entries {
+  height: auto;
+  flex: 216 1 0;
+  min-height: 216px;
+}
+
+html:not([data-regression]) .dash-row-mid {
+  height: auto;
+  flex: 282 1 0;
+  min-height: 282px;
+}
+
+html:not([data-regression]) .dash-row-bottom {
+  height: auto;
+  flex: 211 1 0;
+  min-height: 211px;
+  /* 最后一行不贴视口底边 */
+  margin-bottom: var(--space-v2-6);
+}
+
+/*
+ * 五个面板的宽度写成<b>正文宽度的比例</b>而不是像素。
+ *
+ * 写死像素时只有 `flex:1` 的那一格会随窗口变宽，同一页里一部分横带到边、
+ * 一部分停在 1320px，右边露出一大片空底。
+ *
+ * <h3>为什么是 calc 百分比而不是 flex-grow 比值</h3>
+ *
+ * `flex: 499 1 0` 看起来等价，实际不是：flex-basis 的 0 在 `box-sizing: border-box` 下
+ * 仍被内边距与边框垫高（预警区 12×2 + 1×2 = 26px），分配基准因此带了一截常量，
+ * 分出来的宽度是 519 而不是 499 —— 多出的 20px 从邻居待办清单里挤走，
+ * 「业务对象」列变成 144px。误差还会随内边距的改动漂移。
+ *
+ * 百分比 basis 直接以容器内容宽为基准，与自身内边距无关。减去的 11px 是两个面板之间的
+ * 固定间距，1309 是设计稿两个宽度之和 —— 于是正文 1320px 时算回 499.0 与 810.0，
+ * 任何其他宽度下比例不变。
+ *
+ * min-width 必须写 0：它的默认值 auto 让 flex 项不能缩到 min-content 以下，
+ * 三张预警卡的 min-content 合计 519px，会重新把上面那 20px 的偏差带回来。
+ */
+.dash-warning {
+  flex: 0 1 calc((100% - 11px) * 499 / 1309);
+  min-width: 0;
+  /* 三张卡里各有七块内容（色名／数字／副文案／示例对象标题／三条样例／更多／催办），
+     默认 16px 内边距下 282px 装不满七块，收到 12px 后留出 29px 余量 */
+  padding: var(--card-pad-compact);
+}
+
+/*
+ * 待办清单的表格是通栏的，不吃卡片左右内边距。
+ *
+ * 依据是文档 5「内部几何」自己的算术：七列 90+165+135+130+80+100+110 = 810，
+ * 正好等于 R6 的区域宽度。也就是说列宽是按卡片外沿量的，
+ * 表格两侧留 16px 内边距的话，可伸缩的「业务对象」列会被挤掉 32px。
+ */
+/* 选择器带上 .panel 是为了压过下面 .panel 的 padding —— 两者同权重时后写的赢，
+   而 .panel 定义在本文件更下方。用 !important 也能压，但那会让下一个人无法再覆盖 */
+.panel.dash-worklist {
+  flex: 0 1 calc((100% - 11px) * 810 / 1309);
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* 标题与表头各收紧一档：282px 的面板要放下标题 + 表头 + 五行，
+   按默认间距算超出约 8px，第五行会被 overflow:hidden 裁掉半行 */
+.dash-worklist .panel-head {
+  margin-bottom: var(--space-v2-2);
+  padding: 0 var(--card-pad);
+}
+
+.dash-worklist .worklist th {
+  padding-bottom: var(--space-v2-1);
+}
+
+/* 行内边距取 4px 紧凑档。默认的 8px 下五行合计比 282px 的面板高出十几像素，
+   第五行会被裁掉半行 —— 这是「有第五行但看不全」，比干脆只显示四行更糟。
+   4px 是间距标尺上的一档，不是为了凑数临时算出来的 6px */
+.dash-worklist .worklist td {
+  padding: var(--space-v2-1) 0;
+}
+
+/* 底部三格同理。减去的 24px 是 13 + 11 两个面板间距，1296 是三个设计宽度之和 */
+.dash-efficiency {
+  flex: 0 1 calc((100% - 24px) * 807 / 1296);
+  min-width: 0;
+  margin-right: 13px;
+  /* 四张图各带纵轴刻度与横轴日期，比只画趋势线时高出约 30px，内边距收一档让出空间 */
+  padding: var(--card-pad-compact);
+}
+
+.dash-value {
+  flex: 0 1 calc((100% - 24px) * 239 / 1296);
+  min-width: 0;
+  margin-right: 11px;
+  padding: var(--card-pad-compact);
+}
+
+/*
+ * 239px 的卡头要同时放「业务价值」16px、「（人工填报）」11px、「查看明细」14px，
+ * 按默认字号合计约 216px（含两处 8px 间距），比 215px 的内容宽多 1px，
+ * 结果是标题折成两行、把三条数值整体往下顶出卡外。
+ * 动作降到 11px 并去掉箭头间距后合计 196px。
+ */
+.dash-value .panel-head {
+  gap: var(--space-v2-1);
+  margin-bottom: var(--space-v2-2);
+}
+
+.dash-value .panel-action {
+  font-size: 11px;
+}
+
+.dash-value .panel-note {
+  margin-right: var(--space-v2-1);
+}
+
+.dash-welcome {
+  flex: 0 1 calc((100% - 24px) * 250 / 1296);
+  min-width: 0;
+  padding: var(--card-pad-compact);
+}
+
+/* 面板外框（.panel / .panel-head / .panel-title / .panel-action）见 panel.css，九页共用 */
+
+/* ===========================================================================
+ * R3 KPI 卡（2.4：图标底板 44×44，KPI 数字 28/36/600）
+ *
+ * 高度算术：内边距 12×2 + 顶行 44（图标底板决定）+ 数字 36 + 环比 18 = 122 ≤ 124。
+ * 用 16px 内边距会变成 130 而超出 124，所以这一行收到紧凑档。
+ * =========================================================================== */
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* 卡片随窗口变高时三块内容摊开，而不是挤在顶部、下方空一片。
+     设计稿高度（124px）下三块正好占满 122px，space-between 不产生位移 */
+  justify-content: space-between;
+  padding: var(--card-pad-compact);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+}
+
+.kpi-plate {
+  display: flex;
+  flex: 0 0 var(--kpi-icon-plate);
+  align-items: center;
+  justify-content: center;
+  width: var(--kpi-icon-plate);
+  height: var(--kpi-icon-plate);
+  border-radius: var(--radius-control);
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.kpi-label {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  white-space: nowrap;
+}
+
+.kpi-value {
+  color: var(--text-primary);
+  font-size: var(--type-kpi-size);
+  font-weight: var(--type-kpi-weight);
+  line-height: var(--type-kpi-line);
+  /* 3.3：表格与指标数字必须 tabular-nums，否则 1,268 与 842 的字宽不等、右边界参差 */
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-foot {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-1);
+  white-space: nowrap;
+}
+
+.kpi-delta {
+  color: var(--success);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/* 环比的比较基准。灰色小字而不是与百分比同色 ——「较上周期」是量词不是数据，
+   同色会让人以为它也是指标的一部分 */
+.kpi-baseline {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: var(--type-caption-line);
+}
+
+/* ===========================================================================
+ * R4 业务入口卡
+ *
+ * 高度算术：内边距 16×2 + 头 22 + 插画（伸缩）+ 底部三数 42 = 216。
+ * =========================================================================== */
+
+.entry {
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  /* 兜第二层：即使哪天行高又变回 auto，也让溢出被裁在卡内而不是盖到下一个区域上。
+     裁掉仍是错的，但「卡里的东西被截了」看得出来，「内容跑到别的面板底下」看不出来 */
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  text-decoration: none;
+}
+
+.entry:hover {
+  border-color: var(--brand-action);
+  box-shadow: var(--shadow-selected);
+}
+
+.entry-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+}
+
+.entry-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 总量徽章。用品牌浅底而不是语义色 —— 它是个中性的量，不表示好坏（WV4） */
+.entry-badge {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: 11px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--brand-action);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+/* P5：插画只进情绪层。入口卡属封面位，可以用；但不得进表格与筛选区。
+   flex:1 让它吃掉头部与底部三数之间的全部余量，min-height:0 防止图片撑破卡片 */
+.entry-illustration {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: var(--space-v2-2) 0;
+  object-fit: contain;
+}
+
+/* 底部三数横排。竖排会让每张卡只能显示三行 label:value，
+   与图上「三个并列的统计口径」表达的不是一回事 */
+.entry-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-v2-1);
+  padding-top: var(--space-v2-2);
+  border-top: var(--border-v2);
+}
+
+.entry-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.entry-stat-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.entry-stat-value {
+  color: var(--text-primary);
+  font-size: var(--type-kpi-small-size);
+  font-weight: var(--type-kpi-small-weight);
+  line-height: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===========================================================================
+ * R5 三色灯预警：三张卡横排
+ *
+ * 业务裁决（V-9）蓝灯即健康态，所以没有第四张健康卡。
+ * 卡片内部（色名／数字／副文案／示例对象／更多／一键催办）由 WarningSummaryCard
+ * 的 compact 档负责，这里只分配栅格。
+ * =========================================================================== */
+
+.warning-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-v2-2);
+  min-height: 0;
+}
+
+/* ===========================================================================
+ * R6 待办行动清单。列宽必须照抄（文档 5「内部几何」），合计 810px
+ * =========================================================================== */
+
+/*
+ * 表格宽度要正好 810，而卡片的 1px 边框让内容盒只剩 808 ——
+ * 少的 2px 全落在唯一可伸缩的「业务对象」列上（163 而不是 165），超出 L1 的 2px 容差。
+ * 所以让表格向两侧各外扩 1px，压在卡片边框上。
+ *
+ * 视觉上没有副作用：单元格本身没有左右边框，外扩的效果只是行分隔线延伸到卡片边缘，
+ * 这正是通栏表格该有的样子。改动其余六列的宽度去凑是不行的 —— 文档标注「必须照抄」。
+ */
+.worklist {
+  /* 表格吃满面板高度，多出来的高度由五行平分。
+     不给的话面板变高时表格仍贴在顶部，下面空一大片 —— 而这片空白在面板<b>里面</b>，
+     比页面下方的空白更像坏了 */
+  flex: 1;
+  width: calc(100% + 2px);
+  margin: 0 -1px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.worklist th {
+  padding: 0 0 var(--space-v2-2);
+  border-bottom: var(--border-v2);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.worklist td {
+  padding: var(--space-v2-2) 0;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.worklist-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+/* 业务对象列是唯一允许伸缩的列，其余七列宽度写死。
+   一旦让别的列也伸缩，1320px 下四舍五入的 1px 会在七列上累积成 3~4px */
+.worklist-cell-object {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worklist-cell-date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.worklist-cell-days {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * 剩余天数跟着同一行的灯色着色，不自己判阈值。
+ *
+ * 阈值由配置中心可配（需求 13.4.1a）。在这里写死一套「≤3 天变黄」的判断，
+ * 配置改了这一列不跟着变，同一行就会出现黄字配蓝灯 —— 而两处都「看起来合理」，
+ * 只有对着阈值配置逐条核对才能发现。
+ */
+.worklist-cell-days[data-light='RED'] {
+  color: var(--danger);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.worklist-cell-days[data-light='YELLOW'] {
+  color: var(--warning);
+}
+
+.worklist-cell-days[data-light='BLUE'] {
+  color: var(--text-secondary);
+}
+
+/* 逾期天数用危险色。这里是「负数」这一个信号的第二重编码，
+   不是唯一编码 —— 同一行的预警灯列已经给了图标与文字 */
+.worklist-cell-days[data-overdue='true'] {
+  color: var(--danger);
+}
+
+.worklist-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  cursor: pointer;
+}
+
+/* ===========================================================================
+ * R7 效率指标：四条折线
+ *
+ * 高度算术：内边距 12×2 + 头 30 + 卡（标签 16 + 数值行 28 + 基准 15 + 图 88 = 147）= 201 ≤ 211。
+ * =========================================================================== */
+
+.efficiency-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--grid-gap);
+  min-height: 0;
+}
+
+.efficiency-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.efficiency-label {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.efficiency-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-1);
+  min-width: 0;
+}
+
+.efficiency-value {
+  color: var(--text-primary);
+  font-size: var(--type-kpi-small-size);
+  font-weight: var(--type-kpi-small-weight);
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 环比一律涂成「改善色」，因为方向已经按指标语义定过了（见页面里的说明）：
+ * 周期缩短出 ↓、通过率上升出 ↑，四张卡都是向好，所以四张卡都绿。
+ * 真正的好坏判断不在颜色里，在箭头方向里 —— 颜色只是第二重编码。
+ */
+.efficiency-delta {
+  color: var(--success);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.efficiency-baseline {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+/*
+ * 折线吃满卡片剩余高度。
+ *
+ * 设计稿的 211px 行高下剩余正好 88px（内边距 12×2 + 头 30 + 标签 16 + 数值 28 + 基准 15），
+ * 与文档标注的图高一致；窗口变高时图跟着变高，而不是把空白留在图的下方。
+ * ECharts 侧已经挂了 ResizeObserver，容器变化会自动重算。
+ */
+.efficiency-chart {
+  flex: 1;
+  min-height: 88px;
+}
+
+/* ===========================================================================
+ * R8 业务价值 / R9 欢迎卡
+ * =========================================================================== */
+
+.value-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-v2-2);
+  justify-content: center;
+}
+
+.value-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  min-width: 0;
+}
+
+/*
+ * 三条各用一色，只为在 239px 的窄卡里让三行一眼可分。
+ *
+ * 三个色都取自品牌与中性色系，不碰四个语义色（蓝灯／黄灯／红灯／成功）——
+ * WV4 明令四个语义色不得出现在装饰位。用绿色标「效率提升」看着很自然，
+ * 但那会让人以为这里也在报预警状态。
+ */
+.value-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+}
+
+.value-item[data-tone='blue'] .value-plate {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.value-item[data-tone='violet'] .value-plate {
+  background: #efeafd;
+  color: #7c6cf0;
+}
+
+.value-item[data-tone='amber'] .value-plate {
+  background: #fdf3e2;
+  color: #c98a1e;
+}
+
+.value-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.value-number {
+  flex: 0 0 auto;
+  font-size: var(--type-kpi-small-size);
+  font-weight: var(--type-kpi-small-weight);
+  line-height: var(--type-kpi-small-line);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.value-item[data-tone='blue'] .value-number {
+  color: var(--brand-action);
+}
+
+.value-item[data-tone='violet'] .value-number {
+  color: #7c6cf0;
+}
+
+.value-item[data-tone='amber'] .value-number {
+  color: #c98a1e;
+}
+
+.value-trend {
+  margin-right: 2px;
+  font-size: var(--type-caption-size);
+}
+
+.welcome {
+  overflow: hidden;
+}
+
+.welcome-title {
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+.welcome-caption {
+  margin-top: var(--space-v2-1);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 插画贴右下角。居中会把它顶到两行文案中间，卡片读起来像被切成两半 */
+.welcome-illustration {
+  flex: 1;
+  min-height: 0;
+  align-self: flex-end;
+  max-width: 140px;
+  margin-top: var(--space-v2-2);
+  object-fit: contain;
+  object-position: right bottom;
+}

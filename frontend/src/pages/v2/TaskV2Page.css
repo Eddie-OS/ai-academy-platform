@@ -1,0 +1,626 @@
+/*
+ * P07 任务中心：左侧工作区固定 1001px，右侧详情从 x=1248 开始。
+ * R8 与 R9 之间留出的空白是设计稿的呼吸区，不把它错误地填成第六张 KPI。
+ */
+
+@import './panel.css';
+
+.tsk {
+  position: relative;
+  width: 1338px;
+  height: 900px;
+}
+
+/* R3 任务页签：224,68,1001,52 */
+.tsk-tabs {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 1001px;
+  height: 52px;
+  margin-top: 1px;
+  padding: 0 12px;
+  border-bottom: var(--border-v2);
+}
+
+.tsk-tab {
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  cursor: pointer;
+}
+
+.tsk-tab[data-active='true'] {
+  border-bottom-color: var(--brand-action);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.tsk-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  margin: 0 0 4px auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand-action);
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  cursor: pointer;
+}
+
+/* R4 五张 KPI：224,131,1001,100 */
+.tsk-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  width: 1001px;
+  height: 100px;
+  margin-top: 11px;
+}
+
+.tsk-kpi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.tsk-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.tsk-kpi-label {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tsk-kpi-value {
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: var(--type-kpi-small-size);
+  font-weight: var(--type-kpi-weight);
+  line-height: var(--type-kpi-small-line);
+  font-variant-numeric: tabular-nums;
+}
+
+/* R5 筛选器：224,247,1001,71 */
+.tsk-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 1001px;
+  height: 71px;
+  margin-top: 16px;
+  padding: 0 16px;
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.tsk-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 250px;
+  height: 36px;
+  min-width: 210px;
+  padding: 0 12px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+}
+
+.tsk-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+}
+
+.tsk-filter,
+.tsk-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 10px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tsk-reset {
+  margin-left: auto;
+  color: var(--brand-action);
+}
+
+/* R6 任务表格：224,331,1001,438。列宽严格由 fixture 的 colgroup 决定。 */
+.panel.tsk-table-panel {
+  width: 1001px;
+  height: 438px;
+  margin-top: 13px;
+  padding: 0;
+}
+
+.tsk-table-head {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 16px;
+}
+
+.tsk-table-note {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+}
+
+.tsk-table {
+  width: 1001px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.tsk-table th,
+.tsk-table td {
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-light);
+  overflow: hidden;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tsk-table th {
+  height: 36px;
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-weight);
+  background: var(--bg-muted);
+}
+
+.tsk-table th:first-child,
+.tsk-table td:first-child {
+  padding: 0;
+  text-align: center;
+}
+
+.tsk-table input {
+  margin: 0;
+  accent-color: var(--brand-action);
+}
+
+.tsk-table tbody tr {
+  cursor: pointer;
+}
+
+.tsk-table tbody tr[data-selected='true'] {
+  background: var(--brand-50);
+}
+
+.tsk-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tsk-remaining {
+  font-variant-numeric: tabular-nums;
+}
+
+.tsk-remaining[data-light='YELLOW'],
+.tsk-remaining[data-light='RED'] {
+  color: var(--danger);
+}
+
+.tsk-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.tsk-state[data-state='待处理'] {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.tsk-state[data-state='处理中'] {
+  background: #fff7e6;
+  color: #b54708;
+}
+
+.tsk-state[data-state='已完成'] {
+  background: var(--success-bg);
+  color: #15803d;
+}
+
+.tsk-state[data-state='已关闭'] {
+  background: var(--bg-muted);
+  color: var(--text-tertiary);
+}
+
+/* 图标、文案与天数同在，符合三色灯不是纯色点的可访问性要求。 */
+.tsk-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tsk-warning[data-light='BLUE'] {
+  color: var(--info);
+}
+
+.tsk-warning[data-light='YELLOW'] {
+  color: #b54708;
+}
+
+.tsk-warning[data-light='RED'] {
+  color: var(--danger);
+}
+
+.tsk-dash {
+  color: var(--text-placeholder);
+}
+
+.tsk-link {
+  border: 0;
+  background: transparent;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tsk-pager {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 10px 16px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* R7／R8：224,817,551,150 与 797,817,428,150 */
+.tsk-bottom {
+  display: flex;
+  gap: 22px;
+  width: 1001px;
+  height: 150px;
+  margin-top: 48px;
+}
+
+.panel.tsk-focus {
+  width: 551px;
+  height: 150px;
+  padding: 12px 16px;
+}
+
+.tsk-focus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.tsk-focus-head span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.tsk-focus ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tsk-focus li {
+  display: grid;
+  grid-template-columns: 20px 1fr 42px 48px;
+  gap: 8px;
+  align-items: center;
+  height: 29px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.tsk-focus-rank {
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.tsk-focus-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tsk-focus-owner,
+.tsk-focus-deadline {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-align: right;
+}
+
+.tsk-focus-deadline {
+  color: var(--danger);
+}
+
+.panel.tsk-empty {
+  flex-direction: row;
+  align-items: center;
+  width: 428px;
+  height: 150px;
+  padding: 16px;
+}
+
+.tsk-empty img {
+  width: 72px;
+  height: 72px;
+  margin-right: 12px;
+  object-fit: contain;
+}
+
+.tsk-empty div {
+  min-width: 0;
+}
+
+.tsk-empty p {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: var(--type-body-medium-weight);
+}
+
+.tsk-empty div span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.tsk-empty button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand-action);
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* R9 详情：1248,68,328,899 */
+.panel.tsk-detail {
+  position: absolute;
+  top: 1px;
+  left: 1024px;
+  width: 328px;
+  height: 899px;
+  padding: 16px;
+}
+
+.tsk-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tsk-detail-head h2 {
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.tsk-detail-head button {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.tsk-detail-id {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tsk-detail > .tsk-state {
+  margin-top: 8px;
+}
+
+.tsk-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.tsk-detail-fields dt {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.tsk-detail-fields dd {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tsk-description,
+.tsk-comments {
+  margin-top: 20px;
+}
+
+.tsk-description h3,
+.tsk-comments h3 {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.tsk-description p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.tsk-comments article {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tsk-comments article > div {
+  min-width: 0;
+}
+
+.tsk-comments article p {
+  font-size: 11px;
+}
+
+.tsk-comments strong {
+  color: var(--text-primary);
+}
+
+.tsk-comments time {
+  margin-left: 8px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.tsk-comments article span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.tsk-comment-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 8px 10px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  color: var(--text-placeholder);
+  font-size: 12px;
+}
+
+.tsk-comment-input span {
+  flex: 1;
+}
+
+.tsk-comment-input button {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-muted);
+  color: var(--text-placeholder);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* 产品模式：保留设计比例，随可用内容区一起扩展。 */
+html:not([data-regression]) .tsk {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: auto;
+  height: auto;
+  min-height: 900px;
+}
+
+html:not([data-regression]) .tsk-tabs,
+html:not([data-regression]) .tsk-kpis,
+html:not([data-regression]) .tsk-filters,
+html:not([data-regression]) .panel.tsk-table-panel,
+html:not([data-regression]) .tsk-bottom {
+  width: calc(100% - 337px);
+}
+
+html:not([data-regression]) .panel.tsk-detail {
+  right: 0;
+  left: auto;
+  height: 100%;
+}
+
+html:not([data-regression]) .tsk-kpis {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* 让底部两张卡吸收窗口多出的纵向空间，避免大屏下留白。 */
+html:not([data-regression]) .tsk-bottom {
+  margin-top: auto;
+}

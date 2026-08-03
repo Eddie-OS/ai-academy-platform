@@ -1,0 +1,974 @@
+/*
+ * P04 讲师与能力地图（《设计文档 V2.0》第 8 章）。
+ *
+ * 正文左右边界由壳层的 --content-x / --content-w 保证（侧栏 222 + 30 = 252，宽 1310）。
+ *
+ * 纵向间距：R3 y=64（顶栏 50 + 14）、R4／R7 y=203（R3 止于 176，+27）、
+ * R5 y=264（R4 止于 248，+16）、R6 y=778（R5 止于 748，+30）。
+ * 四个值都不一样，逐个写死 —— L1 容差只有 2px。
+ *
+ * 左栏纵向自洽：45 + 16 + 484 + 30 + 178 = 753，正好等于 R7 的高度。
+ * 横向也自洽：812 + 17 + 481 = 1310，正好等于正文宽。这一页的坐标表是九页里最干净的一组。
+ */
+
+@import './panel.css';
+
+.lct {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===========================================================================
+ * R3 四张 KPI：252,64,1150,112
+ * =========================================================================== */
+
+/*
+ * 1150 是回归模式的实测值，比正文宽 1310 短 160px —— 设计图右上角确实空着。
+ *
+ * 产品模式必须拉满：窗口越宽，这条固定宽度的横带与下方 1310 的两栏差距越明显，
+ * 右上角会露出一块越来越大的白，看起来像 KPI 卡没加载完。
+ * 双轨的其余部分见下面 html:not([data-regression]) 那一节。
+ */
+.lct-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--grid-gap);
+  box-sizing: border-box;
+  width: 1150px;
+  height: 112px;
+  margin-top: 14px;
+}
+
+.lct-kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+  box-sizing: border-box;
+  padding: var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.lct-kpi-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.lct-kpi-label {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lct-kpi-value {
+  color: var(--text-primary);
+  font-size: var(--type-kpi-size);
+  font-weight: var(--type-kpi-weight);
+  line-height: var(--type-kpi-line);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 「/ 5」是量纲而不是数值，跟着数字但不参与 tabular-nums 的对齐 */
+.lct-kpi-unit {
+  margin-left: var(--space-v2-1);
+  color: var(--text-tertiary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+}
+
+.lct-kpi-delta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-2);
+  color: var(--success);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.lct-kpi-period {
+  color: var(--text-tertiary);
+}
+
+/*
+ * 图标底板四张统一浅蓝。
+ *
+ * 设计图第四张是玫红底的星。WV4 规定四个语义色不得出现在装饰图形里 ——
+ * 同一屏里玫红底板与红灯并存时，一个是装饰、一个是「已逾期」，而它们看起来是一类东西。
+ */
+.lct-kpi-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--kpi-icon-plate);
+  width: var(--kpi-icon-plate);
+  height: var(--kpi-icon-plate);
+  border-radius: var(--radius-control);
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+/* ===========================================================================
+ * 主体两栏：R4/R5/R6 在左（812），R7 在右（481），同起同止 y=203～956
+ * =========================================================================== */
+
+.lct-main {
+  display: flex;
+  gap: 17px;
+  height: 753px;
+  margin-top: 27px;
+}
+
+/*
+ * 两栏宽度写成正文宽度的比例，做法与理由见 DashboardV2Page.css 的 .dash-warning。
+ * 减去的 17px 是两栏间距，1293 是 812 + 481 之和 —— 正文 1310px 时算回 812.0 与 481.0。
+ */
+.lct-left {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 calc((100% - 17px) * 812 / 1293);
+  min-width: 0;
+}
+
+/* ===========================================================================
+ * R4 筛选器：252,203,812,45 —— 字段名 16 + 控件 28 = 44
+ * =========================================================================== */
+
+.lct-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-v2-2);
+  box-sizing: border-box;
+  height: 45px;
+}
+
+.lct-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 0 0 96px;
+  min-width: 0;
+}
+
+/* 试讲合格标记与日期范围的字段名比其余两个长，各自多要一点宽度 */
+.lct-field:nth-of-type(3) {
+  flex: 0 0 108px;
+}
+
+.lct-field-date {
+  flex: 0 0 152px;
+}
+
+.lct-field-label {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lct-select,
+.lct-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+  padding: 0 var(--control-compact-pad-x);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  line-height: var(--control-compact-h);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lct-select > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lct-select-placeholder {
+  color: var(--text-placeholder);
+}
+
+/* 搜索框吃掉剩余宽度：其余六格都是定宽，只有它该跟着正文伸缩 */
+.lct-search {
+  flex: 1 1 auto;
+  min-width: 120px;
+  justify-content: flex-start;
+  cursor: text;
+}
+
+.lct-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+}
+
+.lct-search input::placeholder {
+  color: var(--text-placeholder);
+}
+
+/* ===========================================================================
+ * R5 讲师池：252,264,812,484
+ * =========================================================================== */
+
+.panel.lct-pool {
+  box-sizing: border-box;
+  height: 484px;
+  margin-top: 16px;
+}
+
+/* 池子标题行与台账标题行都降到正文档：18px 的面板标题在 484px 里吃掉太多高度 */
+.lct-sub-title {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.lct-pool-head,
+.lct-ledger-head {
+  margin-bottom: var(--space-v2-2);
+}
+
+/* 紧跟标题、把右侧翻页推到最右：它说明的是标题里那个「池」有多少人 */
+.lct-pool-total {
+  flex: 0 0 auto;
+  margin-right: auto;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.lct-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+}
+
+.lct-pager button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.lct-pool-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lct-group + .lct-group {
+  margin-top: var(--space-v2-3);
+}
+
+.lct-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  height: 24px;
+}
+
+.lct-group-name {
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-table-line);
+}
+
+.lct-group-count {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: 11px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 一组四张卡。
+ *
+ * 卡宽写成栅格的 1fr 而不是 183px：R5 的内容宽是 780（812 减两侧 16 内边距），
+ * (780 - 36) / 4 = 186，产品模式下跟着正文一起变。
+ */
+.lct-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-v2-3);
+  margin-top: var(--space-v2-1);
+}
+
+/*
+ * 卡高 158px。
+ *
+ * 484 的区域高度分给：上下内边距 32 + 标题行 22 + 8 + 两组（组头 24 + 4 + 卡 158 + 组间 12）
+ * + 折叠组头 24 = 450，余 2px。卡内 158 - 24 = 134 分给：头像行 40 + 4 + 标签 20 + 4 + 四行指标 64 = 132。
+ *
+ * <p>这两笔账要一起算。只算区域那笔时卡片高度看着够用，而卡内四行指标是 flex 项、
+ * 会<b>被压缩而不是溢出</b> —— 标签行从 20px 缩成 10px，界面上是标签被切掉半截，
+ * 而区域断言与「内容不溢出区域」两条都照样通过。所以下面每一段都写了 flex-basis。
+ */
+.lct-card {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 158px;
+  padding: var(--space-v2-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+/* 15 组件矩阵：Card selected = 1px 品牌识别色 + selected shadow。
+   用 brand-primary 而不是交互主色 —— 这是识别而非交互 */
+.lct-card[data-selected='true'] {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-selected);
+}
+
+.lct-card-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  flex: 0 0 40px;
+}
+
+.lct-card-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lct-card-name {
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+.lct-card-dept {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* flex-basis 写死 20px：默认的 auto 会让这一行被下面四行指标压缩，标签被切掉半截 */
+.lct-card-domains {
+  display: flex;
+  gap: var(--space-v2-1);
+  flex: 0 0 20px;
+  margin-top: var(--space-v2-1);
+  overflow: hidden;
+}
+
+/* 擅长领域标签。20px 而不是 --badge-h 的 22px：卡内四行指标各 16px，
+   标签多 2px 就把最后一行的进度条挤出卡外 */
+.lct-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-50);
+  color: var(--brand-action);
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.lct-tag-more {
+  background: var(--bg-muted);
+  color: var(--text-tertiary);
+}
+
+.lct-card-metrics {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 64px;
+  margin-top: var(--space-v2-1);
+}
+
+.lct-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+  flex: 0 0 16px;
+  height: 16px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.lct-metric dt {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.lct-metric dd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 试讲合格那一行：勾／叉紧跟标签，培养状态徽章推到最右。
+ *
+ * 其余三行是「标签 …… 数值」两端对齐，而这一行的勾不是数值 ——
+ * 两端对齐时勾会孤零零地停在右边，读起来像是在给右边某个看不见的数打钩。
+ */
+.lct-metric[data-metric='trialQualified'] {
+  justify-content: flex-start;
+  gap: var(--space-v2-2);
+}
+
+.lct-metric[data-metric='trialQualified'] dd {
+  flex: 1;
+  min-width: 0;
+}
+
+.lct-metric[data-metric='trialQualified'] .lct-badge-warn {
+  margin-left: auto;
+}
+
+/* 培养状态徽章。橙色是「需要关注」而不是预警灯 —— 灯只出现在带预警语义的位置，
+   这里表达的是「这个人还在培养中」，不是「这条记录逾期了」 */
+.lct-badge-warn {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-tag);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: 10px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 16px;
+}
+
+.lct-metric-bar dd {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.lct-bar {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-muted);
+  overflow: hidden;
+}
+
+.lct-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--success);
+}
+
+.lct-bar-value {
+  flex: 0 0 auto;
+}
+
+/* ===========================================================================
+ * R6 试讲台账：252,778,812,178
+ * =========================================================================== */
+
+/*
+ * 左右不留内边距：八列列宽合计正好 812，等于区域宽（文档 8「必须照抄」）。
+ * 给面板加 16px 横向内边距的话，八列只剩 780 可分，每列被压 3~4px，
+ * 而 200px 的课程名列<b>刚好</b>装得下「大模型应用开发实战」——压 4px 就开始截断。
+ */
+.panel.lct-ledger {
+  box-sizing: border-box;
+  height: 178px;
+  margin-top: 30px;
+  padding: var(--space-v2-2) 0;
+}
+
+.lct-ledger-head {
+  margin-bottom: var(--space-v2-1);
+  padding: 0 var(--card-pad);
+}
+
+.lct-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+/*
+ * 单元格内边距归零。
+ *
+ * 全局重置给 th/td 留了 1px 上下内边距，加上 1px 分隔线，每行就是 20 + 2 + 1 = 23px
+ * 而不是写好的 22 —— 五行加表头一共多出 8~10px，正好把表格顶出 178px 的区域。
+ * 横向内边距只在首末列上单独给（见下面两条），中间六列靠列宽本身留白。
+ */
+.lct-table th,
+.lct-table td {
+  padding: 0;
+}
+
+.lct-table th {
+  height: 26px;
+  border-bottom: var(--border-v2);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: left;
+}
+
+.lct-table td {
+  height: 22px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.lct-table th:first-child,
+.lct-table td:first-child {
+  padding-left: var(--card-pad);
+}
+
+.lct-table th:last-child,
+.lct-table td:last-child {
+  padding-right: var(--card-pad);
+}
+
+/* 最后一行不画分隔线：它紧贴面板下沿，两条线会叠成一条 2px 的粗线 */
+.lct-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lct-cell-course {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+}
+
+.lct-conclusion[data-positive='true'] {
+  color: var(--success);
+}
+
+.lct-conclusion[data-positive='false'] {
+  color: var(--danger);
+}
+
+/*
+ * 「一致」是图标 + 文字，不是纯色点：图标形状与文字标签必须同时出现（VC2）。
+ *
+ * vertical-align:top 不是微调。inline-flex 盒默认按基线对齐（middle 也一样），
+ * 20px 的盒子会把 20px 的行盒撑到 22px —— 五行就是 10px，正好把表格顶出 178px 的区域，
+ * 而单看一行完全正常。top 让盒顶与行盒顶重合，两者同高时行盒不再长高。
+ */
+.lct-consistent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  height: 20px;
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.lct-link {
+  color: var(--brand-action);
+  text-decoration: none;
+}
+
+/* ===========================================================================
+ * R7 讲师详情：1081,203,481,753
+ * =========================================================================== */
+
+.panel.lct-detail {
+  flex: 0 1 calc((100% - 17px) * 481 / 1293);
+  min-width: 0;
+  box-sizing: border-box;
+  height: 753px;
+}
+
+.lct-detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+}
+
+.lct-detail-identity {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.lct-detail-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+}
+
+/* 试讲合格标记（布尔字段）。绿色描边徽章，与状态标签区分：它不是状态 */
+.lct-badge-ok {
+  display: inline-flex;
+  align-items: center;
+  height: var(--badge-h);
+  padding: 0 var(--badge-pad-x);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-tag);
+  color: var(--success);
+  font-size: var(--type-badge-size);
+  font-weight: var(--type-badge-weight);
+  line-height: var(--badge-h);
+}
+
+.lct-detail-title {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-detail-close {
+  display: inline-flex;
+  align-items: flex-start;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.lct-detail-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-v2-1);
+  margin-top: var(--space-v2-3);
+}
+
+.lct-tabs {
+  display: flex;
+  gap: var(--space-v2-4);
+  margin-top: var(--space-v2-4);
+  border-bottom: var(--border-v2);
+}
+
+.lct-tab {
+  padding: 0 0 var(--space-v2-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lct-tab[data-active='true'] {
+  border-bottom-color: var(--brand-action);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.lct-block {
+  box-sizing: border-box;
+  margin-top: var(--space-v2-3);
+  padding: var(--space-v2-3);
+  border-radius: var(--radius-card);
+  background: var(--bg-muted);
+}
+
+.lct-block-title {
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+/* --- 试讲时间线 --- */
+
+.lct-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-4);
+}
+
+.lct-round {
+  display: flex;
+  gap: var(--space-v2-2);
+  position: relative;
+}
+
+/*
+ * 轮次点。合格绿、不合格红 —— 但<b>颜色不是唯一载体</b>：
+ * 轮次标题里就写着「（合格）」「（不合格）」，读屏与色盲用户拿到的是同一份信息（VC2）。
+ */
+.lct-round-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.lct-round[data-positive='true'] .lct-round-dot {
+  background: var(--brand-action);
+}
+
+/* 竖线连起三轮。最后一轮不画，否则线会拖到面板空白里 */
+.lct-round:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 3px;
+  bottom: calc(var(--space-v2-4) * -1);
+  width: 2px;
+  background: var(--border-default);
+}
+
+.lct-round-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.lct-round-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+}
+
+.lct-round-no {
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-table-line);
+}
+
+.lct-round-date {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lct-round-line {
+  margin-top: var(--space-v2-1);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/* --- 近期授课记录 --- */
+
+.lct-teaching-table {
+  width: 100%;
+  margin-top: var(--space-v2-2);
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-teaching-table th {
+  height: 24px;
+  border-bottom: var(--border-v2);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: left;
+}
+
+.lct-teaching-table td {
+  height: 24px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 场次、日期、评分三列定宽，课程名吃剩下的宽度并在需要时截断 */
+.lct-teaching-table th:nth-child(2),
+.lct-teaching-table td:nth-child(2) {
+  width: 64px;
+}
+
+.lct-teaching-table th:nth-child(3),
+.lct-teaching-table td:nth-child(3) {
+  width: 88px;
+}
+
+.lct-teaching-table th:nth-child(4),
+.lct-teaching-table td:nth-child(4) {
+  width: 64px;
+  text-align: right;
+}
+
+.lct-teaching-table td:nth-child(4) {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.lct-teaching-more {
+  margin-top: var(--space-v2-2);
+  margin-left: auto;
+  font-size: var(--type-caption-size);
+}
+
+/* --- 讲师成长建议（仅回归模式渲染，见 GrowthAdvice 的注释） --- */
+
+.lct-growth {
+  background: var(--success-bg);
+}
+
+.lct-growth-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  color: var(--brand-action);
+}
+
+.lct-growth-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+  margin-top: var(--space-v2-2);
+}
+
+/* A04 数据增长插画。aria-hidden + 空 alt：建议正文已经以文本给出 */
+.lct-growth-art {
+  flex: 0 0 72px;
+  width: 72px;
+  height: auto;
+  object-fit: contain;
+}
+
+.lct-growth-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-growth-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+  margin-top: var(--space-v2-2);
+  padding: 0 var(--control-compact-pad-x);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
+/* ===========================================================================
+ * 产品模式：按设计稿的行高比例吃满窗口
+ *
+ * 做法与理由见 DashboardV2Page.css 同一节。这一页多两件事：
+ *   1. KPI 行拉满 1310（回归模式是设计稿实测的 1150）
+ *   2. 成长建议整块不渲染（N6），R7 腾出的高度给试讲时间线
+ * =========================================================================== */
+
+html:not([data-regression]) .lct {
+  flex: 1;
+  min-height: 0;
+}
+
+html:not([data-regression]) .lct-kpis {
+  width: auto;
+  height: auto;
+  flex: 112 1 0;
+  min-height: 112px;
+}
+
+html:not([data-regression]) .lct-main {
+  height: auto;
+  flex: 753 1 0;
+  min-height: 753px;
+  margin-bottom: var(--space-v2-6);
+}
+
+/* 筛选行不参与伸展：控件长高只会让下拉框浮在空白里 */
+html:not([data-regression]) .lct-filters {
+  flex: 0 0 45px;
+}
+
+html:not([data-regression]) .panel.lct-pool {
+  height: auto;
+  flex: 484 1 0;
+  min-height: 484px;
+}
+
+html:not([data-regression]) .panel.lct-ledger {
+  height: auto;
+  flex: 178 1 0;
+  min-height: 178px;
+}
+
+html:not([data-regression]) .panel.lct-detail {
+  height: auto;
+}
+
+/* 时间线吃掉成长建议腾出来的高度。给授课记录会让三行表格中间拉出大片空白 */
+html:not([data-regression]) .lct-timeline {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 台账在产品模式下会变高，让表格把多出来的高度吸走 */
+html:not([data-regression]) .lct-table {
+  flex: 1;
+}

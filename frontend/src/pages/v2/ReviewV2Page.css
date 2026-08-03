@@ -1,0 +1,372 @@
+/*
+ * P09 评审记录中心（《设计文档 V2.0》第 13 章）。
+ * 回归坐标：R3 242,69,1310,49；R4 242,125,1310,72；R5 242,213,1310,94；
+ * R6 242,321,1310,284；R7 242,623,1310,335。
+ */
+
+.rvw {
+  display: flex;
+  flex-direction: column;
+  width: 1310px;
+}
+
+.rvw-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  box-sizing: border-box;
+  width: 1310px;
+  height: 49px;
+  margin-top: 1px;
+  border-bottom: var(--border-v2);
+}
+
+.rvw-tab {
+  height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  cursor: pointer;
+}
+
+.rvw-tab[data-active='true'] {
+  border-bottom-color: var(--brand-action);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.rvw-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+  box-sizing: border-box;
+  width: 1310px;
+  height: 72px;
+  margin-top: 7px;
+  padding: 0 var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.rvw-search,
+.rvw-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  box-sizing: border-box;
+  height: var(--control-h);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--type-body-size);
+}
+
+.rvw-search {
+  flex: 1;
+  min-width: 240px;
+  padding: 0 var(--input-pad-x);
+}
+
+.rvw-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.rvw-search input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.rvw-filter {
+  justify-content: space-between;
+  width: 140px;
+  padding: 0 var(--input-pad-x);
+  cursor: pointer;
+}
+
+.rvw-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--grid-gap);
+  width: 1310px;
+  height: 94px;
+  margin-top: 16px;
+}
+
+.rvw-kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+  box-sizing: border-box;
+  padding: var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.rvw-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.rvw-kpi-label {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.rvw-kpi-value {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: var(--type-kpi-weight);
+  line-height: 30px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rvw-table-panel {
+  box-sizing: border-box;
+  width: 1310px;
+  height: 284px;
+  margin-top: 14px;
+  overflow: hidden;
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.rvw-table {
+  width: 1310px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.rvw-table th,
+.rvw-table td {
+  box-sizing: border-box;
+  padding: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rvw-table th {
+  height: 44px;
+  background: var(--bg-muted);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.rvw-table td {
+  height: 47px;
+}
+
+.rvw-table th:first-child,
+.rvw-table td:first-child {
+  padding-left: 16px;
+}
+
+.rvw-table tr[data-selected='true'] {
+  background: var(--brand-50);
+}
+
+.rvw-table tbody tr {
+  cursor: pointer;
+}
+
+.rvw-table input {
+  accent-color: var(--brand-action);
+}
+
+.rvw-name {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.rvw-empty {
+  color: var(--text-placeholder);
+}
+
+.rvw-consistency {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  color: var(--text-secondary);
+}
+
+.rvw-consistency[data-consistent='true'] svg {
+  color: var(--success);
+}
+
+.rvw-consistency[data-consistent='false'] svg {
+  color: var(--danger);
+}
+
+.rvw-view {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rvw-detail {
+  box-sizing: border-box;
+  width: 1310px;
+  height: 335px;
+  margin-top: 18px;
+  padding: var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.rvw-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-v2-3);
+}
+
+.rvw-detail-eyebrow,
+.rvw-detail-date {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.rvw-detail h2 {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+}
+
+.rvw-risk {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  margin-top: var(--space-v2-3);
+  padding: var(--space-v2-2) var(--space-v2-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-control);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.rvw-risk div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rvw-risk strong {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.rvw-risk span {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.rvw-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-v2-3);
+  margin-top: var(--space-v2-3);
+}
+
+.rvw-detail-grid dt {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.rvw-detail-grid dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rvw-opinion {
+  margin-top: var(--space-v2-3);
+  padding-top: var(--space-v2-3);
+  border-top: 1px solid var(--border-light);
+}
+
+.rvw-opinion h3 {
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+.rvw-opinion p {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+html:not([data-regression]) .rvw {
+  flex: 1;
+  width: auto;
+  min-height: 0;
+}
+
+html:not([data-regression]) .rvw-tabs,
+html:not([data-regression]) .rvw-filters,
+html:not([data-regression]) .rvw-kpis,
+html:not([data-regression]) .rvw-table-panel,
+html:not([data-regression]) .rvw-detail,
+html:not([data-regression]) .rvw-table {
+  width: 100%;
+}
+
+html:not([data-regression]) .rvw-table-panel {
+  flex: 284 1 0;
+  height: auto;
+  min-height: 284px;
+}
+
+html:not([data-regression]) .rvw-detail {
+  flex: 335 1 0;
+  height: auto;
+  min-height: 335px;
+  margin-bottom: var(--space-v2-6);
+}

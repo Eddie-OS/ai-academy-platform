@@ -1,0 +1,1217 @@
+/*
+ * P02 AI需求驾驶舱（《设计文档 V2.0》第 6 章）。
+ *
+ * 正文左右边界由壳层的 --content-x / --content-w 保证（侧栏 198 + 24 = 222，宽 1340），
+ * 所以这里只管纵向位置与每行的列宽。
+ *
+ * 纵向的三个间距是 14／18／18，同样逐个写死而不用统一 gap：
+ * R3 y=75（顶栏 61 + 14）、R4 y=201（R3 止于 183，+18）、R5 y=264（R4 止于 246，+18）。
+ */
+
+@import './panel.css';
+
+.dmd {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * 产品模式：三条横带按设计稿的行高比例分掉整个窗口高度，页面下方不留空白。
+ * basis 归零后整个高度按 grow 的比值分配，比值取设计稿行高 108/45/694。
+ * 筛选行不参与伸展（45px 的一行控件长高只会让下拉框浮在空白里），因此 grow 写 0。
+ * 详见 DashboardV2Page.css 同一节的说明。
+ */
+html:not([data-regression]) .dmd {
+  flex: 1;
+  min-height: 0;
+}
+
+html:not([data-regression]) .dmd-kpis {
+  height: auto;
+  flex: 108 1 0;
+  min-height: 108px;
+}
+
+html:not([data-regression]) .dmd-filters {
+  flex: 0 0 45px;
+}
+
+html:not([data-regression]) .dmd-main {
+  height: auto;
+  flex: 694 1 0;
+  min-height: 694px;
+  margin-bottom: var(--space-v2-6);
+}
+
+/* 左栏内部同理：表格与分析区按 419:258 分掉左栏高度 */
+html:not([data-regression]) .panel.dmd-table-panel {
+  height: auto;
+  flex: 419 1 0;
+  min-height: 419px;
+}
+
+html:not([data-regression]) .panel.dmd-analysis {
+  height: auto;
+  flex: 258 1 0;
+  min-height: 258px;
+}
+
+/* ===========================================================================
+ * R3 七张 KPI：222,75,1340,108
+ *
+ * 高度算术：内边距 12×2 + 顶行 28（图标底板决定）+ 数字 36 + 环比 16 = 104 ≤ 108。
+ * =========================================================================== */
+
+.dmd-kpis {
+  display: grid;
+  /* 行高必须写成 1fr。auto 行的高度取内容最小尺寸，容器上的 height 管不住它，
+     卡片就会把区域撑破 —— P01 的入口卡曾因此让底部三个数字整排消失 */
+  grid-template-rows: 1fr;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--grid-gap);
+  height: 108px;
+  margin-top: 14px;
+}
+
+.dmd-kpi {
+  display: flex;
+  flex-direction: column;
+  /* 三行各据一端，而不是整块居中：卡片在产品模式下会随窗口长高，
+     居中时三行黏成一坨浮在卡片中央，上下各留一片空白 */
+  justify-content: space-between;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--card-pad-compact);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.dmd-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+}
+
+/* 卡片标题是这张卡「在数什么」，不是脚注。用正文色而不是三级灰，
+   否则一行七张卡里最先被读到的是七个数字，读完还得回头找它们各是什么 */
+.dmd-kpi-label {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-caption-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 图标底板比 P01 的 44px 小一档：R3 只有 108px 高（P01 是 124px），
+   44px 的底板会把环比那一行顶出卡外。色相与底色由 KPI_TONES 逐卡注入 */
+.dmd-kpi-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+}
+
+.dmd-kpi-value {
+  /* 数字必须 tabular-nums：七张卡等宽，比例数字下「1,268」与「162」的字宽差会让基线看起来歪 */
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  font-size: var(--type-kpi-size);
+  font-weight: var(--type-kpi-weight);
+  line-height: var(--type-kpi-line);
+}
+
+/* 百分比与基准之间留 20px：4px 时「↑12.5%较上周期」黏成一句，
+   读者要先断句才知道哪一截是数据 */
+.dmd-kpi-foot {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-5);
+  white-space: nowrap;
+}
+
+.dmd-kpi-delta {
+  color: var(--success);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/* 环比基准用更小的灰字：「较上周期」是量词不是数据，与百分比同色会被读成指标的一部分 */
+.dmd-kpi-baseline {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* ===========================================================================
+ * R4 筛选器：222,201,1340,45
+ *
+ * 一行十个控件：搜索 + 五个下拉 + 日期区间 + 更多筛选 + 重置 + 新建。
+ * 宽度合计约 1235px，内容区 1308px（1340 减左右各 16 内边距），留 73px 余量。
+ * =========================================================================== */
+
+.dmd-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  box-sizing: border-box;
+  height: 45px;
+  margin-top: 18px;
+  padding: 0 var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+/*
+ * 一个筛选项 = 盒子外的字段名 + 盒子里的取值。
+ *
+ * 把字段名一起装进盒子时，每个筛选都变成一个长胶囊，一行六个胶囊读起来是六个按钮；
+ * 字段名留在外面才看得出「所属领域」是这一格的标题、「请选择」是它当前的值。
+ */
+.dmd-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  white-space: nowrap;
+}
+
+.dmd-control,
+.dmd-search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  height: var(--control-compact-h);
+  /* 左右各收 2px（10 → 8）。这一行在 1440/1586 两个基准宽度下都是塞满的，
+     搜索框拿不到任何剩余空间，占位文案「/提出人」会被切掉；
+     六个控件各让出 4px 正好把它补齐。8 仍在 4px 标尺上 */
+  padding: 0 var(--space-v2-2);
+  /* 控件边框用 --border-default 而不是设计规范 V1.1 要求的 neutral-500。
+     V2.0 全表统一 #E5E7EB，对比度 1.6:1 不足 3:1 —— 业务已裁决照抄 V2.0（见 V-4） */
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/*
+ * 搜索框是这一行唯一可伸缩的控件，其余控件宽度由内容定死。
+ *
+ * 理由是只有它的宽度不承载信息：下拉的宽度由取值定，压窄就会截字；
+ * 而搜索框窄一点只是占位文案被截，输入本身不受影响。
+ *
+ * <b>这一行不能出现 auto 外边距。</b>auto 外边距在 flex 布局里比 flex-grow 先分配，
+ * 一旦某个控件写了 margin-left:auto，剩余空间全被它吃掉，搜索框的 flex:1 一分拿不到 ——
+ * 表现是搜索框塌到 min-width（占位文案被截成「搜索需求ID/名」），
+ * 而筛选组与重置之间空出三百像素。右侧两个按钮靠搜索框撑开自然落到最右，不需要 auto。
+ */
+.dmd-search {
+  flex: 1 1 auto;
+  min-width: 108px;
+  cursor: text;
+}
+
+.dmd-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+}
+
+.dmd-search input::placeholder {
+  color: var(--text-placeholder);
+}
+
+/* 筛选项的字段名与当前取值分两档色：字段名是灰的、取值是深的。
+   同色时「所属领域请选择」会读成一整串，看不出哪半截是可变的 */
+.dmd-filter-label {
+  color: var(--text-tertiary);
+}
+
+/* 未选中的枚举筛选，取值是占位而非真实选择，用占位色 */
+.dmd-filter-value {
+  color: var(--text-placeholder);
+}
+
+.dmd-daterange {
+  gap: var(--space-v2-2);
+}
+
+.dmd-date {
+  color: var(--text-placeholder);
+}
+
+.dmd-date-sep {
+  color: var(--text-tertiary);
+}
+
+.dmd-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 0 0 auto;
+  height: var(--control-compact-h);
+  padding: 0 var(--space-v2-1);
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dmd-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  height: var(--control-compact-h);
+  padding: 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dmd-create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  height: var(--control-compact-h);
+  padding: 0 var(--control-pad-x);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand-action);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ===========================================================================
+ * 主体两栏：左 884（R5 419 + 17 + R6 258 = 694），右 R7 694。y=264
+ * =========================================================================== */
+
+/*
+ * 两栏间距 11px 而不是坐标表算出来的 12px。
+ *
+ * 文档 6 的区域坐标自己差 2px：R5 宽 884 + 间距 12 + R7 宽 446 = 1342，
+ * 而正文宽是 1340（1586 - 侧栏 198 - 左右各 24）。三个数里必须有一个让步。
+ *
+ * 让步的是间距：R5 的 884 动不了 —— 十二列列宽合计正好 884 且标注「必须照抄」，
+ * 减 2px 会让十二列全部对不上。R7 的 446 也不该动，它是详情面板的基准宽。
+ * 取 11px 后 R7 落在 x=1117 w=445，与坐标表各差 1px，都在 2px 容差内；
+ * 而把 2px 全压在某一个数上就会正好顶到容差边界。
+ */
+.dmd-main {
+  display: flex;
+  gap: 11px;
+  height: 694px;
+  margin-top: 18px;
+}
+
+/*
+ * 左右两栏的宽度写成正文宽度的比例，理由与做法见 DashboardV2Page.css 的 .dash-warning。
+ * 减去的 11px 是两栏间距，1329 是 884 + 445 两个设计宽度之和：
+ * 正文 1340px 时算回 884.0 与 445.0，窗口变宽时两栏一起变宽。
+ */
+.dmd-left {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 calc((100% - 11px) * 884 / 1329);
+  min-width: 0;
+  gap: 17px;
+}
+
+/* ===========================================================================
+ * R5 需求表格。十二列宽度合计 884 = 区域宽，所以表格通栏、不吃卡片左右内边距
+ * =========================================================================== */
+
+/*
+ * 选择器带上 .panel 是为了压过 panel.css 里的 padding。
+ * 列宽是按卡片外沿量的（12 列合计 884 = R5 的 w），留 16px 内边距会让唯一可伸缩的
+ * 需求名称列被挤掉 32px，L1 的列宽断言会直接失败。
+ */
+.panel.dmd-table-panel {
+  flex: 0 0 419px;
+  height: 419px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.dmd-table-panel .panel-head {
+  margin-bottom: var(--space-v2-2);
+  padding: 0 var(--card-pad);
+}
+
+/* 面板右上角的收起按钮。文档「默认状态与交互」：关闭详情后左区扩展到全宽 */
+.dmd-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-tag);
+  background: none;
+  cursor: pointer;
+}
+
+/* 表格向左右各外扩 1px 盖住卡片边框，这样第一列左沿与卡片外沿对齐，
+   12 列的宽度才真的等于区域宽 884 而不是 882 */
+.dmd-table {
+  /* 表格吃满面板高度，多出来的高度由八行平分。分页条自己 margin-top:auto 贴底，
+     不给表格 flex:1 时面板变高只会在表格与分页条之间留一片空白 */
+  flex: 1;
+  width: calc(100% + 2px);
+  margin: 0 -1px;
+  border-collapse: collapse;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
+}
+
+.dmd-table th {
+  padding: 0 var(--space-v2-1) var(--space-v2-1);
+  border-bottom: var(--border-v2);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dmd-table td {
+  /* 4px 紧凑档：419px 的面板要放下标题 + 表头 + 八行 + 分页条。
+     8px 下八行合计超出约 30px，最后一行会被 overflow:hidden 裁掉 */
+  padding: var(--space-v2-1);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 当前行浅蓝底（文档「默认状态与交互」）。用 brand-100 而不是 brand-50 ——
+   brand-50 与白色只差 3 个灰阶，回归截图里几乎看不出选中 */
+.dmd-table tbody tr[data-selected='true'] td {
+  background: var(--brand-100);
+}
+
+.dmd-cell-date {
+  color: var(--text-tertiary);
+}
+
+.dmd-cell-id {
+  color: var(--text-tertiary);
+}
+
+/*
+ * 需求名称列去掉左右内边距。
+ *
+ * 最长的冻结名称「企业培训报表自定义导出」实测 143px，而这一列钉死 145px，
+ * 留 4px 内边距后可用只有 137px，会截掉最后一个字。
+ *
+ * 去掉内边距后可用 145px，刚好放得下。相邻两列各自的内边距仍提供视觉间隔，
+ * 所以看起来不会贴在一起。<b>不降字号</b>：需求名称是这张表里最主要的信息，
+ * 让它比旁边的领域、负责人更小是把层级搞反了。
+ */
+.dmd-cell-name {
+  padding-left: 0;
+  padding-right: 0;
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.dmd-cell-stalled {
+  color: var(--text-secondary);
+}
+
+.dmd-blank {
+  color: var(--text-placeholder);
+}
+
+/*
+ * 评审状态徽章：浅底胶囊 + 色点 + 状态名。三种状态三个色相。
+ * 用语义色是一处已记录的规范偏离，理由见 DemandV2Page.tsx 里 ReviewStateTag 的注释。
+ *
+ * 胶囊内边距只有 4px：这一列 78px，「待评审」三字 39px，
+ * 常规的 8px 内边距会让胶囊贴到列边、与相邻列的文字连成一片。
+ */
+.dmd-state-tag {
+  --tag-dot: var(--text-tertiary);
+  --tag-ink: var(--text-secondary);
+  --tag-bg: var(--bg-muted);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  padding: 0 var(--space-v2-1);
+  border-radius: var(--radius-tag);
+  background: var(--tag-bg);
+  color: var(--tag-ink);
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.dmd-state-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tag-dot);
+}
+
+/*
+ * 色点用饱和的色相、文字用同色相的深色。
+ *
+ * 直接拿 --warning / --success 当文字色时，13px 的字落在自己的浅底上只有 2:1 出头，
+ * 远低于 AA 要求的 4.5:1 —— 徽章看得见、字却读不清。色相由色点承担，文字降两档明度后
+ * 既保住了「橙=待评审」的识别，也过了对比度。三个深色不在 Token 表里，
+ * 是这三处专用的文字色，不要扩散到别处。
+ */
+.dmd-state-tag[data-state='待评审'] {
+  --tag-dot: var(--warning);
+  --tag-ink: #b45309;
+  --tag-bg: var(--warning-bg);
+}
+
+.dmd-state-tag[data-state='评审中'] {
+  --tag-dot: var(--brand-action);
+  --tag-ink: #2e4385;
+  --tag-bg: var(--brand-100);
+}
+
+.dmd-state-tag[data-state='已评审'] {
+  --tag-dot: var(--success);
+  --tag-ink: #15803d;
+  --tag-bg: var(--success-bg);
+}
+
+/* 操作列只有 35px，「查看」两个字在 12px 下 24px。去掉单元格内边距才放得进去 */
+.dmd-row-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ===========================================================================
+ * 分页条：共 N 条 · 页大小 · 页码 · 跳至
+ * =========================================================================== */
+
+/* 「共 N 条」跟在标题后，把关闭按钮推到最右 */
+.dmd-list-count {
+  flex: 0 0 auto;
+  margin-right: auto;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 分页靠右：翻页是这一屏的次要动作，居中会让它和上面八行数据抢视线 */
+.dmd-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-v2-3);
+  margin-top: auto;
+  padding: var(--space-v2-2) var(--card-pad) 0;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.dmd-pager-total {
+  white-space: nowrap;
+}
+
+.dmd-pager-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  height: 24px;
+  padding: 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dmd-pager-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+}
+
+.dmd-pager-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dmd-pager-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.dmd-pager-step:disabled {
+  color: var(--text-placeholder);
+  cursor: not-allowed;
+}
+
+/* 当前页用实心主色而不是仅加粗：24px 的方块里字重差一档几乎看不出来 */
+.dmd-pager-page[data-current='true'] {
+  border-color: var(--brand-action);
+  background: var(--brand-action);
+  color: #ffffff;
+}
+
+.dmd-pager-gap {
+  padding: 0 2px;
+  color: var(--text-placeholder);
+}
+
+.dmd-pager-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  white-space: nowrap;
+}
+
+.dmd-pager-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===========================================================================
+ * R6 分析区：884×258。左态势图、中状态漏斗、右动态卡
+ * =========================================================================== */
+
+/*
+ * 四块 Grid，列宽按目标稿红框 79∶186∶203∶115（≈14%∶32%∶35%∶20%）。
+ * 口径栏与动态卡定宽，中间两块用 fr 分剩余——用 flex:1 均分会把漏斗和柱图
+ * 拉成一样宽，动态卡就只剩 150px，插画被压扁。
+ */
+.panel.dmd-analysis {
+  flex: 0 0 258px;
+  height: 258px;
+  display: grid;
+  /* 110 / 32fr / 35fr / 178 ≈ 红框 14%∶32%∶35%∶20% */
+  grid-template-columns: 110px minmax(0, 32fr) minmax(0, 35fr) 178px;
+  padding: var(--space-v2-3);
+  gap: var(--space-v2-3);
+}
+
+.dmd-analysis-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-v2-2);
+}
+
+/*
+ * 三张小标题比面板标题低一档：258px 里放 18px 标题会挤掉图表高度。
+ *
+ * 选择器要带上 .panel-title 叠加权重。两个类同权重时先后顺序说了算，
+ * 而 panel.css 是 @import 进来的 —— Vite 开发模式下 @import 会被拆成独立的 <style>
+ * 注入到本文件之后，于是 18px 反而赢了。写成双类后与注入顺序无关。
+ */
+.panel-title.dmd-analysis-title {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+/*
+ * 分析区的内层卡：三列各自把图表／插画装进一个浅框里。
+ *
+ * 外层 .panel 已经是一张卡，内层再套一层是设计稿的写法，作用是把「标题 + 口径切换」
+ * 和「图」分开 —— 三列并排时，没有内框的图会和隔壁列的标题连成一片。
+ */
+.dmd-inset {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  min-height: 0;
+  padding: var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+}
+
+/* 10px 而不是 11px：它复述的是左边已经选中的那个口径，是给图找个名字，
+   压过内层卡里的坐标轴刻度反而会抢读 */
+.dmd-inset-title {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.dmd-analysis-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+}
+
+.dmd-analysis-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
+.dmd-funnel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-v2-2);
+}
+
+/* 口径栏：Grid 第一列定宽 100px。「按所属领域统计」7 字 + 胶囊内边距约 86px */
+.dmd-trend-rail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-v2-2);
+}
+
+.dmd-trend-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-2);
+}
+
+/* 图标在上、名字在下。图标与文字同行时 7 个字要 88px，这一栏得加宽到 130px 才排得下 */
+.dmd-trend-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-v2-1);
+  height: 62px;
+  padding: 0 var(--space-v2-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dmd-trend-tab[data-active='true'] {
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.dmd-trend-inset {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dmd-trend-chart,
+.dmd-funnel-body {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  gap: var(--space-v2-2);
+  min-height: 0;
+}
+
+.dmd-funnel-chart {
+  /* 漏斗列加宽到 35% 后，图形可拿 42%，图例仍放得下「已评审 689 (54.3%)」 */
+  flex: 0 0 42%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dmd-funnel-legend {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 每行等分整列高度，行内再垂直居中，于是行心正对漏斗对应段的中线 */
+.dmd-funnel-legend-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 1 1 0;
+  gap: var(--space-v2-1);
+  min-width: 0;
+  min-height: 0;
+  white-space: nowrap;
+}
+
+/* 小方块而不是圆点：设计稿图例色标是方的，圆点会被读成三色灯的缩写 */
+.dmd-funnel-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* 段名定宽，右边的数字才对得成一列；六个段名都是三个字，定宽不会截字 */
+.dmd-funnel-name {
+  flex: 0 0 auto;
+  width: 34px;
+  color: var(--text-secondary);
+}
+
+.dmd-funnel-value {
+  flex: 0 0 auto;
+  width: 26px;
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: right;
+}
+
+.dmd-funnel-share {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+/* Chart 传的是 height:100%，需要父级给出确定高度才算得出来 */
+.dmd-trend-chart > [role='img'],
+.dmd-funnel-chart > [role='img'] {
+  height: 100%;
+}
+
+.dmd-funnel-note {
+  flex: 0 0 auto;
+  margin-top: var(--space-v2-1);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+/* 需求动态：一期没有动态流（不做站内信与任何消息渠道），这里是空态卡。
+   宽度由 Grid 第四列 178px 定 */
+.dmd-feed {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * 白底描边卡。标题钉在顶上，插画+两行文案成组垂直居中——
+ * 之前插画 flex:1 把文案顶到底边，中间空出一大块，空态读起来像「图还在加载」。
+ */
+.dmd-feed-inset {
+  align-items: center;
+  gap: 0;
+  background: var(--bg-page);
+  text-align: center;
+}
+
+.dmd-feed-inset .dmd-analysis-title {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  margin-bottom: var(--space-v2-2);
+}
+
+.dmd-feed-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: var(--space-v2-2);
+  min-height: 0;
+  width: 100%;
+}
+
+.dmd-feed-illustration {
+  /* 卡内可用约 162px，插画取 148 留一点呼吸；再小会回到「被压扁」的观感 */
+  width: 148px;
+  height: 148px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.dmd-feed-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dmd-feed-title {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-caption-line);
+}
+
+.dmd-feed-caption {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+/* ===========================================================================
+ * R7 需求详情：446×694
+ * =========================================================================== */
+
+.panel.dmd-detail {
+  flex: 0 1 calc((100% - 11px) * 445 / 1329);
+  min-width: 0;
+}
+
+.dmd-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-2);
+}
+
+.dmd-detail-id {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-panel-title-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.dmd-detail-head .dmd-panel-close {
+  align-self: center;
+  margin-left: auto;
+}
+
+/*
+ * 标题与编号、状态同行，所以必须能被压缩。
+ * 不给 min-width:0 时长标题会把状态徽章和关闭按钮顶出面板右边界，
+ * 而 .panel 是 overflow:hidden —— 关闭按钮会直接消失。
+ */
+.dmd-detail-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * 六个页签横排在 414px 内，做成灰底胶囊。
+ *
+ * 六个标签合计 351px（13px 字号：4 字 52、5 字 65、6 字 78）。胶囊左右各 6px、
+ * 间距 4px 时是 351 + 6×12 + 5×4 = 443，超了 —— 所以字号降到 12px（合计 324），
+ * 324 + 72 + 20 = 416 ≈ 414，配合 flex 的等比压缩正好排一行。
+ * 折行的代价不是难看：第二行页签会盖住下面的字段区。
+ */
+.dmd-tabs {
+  display: flex;
+  gap: var(--space-v2-1);
+  margin-top: var(--space-v2-2);
+  padding-bottom: var(--space-v2-2);
+  border-bottom: var(--border-v2);
+}
+
+.dmd-tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dmd-tab[data-active='true'] {
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+/*
+ * 页签下方的正文允许滚动。
+ *
+ * 冻结数据下内容正好装得进 694px，但字段值是变长的（解决方案名称、需求描述都可能更长），
+ * 不给滚动就会在真实数据下被 .panel 的 overflow:hidden 裁掉底部的按钮 ——
+ * 而被裁掉的按钮既看不见也点不到，表现和「这个动作不可用」完全一样。
+ * 回归模式下滚动条已被隐藏（visual-regression.css），不影响基线宽度。
+ */
+.dmd-detail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/*
+ * 详情区的纵向间距整体走紧凑档（8px 而不是 12／16px）。
+ *
+ * 694px 里要装：标题两行 + 六个页签 + 小节标题 + 七个字段 + 两个人 + 两个字段 +
+ * 需求描述三行 + 展开入口 + 四个按钮。按 12／16px 的常规间距算合计约 720px，
+ * 溢出的 26px 正好吃掉「查看更多」和描述的后两行 —— 而 .dmd-detail-body 会滚动，
+ * 所以页面看起来一切正常，只是描述莫名只显示一行。
+ */
+.dmd-detail-section {
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+/* 字段组的浅框。与分析区的内层卡同一形态，共用 --radius-control 与 --border-v2 */
+.dmd-group {
+  margin-top: var(--space-v2-2);
+  padding: var(--space-v2-2) var(--space-v2-3);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+}
+
+.dmd-fields {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 行间用分隔线而不是间距：八行字段在 446px 宽的一列里，只靠 8px 间距分不出行，
+   眼睛会横着串到隔壁行的值上去 */
+.dmd-field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-2);
+  padding: 5px 0;
+  border-top: var(--border-v2);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.dmd-field:first-child {
+  border-top: 0;
+}
+
+.dmd-field dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 0 0 108px;
+  color: var(--text-tertiary);
+}
+
+.dmd-field-hint {
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+}
+
+.dmd-field dd {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* 状态值渲染成浅底徽章，自由文本不渲染 —— 徽章在这一页的含义是「可流转的状态」，
+   给「解决方案名称」套上徽章会让人以为它也能流转 */
+.dmd-value-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: var(--type-caption-size);
+  line-height: 20px;
+}
+
+.dmd-people {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-v2-2) var(--space-v2-3);
+  margin-top: var(--space-v2-3);
+}
+
+/* 两列窄格里放不下「标签 ｜ 值」的横排，标签改到值上方 */
+.dmd-person {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--type-table-size);
+}
+
+.dmd-person-role {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: 18px;
+}
+
+.dmd-person-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  min-width: 0;
+}
+
+/* 没有头像的那半列（所属领域、提出时间）要和左边的头像行等高，否则两列基线错开 */
+.dmd-person-plain {
+  min-height: 24px;
+  color: var(--text-primary);
+}
+
+.dmd-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dmd-person-name {
+  color: var(--text-primary);
+  line-height: 18px;
+}
+
+.dmd-person-title {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.dmd-desc-text {
+  margin-top: var(--space-v2-2);
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  line-height: 20px;
+  /* 三行封顶，展开靠下面的「查看更多」。不给行数上限时长描述会把按钮顶出面板 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 展开入口在描述框里居中。左对齐时它会和上一行正文连成第四行，读起来像还有一句话 */
+.dmd-desc-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  margin-top: var(--space-v2-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
+.dmd-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-v2-2);
+  margin-top: var(--space-v2-2);
+  padding-top: var(--space-v2-2);
+  border-top: var(--border-v2);
+}
+
+/* 等分由 ActionGuard 的 block 负责；这里只把按钮的左右内边距收掉，
+   让 96px 的一格装得下六字的「录入评审结论」 */
+.dmd-detail-actions .ant-btn {
+  padding-inline: var(--space-v2-1);
+}

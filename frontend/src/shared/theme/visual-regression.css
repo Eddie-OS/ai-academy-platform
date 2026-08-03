@@ -1,0 +1,64 @@
+/*
+ * 视觉回归模式样式。仅在 <html data-regression> 下生效，即访问带 ?fixture=1 时。
+ *
+ * 《设计文档 V2.0》1.1 截图环境要求：基线页 body overflow:hidden、禁用动画、
+ * 内部面板滚动到 top=0。0.3 还禁止骨架屏参与基线截图。
+ *
+ * 这些规则一条都不能进产品模式：关掉滚动会让 <1586px 的屏幕看不到下半页内容，
+ * 关掉动画会丢掉抽屉与弹窗的方向感。
+ */
+
+html[data-regression] {
+  /* 基线视口固定 1586×992，不允许出现滚动条 —— 滚动条会占掉 15px 宽度，
+     使正文右边界整体左移，L0 的「每边≤2px」直接失败 */
+  width: 1586px;
+  height: 992px;
+  overflow: hidden;
+}
+
+html[data-regression] body {
+  width: 1586px;
+  height: 992px;
+  margin: 0;
+  overflow: hidden;
+  /* 产品模式的 min-width 会在窄容器里撑出横向滚动，基线模式按固定视口渲染 */
+  min-width: 0;
+}
+
+/* 文档 1.2：截图前注入 *{animation:none;transition:none}。
+   这里直接写进样式表，Playwright 那行 addStyleTag 作为双保险 */
+html[data-regression] *,
+html[data-regression] *::before,
+html[data-regression] *::after {
+  animation: none !important;
+  transition: none !important;
+  /* 插入符会在文本框里闪烁，两次截图能差出一整条竖线 */
+  caret-color: transparent !important;
+}
+
+/* 面板内部滚动条同样会改变内容宽度。保留滚动能力、只隐藏滚动条 */
+html[data-regression] *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+html[data-regression] * {
+  scrollbar-width: none;
+}
+
+/*
+ * 文档 15：Loading 的 pending 态「基线截图禁用」，Toast「基线截图不出现」。
+ * 骨架屏与加载态由 fixture 直接给终态数据来规避，这里兜住组件库自带的那部分：
+ * AntD 的 Spin 与 message/notification 容器不受业务代码控制。
+ */
+html[data-regression] .ant-spin,
+html[data-regression] .ant-message,
+html[data-regression] .ant-notification {
+  display: none !important;
+}
+
+/* AntD 的波纹动画是 ::after 上的 box-shadow 过渡，animation:none 拦不住 */
+html[data-regression] .ant-btn::after,
+html[data-regression] .ant-wave {
+  display: none !important;
+}

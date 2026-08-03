@@ -1,0 +1,454 @@
+/*
+ * 《设计文档 V2.0》第 4 章应用壳层。
+ *
+ * 壳层尺寸一律读 CSS 变量，不写死数值：产品模式的值在 tokens-v2.css 的 :root，
+ * 视觉回归模式的九组逐页值在 [data-regression] [data-page='…']。
+ * 本文件里出现任何硬编码的 218px／70px 都意味着双轨机制被绕开了。
+ */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+html[data-regression] .shell {
+  /* 基线视口固定，不跟随窗口 */
+  width: var(--viewport-w);
+  height: var(--viewport-h);
+  min-height: 0;
+}
+
+/* ===========================================================================
+ * 侧栏（4.1：逐页宽度；右边框 1px #E5E7EB；Logo 槽高 64px；底部用户卡固定）
+ * =========================================================================== */
+
+.shell-sidebar {
+  display: flex;
+  flex: 0 0 var(--sidebar-w);
+  flex-direction: column;
+  width: var(--sidebar-w);
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-page);
+}
+
+.shell-logo {
+  display: flex;
+  align-items: flex-start;
+  height: var(--logo-slot-h);
+  /* 文档 3.3：展开态 Logo 固定 left=16px、top=18px。这两个值属于品牌像素例外，
+     刻意用 padding 而非 flex 居中，居中会随槽高变化而漂移 */
+  padding: var(--logo-box-top) 0 0 var(--logo-box-left);
+}
+
+.shell-logo-img {
+  /* 显示盒 148×33，object-fit:contain —— 新 Logo 与截图旧 Logo 宽高比不同，
+     文档 0.1 把这个显示盒定义为唯一允许的品牌像素例外，不得拉伸填满 */
+  width: var(--logo-box-w);
+  height: var(--logo-box-h);
+  object-fit: contain;
+  object-position: left center;
+}
+
+.shell-logo-mark {
+  width: var(--logo-mark-w);
+  height: var(--logo-mark-h);
+  object-fit: contain;
+}
+
+.shell-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--nav-item-gap);
+  padding: var(--space-v2-2) var(--space-v2-2) 0;
+  overflow-y: auto;
+}
+
+.shell-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  height: var(--nav-item-h);
+  padding: 0 var(--nav-item-pad-x);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition-v2), color var(--transition-v2);
+}
+
+.shell-nav-item:hover {
+  background: var(--brand-50);
+  color: var(--text-primary);
+}
+
+.shell-nav-item[aria-current='page'] {
+  background: var(--brand-action);
+  color: #fff;
+}
+
+.shell-nav-item[aria-current='page'] .shell-nav-icon {
+  color: #fff;
+}
+
+.shell-nav-icon {
+  display: flex;
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.shell-nav-label {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  /* 侧栏最窄一页只有 178px，导航文字必须能截断。
+     文档 0.3 禁止自动换行标题，换行会把 40px 的导航项顶成 60px */
+  text-overflow: ellipsis;
+}
+
+.shell-nav-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.shell-nav-item[aria-current='page'] .shell-nav-badge {
+  background: #fff;
+  color: var(--brand-action);
+}
+
+.shell-nav-divider {
+  height: 1px;
+  margin: var(--space-v2-2) var(--nav-item-pad-x);
+  background: var(--border-light);
+}
+
+/* 只留白、不画线的分组间隔，见 AppShellV2.tsx 里这一处的说明 */
+.shell-nav-gap {
+  height: var(--space-v2-3);
+}
+
+/* 底部用户卡固定（4.1） */
+.shell-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  margin: var(--space-v2-2);
+  padding: var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+}
+
+.shell-user-avatar {
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.shell-user-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-user-name {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-user-role {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.shell-collapse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  height: var(--nav-item-h);
+  margin: 0 var(--space-v2-2) var(--space-v2-2);
+  padding: 0 var(--nav-item-pad-x);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-tertiary);
+  font-size: var(--type-body-size);
+  cursor: pointer;
+}
+
+/* ===========================================================================
+ * 主区
+ * =========================================================================== */
+
+.shell-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 顶部栏（4.1：逐页高度；标题/日期在左，全局搜索居中，任务/消息/评审/新建/帮助/头像在右） */
+.shell-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+  flex: 0 0 var(--topbar-h);
+  height: var(--topbar-h);
+  padding: 0 var(--space-v2-6);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-page);
+}
+
+.shell-page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  color: var(--text-primary);
+  font-size: var(--type-page-title-size);
+  font-weight: var(--type-page-title-weight);
+  line-height: var(--type-page-title-line);
+  white-space: nowrap;
+}
+
+.shell-topbar-search {
+  /* 全局搜索居中：左右两侧各放一个 flex:1 的弹性区，搜索框自身不参与拉伸。
+     用 margin:auto 会让它在左右内容宽度不等时偏离视觉中心 */
+  display: flex;
+  flex: 1;
+  justify-content: center;
+}
+
+/*
+ * 顶栏日期区间。文档 4.1 固定默认值，参与视觉回归。
+ *
+ * 无边框：顶栏右侧已经有「新建」一个实心块与三个动作，日期再套一个描边盒子，
+ * 一条 64px 的横栏上就有五个互相竞争的边框，主按钮反而不显眼。
+ */
+.shell-date-range {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-v2-2);
+  height: var(--control-h);
+  padding: 0 var(--space-v2-2);
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  white-space: nowrap;
+}
+
+.shell-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  width: 360px;
+  height: var(--control-h);
+  padding: 0 var(--input-pad-x);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+}
+
+.shell-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  outline: none;
+}
+
+.shell-search-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+/* search 类型的输入框在 WebKit 下自带一个清除按钮，它只在有值时出现，
+   会让基线截图与交互后截图差出一个图标 */
+.shell-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.shell-search-kbd {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: var(--radius-tag);
+  background: var(--bg-muted);
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.shell-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+}
+
+/*
+ * 三个动作入口无边框。它们是导航而不是命令：描边后与右边的「新建」同权重，
+ * 而「新建」是这一栏唯一的写操作，必须是视觉焦点。
+ */
+.shell-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 var(--space-v2-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.shell-action:hover {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+/*
+ * 角标压在按钮右上角，与文字基线错开。
+ *
+ * 挂到图标右上角时它会盖住紧邻的两个字（「任务」的第一个字），
+ * 而按钮已经没有边框，右上角本来就是空的。16px 而不是 18px：
+ * 无边框之后角标太大会读成一个独立的红色徽章，而不是这个入口的计数。
+ */
+.shell-action-badge {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* 2.4：顶部新建固定 78×38，左图标 16 */
+.shell-create {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: var(--btn-create-w);
+  height: var(--btn-create-h);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand-action);
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shell-create:hover {
+  background: var(--brand-action-hover);
+}
+
+.shell-create:active {
+  background: var(--brand-action-active);
+}
+
+.shell-help {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.shell-help:hover {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+/* 文档 15：focus-visible 是 2px #5B82FF 外环，键盘可见。
+   注意用品牌识别色 brand-primary 而不是交互色 brand-action —— 文档 15 组件矩阵如此规定 */
+.shell-nav-item:focus-visible,
+.shell-action:focus-visible,
+.shell-create:focus-visible,
+.shell-help:focus-visible,
+.shell-collapse:focus-visible,
+.shell-search-input:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 1px;
+}
+
+/*
+ * 正文区是纵向的 flex 容器，高度确定。
+ *
+ * 页面靠这一点把窗口多出来的高度<b>按设计稿的行高比例</b>分给各横带
+ * （见 DashboardV2Page.css 的 .dash-* 一节）。少了 display:flex 这一行，
+ * 页面根元素拿不到确定高度，横带的 flex-basis 会退回按内容测量 ——
+ * 而入口卡里的插画按<b>自然高度</b>参与测量，测出来的基准比视口还高，
+ * 四条横带一起变高、最后一行被顶出视口。
+ */
+.shell-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  /* 正文起点由 --content-x 定义，它是相对视口左边缘的绝对坐标，
+     因此这里减掉侧栏宽度换算成内边距 */
+  padding: 0 var(--space-v2-6) 0 calc(var(--content-x) - var(--sidebar-w));
+  overflow-y: auto;
+  /*
+   * 截图（唯一事实来源）的正文底是浅灰，白卡片靠底色差浮起来。
+   * Token 表写页面=#FFFFFF 会让 15px 间距与卡片间隙消失，整页读成一块白板、
+   * 比例全糊——见 V-66。侧栏／顶栏仍用 --bg-page 白底。
+   */
+  background: var(--bg-muted);
+}
+
+html[data-regression] .shell-content {
+  overflow: hidden;
+}

@@ -1,0 +1,751 @@
+/*
+ * P03 课程工作台（《设计文档 V2.0》第 7 章）。
+ *
+ * 正文左右边界由壳层的 --content-x / --content-w 保证（侧栏 178 + 20 = 198，宽 1364）。
+ *
+ * 纵向间距：R3 y=62（顶栏 61 + 1）、R4 y=173（R3 止于 160，+13）、
+ * R5 y=265（R4 止于 253，+12）、R6/R7 y=718（R5 止于 703，+15）。
+ * 四个值都不一样，逐个写死，理由同 P01/P02：L1 容差只有 2px。
+ */
+
+@import './panel.css';
+
+.crs {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * 产品模式：主体两栏吃满窗口高度，左栏四个区域按设计稿行高比例分配。
+ *
+ * <p><b>回归模式下左栏底部那 80px 空白是设计稿本来的样子</b>（左栏六个区域合计 850，
+ * 这一行高 930），所以那里保持 align-items:flex-start。但产品模式不能照搬 ——
+ * 窗口越高空白越大，最后会变成大半屏的空底。改为 stretch 并把高度按 98/80/438/194 分配。
+ *
+ * 详见 DashboardV2Page.css 同一节关于 flex-basis 必须写 0 的说明。
+ */
+html:not([data-regression]) .crs {
+  flex: 1;
+  min-height: 0;
+}
+
+html:not([data-regression]) .crs-main {
+  align-items: stretch;
+  height: auto;
+  flex: 1;
+  min-height: 930px;
+  margin-bottom: var(--space-v2-6);
+}
+
+html:not([data-regression]) .panel.crs-detail {
+  height: auto;
+}
+
+html:not([data-regression]) .crs-kpis {
+  height: auto;
+  flex: 98 1 0;
+  min-height: 98px;
+}
+
+/* 筛选行不参与伸展：两行控件长高只会让下拉框浮在空白里 */
+html:not([data-regression]) .crs-filters {
+  flex: 0 0 80px;
+}
+
+html:not([data-regression]) .crs-board {
+  height: auto;
+  flex: 438 1 0;
+  min-height: 438px;
+}
+
+html:not([data-regression]) .crs-bottom {
+  height: auto;
+  flex: 194 1 0;
+  min-height: 194px;
+}
+
+/*
+ * 主体两栏。
+ *
+ * 两栏间距 14px 而不是坐标表算出来的 13px：正文宽 1364，左栏 875 + 右栏 474 = 1349，
+ * 剩 15px。取 13px 的话右栏变成 476（差 2，正好顶容差）；取 15px 的话右栏 x 变成 1088
+ * （也差 2）。14px 让 x 与 w 各差 1px，都留有余量。
+ *
+ * align-items:flex-start 是关键：左栏六个区域合计 850，而这一行高 930。
+ * <b>左下角那 80px 空白是设计稿本来的样子</b>，默认的 stretch 会把左栏拉到 930，
+ * 底部两个面板跟着变高 80px，L1 断言会在 R6/R7 上失败。
+ */
+.crs-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  height: 930px;
+  margin-top: 1px;
+}
+
+/*
+ * 两栏宽度写成正文宽度的比例，做法与理由见 DashboardV2Page.css 的 .dash-warning。
+ * 减去的 14px 是两栏间距，1350 是 875 + 475 两个设计宽度之和 ——
+ * 正文 1364px 时算回 875.0 与 475.0。
+ */
+.crs-left {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 calc((100% - 14px) * 875 / 1350);
+  min-width: 0;
+}
+
+/* ===========================================================================
+ * R3 五张 KPI：198,62,875,98
+ * =========================================================================== */
+
+.crs-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--grid-gap);
+  height: 98px;
+}
+
+.crs-kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: var(--card-pad-compact) var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.crs-kpi-label {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.crs-kpi-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  /* 98px 的卡片放不下 28px 的 KPI 数字（12+18+36+18+12 = 96 勉强，但视觉上顶死），
+     用字号阶梯上的小一档 20/28 */
+  font-size: var(--type-kpi-small-size);
+  font-weight: var(--type-kpi-small-weight);
+  line-height: var(--type-kpi-small-line);
+}
+
+.crs-kpi-delta {
+  color: var(--success);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/* ===========================================================================
+ * R4 筛选器：198,173,875,80 —— 两行控件，8+28+8+28+8 = 80
+ * =========================================================================== */
+
+.crs-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-2);
+  box-sizing: border-box;
+  height: 80px;
+  margin-top: 13px;
+  padding: var(--space-v2-2) var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.crs-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  height: var(--control-compact-h);
+}
+
+.crs-filter,
+.crs-search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+  padding: 0 var(--control-compact-pad-x);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  cursor: pointer;
+}
+
+.crs-search {
+  flex: 1;
+  min-width: 0;
+  cursor: text;
+}
+
+.crs-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+}
+
+.crs-search input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.crs-create {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+  padding: 0 var(--control-pad-x);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--brand-action);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ===========================================================================
+ * R5 七列课程看板：198,265,875,438
+ * =========================================================================== */
+
+/*
+ * 外框内边距 3px，不是文档写的 8px。
+ *
+ * 文档 7「内部几何」给了四个数：看板区 875、列宽 119、列间距 6、外框内边距 8。
+ * 这四个数<b>互相矛盾</b>：8 + 7×119 + 6×6 + 8 = 885，比 875 多 10px。
+ *
+ * 让步的是内边距：3 + 833 + 36 + 3 = 875，正好。
+ * 选它而不是压列宽，是因为 119px 是文档首要点明的数，也是我在 spec 里逐列断言的数；
+ * 压成 117.6px 之后七列都对不上，而少 5px 内边距没人看得出来。
+ */
+.crs-board {
+  display: flex;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 438px;
+  margin-top: 12px;
+  padding: 3px;
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-muted);
+}
+
+/*
+ * 列宽写成看板内宽的比例。减去的 36px 是六个 6px 列间距 ——
+ * 看板内宽 869px（875 减去两侧各 3px 内边距）时算回 119.0，逐列断言照样通过。
+ *
+ * 不写 `flex: 1`：那样均分的是<b>剩余空间</b>而不是总宽，875 下七等分得 119.86，
+ * 浏览器逐列四舍五入后累积误差让最后一列差 3~4px，而 119 是文档标注「必须照抄」的数。
+ */
+.crs-col {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 calc((100% - 36px) / 7);
+  min-width: 0;
+  box-sizing: border-box;
+  /* 5px 横向内边距让 109px 的卡片正好居中：5 + 109 + 5 = 119 */
+  padding: 0 5px;
+  min-width: 0;
+}
+
+.crs-col-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+  margin-bottom: var(--space-v2-2);
+  padding-top: var(--space-v2-1);
+}
+
+/* 第七列标题是「推广 / 精品案例」，109px 装不下，截断并挂 title */
+.crs-col-title {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-caption-line);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.crs-col-count {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-col-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 课程卡 109×126、卡间距 6px（「必须照抄」） */
+.crs-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 126px;
+  box-sizing: border-box;
+  height: 126px;
+  padding: var(--space-v2-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+/* 15 组件矩阵：Card selected = 1px #5B82FF + selected shadow。
+   用品牌识别色 brand-primary 而不是交互主色 —— 这是识别而非交互 */
+.crs-card[data-selected='true'] {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-selected);
+}
+
+.crs-card-id {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 课程名最多两行。93px 的内容宽在 12px 下一行约 7 个汉字，两行 14 个够用；
+   第三行会把卡片顶破 126px */
+.crs-card-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: var(--space-v2-1);
+  color: var(--text-primary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-caption-line);
+}
+
+.crs-card-owner {
+  margin-top: var(--space-v2-1);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.crs-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+  margin-top: auto;
+}
+
+.crs-card-stalled {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.crs-blank {
+  color: var(--text-placeholder);
+}
+
+/* ===========================================================================
+ * R6 + R7：y=718 h=194。R6 533 + 12 + R7 330 = 875，这一对间距正好整数
+ * =========================================================================== */
+
+.crs-bottom {
+  display: flex;
+  gap: 12px;
+  height: 194px;
+  margin-top: 15px;
+}
+
+/* 减去的 12px 是两个面板的间距，863 是 533 + 330 两个设计宽度之和 */
+.panel.crs-calendar {
+  flex: 0 1 calc((100% - 12px) * 533 / 863);
+  min-width: 0;
+  padding: var(--card-pad-compact) var(--card-pad);
+}
+
+.panel.crs-overview {
+  flex: 0 1 calc((100% - 12px) * 330 / 863);
+  min-width: 0;
+  padding: var(--card-pad-compact) var(--card-pad);
+}
+
+/* 底部两个面板只有 194px，标题降到正文档，否则 18px 标题吃掉太多高度 */
+.crs-sub-title {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+.crs-calendar-head {
+  margin-bottom: var(--space-v2-2);
+}
+
+.crs-month {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-month button {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.crs-calendar-body {
+  display: flex;
+  gap: var(--space-v2-3);
+  flex: 1;
+  min-height: 0;
+}
+
+.crs-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  flex: 0 0 280px;
+  width: 280px;
+  align-content: start;
+}
+
+.crs-weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.crs-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 20px;
+  border-radius: var(--radius-tag);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 有排期的日子打一个点。点<b>不是唯一标识</b>——右侧列出了选中日的全部场次，
+   而排期日的完整清单在 P2-4 课程排期日历页 */
+.crs-day[data-scheduled='true']::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--brand-action);
+}
+
+.crs-day[data-selected='true'] {
+  background: var(--brand-action);
+  color: #ffffff;
+  font-weight: var(--type-body-medium-weight);
+}
+
+.crs-day[data-selected='true']::after {
+  background: #ffffff;
+}
+
+.crs-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.crs-sessions-date {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-session {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-2);
+  min-width: 0;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.crs-session-time {
+  flex: 0 0 auto;
+  color: var(--brand-action);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-session-course {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ===========================================================================
+ * R7 数据概览
+ * =========================================================================== */
+
+.crs-overview-body {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-v2-2);
+  flex: 1;
+  min-height: 0;
+}
+
+.crs-overview-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.crs-overview-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.crs-overview-item dt {
+  color: var(--text-tertiary);
+}
+
+.crs-overview-item dd {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A07 协作插画。aria-hidden + 空 alt：它不承载信息，三个数字都以文本给出了 */
+.crs-overview-art {
+  flex: 0 0 96px;
+  width: 96px;
+  height: auto;
+  object-fit: contain;
+}
+
+/* ===========================================================================
+ * R8 课程详情：1086,62,474,930
+ * =========================================================================== */
+
+.panel.crs-detail {
+  flex: 0 1 calc((100% - 14px) * 475 / 1350);
+  min-width: 0;
+  height: 930px;
+}
+
+.crs-detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-1);
+}
+
+.crs-detail-id {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-detail-name {
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+}
+
+.crs-tabs {
+  display: flex;
+  gap: var(--space-v2-3);
+  margin-top: var(--space-v2-4);
+  border-bottom: var(--border-v2);
+}
+
+.crs-tab {
+  padding: 0 0 var(--space-v2-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crs-tab[data-active='true'] {
+  border-bottom-color: var(--brand-action);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.crs-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-3);
+  margin-top: var(--space-v2-4);
+}
+
+.crs-field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-v2-3);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.crs-field dt {
+  flex: 0 0 104px;
+  color: var(--text-tertiary);
+}
+
+.crs-field dd {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.crs-block {
+  margin-top: var(--space-v2-5);
+  padding-top: var(--space-v2-4);
+  border-top: var(--border-v2);
+}
+
+.crs-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  margin-bottom: var(--space-v2-2);
+}
+
+.crs-block-title {
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-table-line);
+}
+
+.crs-percent {
+  color: var(--brand-action);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-muted);
+  overflow: hidden;
+}
+
+.crs-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--brand-action);
+}
+
+.crs-version-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-2);
+  margin: var(--space-v2-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crs-version {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.crs-version-no {
+  flex: 0 0 32px;
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-version-time {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-version-tag {
+  display: inline-flex;
+  align-items: center;
+  height: var(--badge-h);
+  padding: 0 var(--badge-pad-x);
+  border-radius: var(--radius-tag);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: var(--type-badge-size);
+  font-weight: var(--type-badge-weight);
+  line-height: var(--badge-h);
+}
+
+.crs-version-note {
+  margin-top: var(--space-v2-2);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+/* 五个动作按钮里有两个是长名（「录入结论=不通过·修改后重新评审」），
+   474px 一行放不下，允许换行；margin-top:auto 把整块压到面板底部 */
+.crs-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-v2-2);
+  margin-top: auto;
+  padding-top: var(--space-v2-4);
+  border-top: var(--border-v2);
+}

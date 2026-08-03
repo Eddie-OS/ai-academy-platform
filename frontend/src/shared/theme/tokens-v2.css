@@ -1,0 +1,257 @@
+/*
+ * 《AI学院联合作战平台_设计文档_V2.0》第 2 章 Token 契约 + 第 4 章逐页壳层变量。
+ *
+ * ## 为什么单独一个文件而不是改 tokens.css
+ *
+ * tokens.css 落的是《设计基础规范 V1.1》，两份文档在 5 个 Token 上给了不同的值。
+ * 业务已裁决「全部以 V2.0 为准」，但 V1.1 那份的取值理由（尤其无障碍对比度）
+ * 写在 tokens.css 的注释里，直接改掉就看不出改了什么、为什么改。
+ * 因此 V2.0 作为覆盖层单独成文：本文件在 tokens.css 之后引入，
+ * 谁想知道 V2.0 相对 V1.1 动了哪些值，看这一个文件就够。
+ *
+ * ## 与 V1.1 的 5 处冲突（本文件按 V2.0 取值）
+ *
+ * | 项              | V1.1      | V2.0      | 影响                                    |
+ * |-----------------|-----------|-----------|-----------------------------------------|
+ * | 交互主色        | #4E70DB   | #3974FA   | 主按钮、导航选中                        |
+ * | 页面背景        | #F5F7FA   | #FFFFFF   | 页面底色，F5F7FA 降级为弱背景           |
+ * | 表单控件边框    | #8A929E   | #E5E7EB   | V1.1 那版是为满足 WCAG 3:1 才特意调深的 |
+ * | placeholder     | #667085   | #ACB3BD   | 同上                                    |
+ * | 按钮/输入圆角   | 6px       | 8px       | 全局控件观感                            |
+ *
+ * 后两条是刻意接受的无障碍风险，已记入 docs/文档待修清单.md。
+ */
+
+:root {
+  /* =========================================================================
+   * 2.1 色彩
+   * ========================================================================= */
+  --brand-primary: #5b82ff; /* Logo/品牌，与 V1.1 的 brand-500 同值 */
+  --brand-action: #3974fa; /* 主按钮/导航 */
+  --brand-action-hover: #2f67ed;
+  --brand-action-active: #285bd9;
+  --brand-50: #f4f7ff; /* 浅蓝背景，也是表格选中行底色 */
+  --brand-100: #eaf0ff; /* 选中背景 */
+
+  --text-primary: #101828;
+  --text-secondary: #475467;
+  --text-tertiary: #667085;
+  --text-placeholder: #acb3bd;
+
+  --bg-page: #ffffff; /* 页面与卡片同为白色，靠 1px 边框分隔而非底色差 */
+  --bg-muted: #f5f7fa;
+
+  --border-default: #e5e7eb;
+  --border-light: #eef1f5;
+
+  --success: #22c55e;
+  --success-bg: #ecfdf3;
+  --warning: #f59e0b;
+  --warning-bg: #fff7e6;
+  --danger: #ef4444;
+  --danger-bg: #fff1f0;
+  --info: #0ea5e9;
+  --purple: #8b5cf6; /* 立项/分类，V1.1 无此色 */
+
+  /* =========================================================================
+   * 2.2 字体、字号与数字
+   * 文档给的是「字号/行高/字重」三元组，这里逐档拆成三个变量。
+   * ========================================================================= */
+  --font-family-v2: Inter, 'Noto Sans SC', sans-serif;
+
+  --type-page-title-size: 24px;
+  --type-page-title-line: 36px;
+  --type-page-title-weight: 600;
+
+  --type-panel-title-size: 18px;
+  --type-panel-title-line: 28px;
+  --type-panel-title-weight: 600;
+
+  --type-body-size: 14px;
+  --type-body-line: 22px;
+  --type-body-weight: 400;
+  /* 按钮/导航/字段名用同字号但 500 字重，不是另一档字号 */
+  --type-body-medium-weight: 500;
+
+  --type-table-size: 13px;
+  --type-table-line: 20px;
+  --type-table-weight: 400;
+
+  --type-caption-size: 12px;
+  --type-caption-line: 18px;
+  --type-caption-weight: 400;
+
+  --type-badge-size: 12px;
+  --type-badge-line: 16px;
+  --type-badge-weight: 500;
+
+  --type-kpi-size: 28px;
+  --type-kpi-line: 36px;
+  --type-kpi-weight: 600;
+
+  --type-kpi-small-size: 20px;
+  --type-kpi-small-line: 28px;
+  --type-kpi-small-weight: 600;
+
+  /* =========================================================================
+   * 2.3 几何与动效
+   * ========================================================================= */
+  /* 间距阶梯「只允许此阶梯」：4/8/12/16/20/24/32。V1.1 的 2px 与 48/64px 不在其中 */
+  --space-v2-1: 4px;
+  --space-v2-2: 8px;
+  --space-v2-3: 12px;
+  --space-v2-4: 16px;
+  --space-v2-5: 20px;
+  --space-v2-6: 24px;
+  --space-v2-7: 32px;
+
+  --radius-control: 8px; /* 按钮/输入/导航项 */
+  --radius-card: 12px; /* 卡片/面板 */
+  --radius-tag: 4px; /* 标签 */
+
+  --border-v2: 1px solid var(--border-default);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-selected: 0 4px 12px rgba(57, 116, 250, 0.16);
+  /* 只用于 hover/focus；视觉回归模式由 visual-regression.css 整体关掉 */
+  --transition-v2: 120ms cubic-bezier(0.2, 0, 0, 1);
+
+  --z-v2-base: 0;
+  --z-v2-sticky: 10;
+  --z-v2-dropdown: 1000;
+  --z-v2-drawer: 1100;
+  --z-v2-modal: 1200;
+  --z-v2-toast: 1300;
+
+  /* =========================================================================
+   * 2.4 组件固定尺寸
+   * ========================================================================= */
+  --control-h: 36px; /* 标准按钮与输入/选择器 */
+  --control-pad-x: 16px;
+  --control-gap: 8px;
+  --control-compact-h: 28px; /* 表格内操作按钮 */
+  --control-compact-pad-x: 10px;
+  --input-pad-x: 12px;
+  --btn-create-w: 78px; /* 顶栏「新建」，左图标 16px */
+  --btn-create-h: 38px;
+  --badge-h: 22px;
+  --badge-pad-x: 8px;
+  --nav-item-h: 40px;
+  --nav-item-pad-x: 12px;
+  --nav-item-gap: 4px;
+  --kpi-icon-plate: 44px; /* KPI 卡的图标底板 */
+  --card-pad: 16px;
+  --card-pad-compact: 12px;
+  --panel-gap: 12px;
+
+  /* 头像「仅这 5 档」，用错档位会让行高与基线一起偏 */
+  --avatar-xs: 24px;
+  --avatar-sm: 32px;
+  --avatar-md: 40px;
+  --avatar-lg: 56px;
+  --avatar-xl: 64px;
+
+  /* =========================================================================
+   * 4.1 全局固定元素
+   * ========================================================================= */
+  --viewport-w: 1586px;
+  --viewport-h: 992px;
+  --grid-gap: 12px;
+  --logo-slot-h: 64px;
+  --logo-box-w: 148px; /* 文档 0.1 唯一允许的品牌像素例外 */
+  --logo-box-h: 33px;
+  --logo-box-left: 16px;
+  --logo-box-top: 18px;
+  --logo-mark-w: 24px;
+  --logo-mark-h: 27px;
+}
+
+/*
+ * 4.2 逐页壳层变量。
+ *
+ * 九张截图的侧栏宽度实测是 178～253px 九个不同值，文档 0.3 明令「禁止把页面级侧栏宽度
+ * 重构为单一变量」，但 16.2 又允许「正式产品可统一，只有视觉回归模式必须逐页覆盖」。
+ * 因此这九组值只在 <html data-regression> 下生效 —— 即 ?fixture=1 视觉回归模式；
+ * 产品模式走 tokens.css 的统一尺寸。两套口径的切换点只有这一处。
+ */
+[data-regression] [data-page='dashboard'] {
+  --sidebar-w: 218px;
+  --topbar-h: 70px;
+  --content-x: 242px;
+  --content-w: 1320px;
+}
+
+[data-regression] [data-page='requirement'] {
+  --sidebar-w: 198px;
+  --topbar-h: 61px;
+  --content-x: 222px;
+  --content-w: 1340px;
+}
+
+[data-regression] [data-page='course'] {
+  --sidebar-w: 178px;
+  --topbar-h: 61px;
+  --content-x: 198px;
+  --content-w: 1364px;
+}
+
+[data-regression] [data-page='instructor'] {
+  --sidebar-w: 222px;
+  --topbar-h: 50px;
+  --content-x: 252px;
+  --content-w: 1310px;
+}
+
+[data-regression] [data-page='training'] {
+  --sidebar-w: 253px;
+  --topbar-h: 69px;
+  --content-x: 273px;
+  --content-w: 1289px;
+}
+
+[data-regression] [data-page='case'] {
+  --sidebar-w: 196px;
+  --topbar-h: 62px;
+  --content-x: 215px;
+  --content-w: 1347px;
+}
+
+[data-regression] [data-page='task'] {
+  --sidebar-w: 200px;
+  --topbar-h: 67px;
+  --content-x: 224px;
+  --content-w: 1338px;
+}
+
+[data-regression] [data-page='message'] {
+  --sidebar-w: 199px;
+  --topbar-h: 69px;
+  --content-x: 221px;
+  --content-w: 1341px;
+}
+
+[data-regression] [data-page='review'] {
+  --sidebar-w: 216px;
+  --topbar-h: 68px;
+  --content-x: 242px;
+  --content-w: 1320px;
+}
+
+/* 产品模式的壳层：九页共用一套，取截图的中位数量级并对齐 4px 标尺 */
+:root {
+  --sidebar-w: 200px;
+  --topbar-h: 64px;
+  --content-x: 224px;
+  --content-w: 1338px;
+}
+
+body {
+  font-family: var(--font-family-v2);
+  /* 文档 2.2：关掉合成字重与合成斜体，字重必须来自真实字面。
+     少了这一行，缺 500/600 字面时浏览器会把 400 拉粗，字宽变化导致文本位移超过 2px */
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}

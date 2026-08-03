@@ -1,0 +1,1162 @@
+/*
+ * P06 案例与组织覆盖（《设计文档 V2.0》第 10 章）。
+ *
+ * 正文：侧栏 196 + 19 = 215，宽 1347（PAGE_SHELL）。
+ * KPI／筛选通栏宽按坐标表 1335（比正文短 12px）——回归照抄，产品拉满。
+ *
+ * 左栏 985 + 间距 15 + 详情 336 = 1336。
+ * 左栏自洽：265 + 14 + 170 + 11 + 251 = 711 = R8 高（V-65：两种模式都带 R7）。
+ */
+
+@import './panel.css';
+
+.cse {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===========================================================================
+ * R3 六／五张 KPI：215,74,1335,90
+ * =========================================================================== */
+
+.cse-kpis {
+  display: grid;
+  gap: var(--grid-gap);
+  box-sizing: border-box;
+  width: 1335px;
+  height: 90px;
+  margin-top: 12px;
+}
+
+.cse-kpis[data-count='6'] {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.cse-kpis[data-count='5'] {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.cse-kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 10px 14px;
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.cse-kpi-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.cse-kpi-label {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cse-kpi-value {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: var(--type-kpi-weight);
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-kpi-delta {
+  display: flex;
+  gap: var(--space-v2-1);
+  color: var(--success);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-kpi-period {
+  color: var(--text-tertiary);
+}
+
+.cse-kpi-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+/* ===========================================================================
+ * R4 筛选器：215,176,1335,57
+ * =========================================================================== */
+
+.cse-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  box-sizing: border-box;
+  width: 1335px;
+  height: 57px;
+  margin-top: 12px;
+  padding: 0 var(--space-v2-3);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.cse-search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 1 1 160px;
+  min-width: 140px;
+  height: 32px;
+  padding: 0 10px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  color: var(--text-placeholder);
+}
+
+.cse-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  outline: none;
+}
+
+.cse-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cse-filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.cse-report-btn,
+.cse-create-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  white-space: nowrap;
+}
+
+.cse-report-btn {
+  border: var(--border-v2);
+  background: var(--bg-page);
+  color: var(--brand-action);
+  cursor: pointer;
+}
+
+.cse-create-btn {
+  border: 0;
+  background: var(--brand-action);
+  color: #ffffff;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cse-create-btn:disabled {
+  opacity: 0.55;
+}
+
+/* ===========================================================================
+ * 主体：左 985，右 336，间距 15。y=243 起
+ * =========================================================================== */
+
+.cse-main {
+  display: flex;
+  gap: 15px;
+  height: 711px;
+  margin-top: 10px;
+}
+
+.cse-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 0 0 985px;
+  width: 985px;
+  min-width: 0;
+}
+
+.cse[data-coverage='on'] .cse-left {
+  gap: 14px;
+}
+
+/* R5→R6 14px，R6→R7 11px：有覆盖区时第二段间距单独收一点 */
+.cse[data-coverage='on'] .panel.cse-analytics {
+  margin-bottom: -3px;
+}
+
+.cse[data-coverage='on'] .panel.cse-coverage {
+  margin-top: -3px;
+}
+
+/* ===========================================================================
+ * R5 案例库：215,243,985,265
+ * =========================================================================== */
+
+.panel.cse-library {
+  flex: 0 0 265px;
+  height: 265px;
+  padding: var(--space-v2-3);
+}
+
+.cse-library-head {
+  margin-bottom: var(--space-v2-2);
+}
+
+.cse-view-switch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background: var(--bg-muted);
+}
+
+.cse-view-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
+.cse-view-btn[data-active='true'] {
+  background: var(--bg-page);
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+  box-shadow: var(--shadow-card);
+}
+
+.cse-cards {
+  display: flex;
+  flex: 1;
+  gap: 12px; /* 设计稿「必须照抄」的卡间距 */
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cse-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 177px;
+  box-sizing: border-box;
+  width: 177px;
+  height: 100%;
+  max-height: 210px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cse-card[data-selected='true'] {
+  border-color: var(--brand-action);
+  box-shadow: var(--shadow-selected);
+}
+
+/*
+ * 封面约占卡高一半以上（设计稿卡片是「上图下文」）。
+ * 原先 88px 只到 42%，卡面读成「小条图 + 大段字」，和截图比例差一截。
+ */
+.cse-card-cover {
+  position: relative;
+  flex: 0 0 112px;
+  height: 112px;
+  background: var(--bg-muted);
+  overflow: hidden;
+}
+
+.cse-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cse-featured {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--warning);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 16px;
+}
+
+.cse-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  padding: 6px 8px 8px;
+}
+
+.cse-card-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cse-card-domain {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cse-card-tags {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cse-card-tags span,
+.cse-detail-tags span {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-50);
+  color: var(--brand-action);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.cse-card-metrics {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-card-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cse-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cse-state::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-placeholder);
+}
+
+.cse-state[data-state='已上架']::before {
+  background: var(--success);
+}
+
+.cse-state[data-state='待审核']::before {
+  background: var(--warning);
+}
+
+.cse-state[data-state='整理中']::before {
+  background: var(--brand-action);
+}
+
+.cse-state[data-state='待整理']::before {
+  background: var(--text-placeholder);
+}
+
+.cse-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-table-size);
+  line-height: 20px;
+}
+
+.cse-list-table th,
+.cse-list-table td {
+  height: 28px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cse-list-table th {
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-weight);
+  background: var(--bg-muted);
+}
+
+.cse-list-table tbody tr {
+  cursor: pointer;
+}
+
+.cse-list-table tbody tr[data-selected='true'] {
+  background: var(--brand-50);
+}
+
+/* ===========================================================================
+ * R6 案例分析：215,522,985,170
+ * =========================================================================== */
+
+.panel.cse-analytics {
+  flex: 0 0 170px;
+  height: 170px;
+  flex-direction: row;
+  gap: var(--space-v2-3);
+  padding: var(--space-v2-2) var(--space-v2-3);
+}
+
+.cse-analytics-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cse-donut-col {
+  flex: 0.9;
+}
+
+.cse-inset-title {
+  flex: 0 0 auto;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.cse-donut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-2);
+  flex: 1;
+  min-height: 0;
+}
+
+.cse-donut-chart {
+  position: relative;
+  flex: 0 0 110px;
+  width: 110px;
+  height: 110px;
+}
+
+.cse-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.cse-donut-center span {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-donut-center small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.cse-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cse-donut-legend li {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.cse-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-action);
+}
+
+.cse-legend-dot[data-slice='comments'] {
+  background: #7eb6ff;
+}
+
+.cse-donut-legend strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-rank {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.cse-rank li {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.cse-rank-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
+  background: var(--brand-50);
+}
+
+.cse-rank li[data-rank='1'] .cse-rank-no {
+  color: #ffffff;
+  background: var(--brand-action);
+}
+
+.cse-rank li[data-rank='2'] .cse-rank-no,
+.cse-rank li[data-rank='3'] .cse-rank-no {
+  color: var(--brand-action);
+  background: var(--brand-100);
+}
+
+.cse-rank-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cse-rank-views {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===========================================================================
+ * R7 组织覆盖：215,703,985,251
+ * =========================================================================== */
+
+.panel.cse-coverage {
+  flex: 0 0 251px;
+  height: 251px;
+  flex-direction: row;
+  gap: var(--space-v2-3);
+  padding: var(--space-v2-2) var(--space-v2-3);
+}
+
+.cse-coverage-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cse-coverage-table-col {
+  flex: 0 0 480px;
+}
+
+.cse-coverage-delta {
+  margin-left: 8px;
+  color: var(--success);
+  font-weight: var(--type-body-weight);
+}
+
+.cse-heat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 2px;
+}
+
+.cse-heat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cse-heat-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 36px;
+  align-items: center;
+  gap: 6px;
+}
+
+.cse-heat-row-child {
+  padding-left: 8px;
+  grid-template-columns: 56px 1fr 36px;
+}
+
+.cse-heat-name {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cse-heat-row-group .cse-heat-name {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.cse-heat-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-muted);
+  overflow: hidden;
+}
+
+.cse-heat-row-group .cse-heat-track {
+  height: 10px;
+}
+
+.cse-heat-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6b95ff 0%, var(--brand-action) 100%);
+}
+
+.cse-heat-row-child .cse-heat-fill {
+  background: #9bbcff;
+}
+
+.cse-heat-rate {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-heat-row-group .cse-heat-rate {
+  color: var(--text-secondary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.cse-coverage-table {
+  width: 480px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.cse-coverage-table th,
+.cse-coverage-table td {
+  height: 26px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cse-coverage-table th {
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-weight);
+  background: var(--bg-muted);
+}
+
+.cse-coverage-table td {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-coverage-pager {
+  margin-top: auto;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+/* ===========================================================================
+ * R8 案例详情：1215,243,336,711
+ * =========================================================================== */
+
+.panel.cse-detail {
+  flex: 0 0 336px;
+  width: 336px;
+  height: 711px;
+  padding: var(--space-v2-3);
+}
+
+.cse-detail-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  margin-bottom: var(--space-v2-2);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cse-detail-caption strong {
+  color: var(--text-secondary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.cse-detail-caption button {
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cse-detail-head {
+  display: flex;
+  gap: var(--space-v2-2);
+  flex: 0 0 auto;
+}
+
+.cse-detail-cover {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+  background: var(--bg-muted);
+}
+
+.cse-detail-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.cse-detail-name {
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: 20px;
+}
+
+.cse-detail-domain {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.cse-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.cse-detail-tags .cse-featured {
+  position: static;
+}
+
+.cse-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin-top: var(--space-v2-3);
+  border-bottom: var(--border-v2);
+}
+
+.cse-tab {
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cse-tab[data-active='true'] {
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+  border-bottom-color: var(--brand-action);
+}
+
+.cse-detail-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-top: var(--space-v2-2);
+  overflow: auto;
+}
+
+.cse-body-block {
+  margin-bottom: var(--space-v2-2);
+}
+
+.cse-body-block h3 {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 18px;
+}
+
+.cse-body-block p {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.cse-outcome-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cse-outcome-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cse-outcome-list svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--success);
+}
+
+.cse-audience {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.cse-audience span {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 18px;
+}
+
+.cse-report {
+  margin-top: var(--space-v2-2);
+  padding: var(--space-v2-2);
+  border-radius: var(--radius-control);
+  background: var(--brand-50);
+}
+
+.cse-report-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.cse-report-head h3 {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: var(--type-body-medium-weight);
+}
+
+.cse-report-body {
+  display: flex;
+  gap: var(--space-v2-2);
+  margin-top: 8px;
+}
+
+.cse-report-art {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.cse-report-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cse-report-label {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: var(--type-body-medium-weight);
+}
+
+.cse-report-text .cse-report-label:first-child {
+  margin-top: 0;
+}
+
+.cse-report ul {
+  margin: 2px 0 0;
+  padding-left: 16px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cse-comments {
+  margin-top: var(--space-v2-3);
+}
+
+.cse-comment {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: var(--border-v2);
+}
+
+.cse-comment-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  font-size: 11px;
+}
+
+.cse-comment-head strong {
+  color: var(--text-primary);
+}
+
+.cse-comment-head span {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cse-comment p {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cse-detail-actions {
+  display: flex;
+  gap: var(--space-v2-2);
+  flex: 0 0 auto;
+  margin-top: var(--space-v2-2);
+}
+
+.cse-action-secondary,
+.cse-action-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-body-medium-weight);
+  cursor: pointer;
+}
+
+.cse-action-secondary {
+  flex: 0 0 auto;
+  border: var(--border-v2);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+}
+
+.cse-action-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.cse-action-primary {
+  flex: 1;
+  border: 0;
+  background: var(--brand-action);
+  color: #ffffff;
+}
+
+/* ===========================================================================
+ * 产品模式
+ * =========================================================================== */
+
+html:not([data-regression]) .cse {
+  flex: 1;
+  min-height: 0;
+}
+
+html:not([data-regression]) .cse-kpis,
+html:not([data-regression]) .cse-filters {
+  width: auto;
+}
+
+html:not([data-regression]) .cse-kpis {
+  height: auto;
+  flex: 90 1 0;
+  min-height: 90px;
+}
+
+html:not([data-regression]) .cse-filters {
+  flex: 0 0 57px;
+}
+
+html:not([data-regression]) .cse-main {
+  height: auto;
+  flex: 711 1 0;
+  min-height: 711px;
+  margin-bottom: var(--space-v2-6);
+}
+
+html:not([data-regression]) .cse-left {
+  flex: 985 1 0;
+  width: auto;
+}
+
+html:not([data-regression]) .panel.cse-detail {
+  flex: 336 1 0;
+  width: auto;
+  height: auto;
+  min-height: 711px;
+}
+
+html:not([data-regression]) .panel.cse-library {
+  height: auto;
+  flex: 265 1 0;
+  min-height: 265px;
+}
+
+/*
+ * 左栏被拉宽后，若卡宽仍锁 177px，五张卡只占左栏一半，右边空出一大块白板
+ * （用户反馈的「大量留白」就是这里）。产品模式五张卡均分铺满案例库，
+ * 封面／正文按设计高比例一起长高；回归模式仍钉 177×112。
+ */
+html:not([data-regression]) .cse-card {
+  flex: 1 1 0;
+  width: auto;
+  max-height: none;
+  min-width: 0;
+}
+
+html:not([data-regression]) .cse-card-cover {
+  flex: 112 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+html:not([data-regression]) .cse-card-body {
+  flex: 98 1 0;
+  min-height: 0;
+}
+
+html:not([data-regression]) .panel.cse-analytics {
+  height: auto;
+  flex: 170 1 0;
+  min-height: 170px;
+}
+
+html:not([data-regression]) .panel.cse-coverage {
+  height: auto;
+  flex: 251 1 0;
+  min-height: 251px;
+}
+
+html:not([data-regression]) .cse-coverage-table-col {
+  flex: 480 1 0;
+  min-width: 0;
+  width: auto;
+}
+
+html:not([data-regression]) .cse-coverage-table {
+  width: 100%;
+}

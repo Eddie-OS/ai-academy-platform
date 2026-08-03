@@ -1,0 +1,112 @@
+/*
+ * 面板外框：V2.0 九页共用的卡片壳（设计文档 2.1）。
+ *
+ * 卡片底色是白（--bg-page）。正文画布是浅灰（--bg-muted，挂在 .shell-content）——
+ * 以九张截图为准（V-66），不是 Token 表里那行「页面=#FFFFFF」。
+ *
+ * 抽成独立文件的原因：P01 之外的页面也要用这套壳。
+ * 留在 DashboardV2Page.css 里的话，P02 能正常显示<b>只是因为</b> P01 恰好也被打进了同一个包 ——
+ * 哪天给路由加上 lazy 分包，P02 会在没人改动它的情况下突然掉光边框。
+ */
+
+/*
+ * V2.0 九页共用的排版重置。
+ *
+ * 项目只在 body 上重置了 margin，p / h2 / dl / dd 的浏览器默认外边距都还在，
+ * 而 `p` 的默认值是 `1em 0` —— 会随字号放大。28px 的 KPI 数字因此带上 28px 上下边距，
+ * 一张 108px 的卡片放三行文字就会溢出到下一个区域里去。
+ *
+ * <p>难查的地方在于它<b>不报错、也不影响区域外框</b>：卡片本身的 boundingBox 仍是 108px，
+ * L1 区域断言照样通过，只有卡片<b>内部</b>的文字跑到了别的区域上面。
+ *
+ * <p>用 :where() 包起来是为了让选择器特异性归零，页面自己写的 margin 不需要额外加权就能覆盖。
+ * 也不做成全局的 `p { margin: 0 }` —— 阶段 2 的五个驾驶舱还在产品模式下跑，
+ * 它们的排版依赖默认外边距，全局重置会在没人改动那些页面的情况下把它们挤变形。
+ */
+.v2-page :where(p, h1, h2, h3, h4, dl, dd, figure) {
+  margin: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+  padding: var(--card-pad);
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  margin-bottom: var(--space-v2-3);
+}
+
+/*
+ * 标题一律不折行。窄面板（P01 的业务价值只有 239px）里标题右边还挤着口径说明与动作链接，
+ * 允许折行时标题会变成两行，把面板正文整体往下顶出卡外 —— 而卡片自己的高度没变，
+ * 区域坐标断言照样通过，只有被顶出去的那部分内容看不见了。
+ */
+.panel-title {
+  flex: 0 0 auto;
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+  white-space: nowrap;
+}
+
+/*
+ * 标题右侧的条数徽章（「待办行动清单 12」）。
+ *
+ * margin-right:auto 让它紧贴标题，把右侧动作推到最右 —— 它修饰的是标题而不是面板，
+ * 居右会读成「12 个什么」。
+ */
+.panel-count {
+  flex: 0 0 auto;
+  margin-right: auto;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: 11px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 标题旁的口径说明（「（人工填报）」）。
+ *
+ * 必须紧跟标题、且在数字之前被读到：它决定了这些数能不能被复核。
+ * 放到卡片底部当脚注时，读者已经把数字与旁边由 SQL 算出来的指标当成同一类了。
+ */
+.panel-note {
+  flex: 0 0 auto;
+  margin-right: auto;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.panel-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-medium-weight);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
