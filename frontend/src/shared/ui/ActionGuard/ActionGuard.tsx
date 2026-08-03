@@ -58,11 +58,46 @@ export function resolveAction(availability: ActionAvailability | undefined, acti
 interface ActionGuardProps {
   availability: ActionAvailability | undefined;
   actions: GuardedAction[];
+  /**
+   * 按钮间距，默认 {@code space.md}。
+   *
+   * <p>留这个口子是因为动作名的长度由状态机决定而不是由布局决定：需求详情的四个动作里有一个
+   * 六字名（「录入评审结论」），四个按钮本身合计 380px，默认间距下总宽 428px，超出 410px 的
+   * 面板正文，第四个就换行了。窄面板收紧到 {@code space.xs} 能排成一行——
+   * 比给按钮起个短名字安全，后者会让界面上的动作名和状态机转换表对不上。
+   */
+  gap?: number;
+  /**
+   * 铺满容器宽度，几个动作等分。默认按内容定宽。
+   *
+   * <p>详情面板底部是一条固定的动作栏，动作名长短不一（「一键催办」四字、
+   * 「录入评审结论」六字），按内容定宽时右边会剩一截空白，看起来像还有一个按钮没加载出来。
+   * 只在宽度确定的容器里开——横向可滚动的容器里等分会把按钮压成一列竖字。
+   */
+  block?: boolean;
 }
 
-export function ActionGuard({ availability, actions }: ActionGuardProps) {
+/*
+ * flexWrap 必须开。动作名来自状态机转换表，长度不由前端决定 ——
+ * 课程的「录入结论=不通过·修改后重新评审」有 15 个字，三个这样的按钮在 474px 的
+ * 详情面板里放不进一行。不换行的话多出来的按钮会被面板的 overflow:hidden 裁掉，
+ * 而被裁掉的按钮既看不见也点不到，表现和「这个动作不可用」一模一样。
+ */
+export function ActionGuard({ availability, actions, gap = space.md, block = false }: ActionGuardProps) {
+  // 等分要落在承载 Tooltip 的那层 span 上，而不是 Button 上——置灰按钮的
+  // Tooltip 靠外层 span 接 hover，Button 撑满了 span 才是等分的那一格
+  const cellStyle = block ? { flex: '1 1 0', minWidth: 0 } : undefined;
+
   return (
-    <div style={{ display: 'inline-flex', gap: space.md, alignItems: 'center' }}>
+    <div
+      style={{
+        display: block ? 'flex' : 'inline-flex',
+        flexWrap: 'wrap',
+        gap,
+        alignItems: 'center',
+        width: block ? '100%' : undefined,
+      }}
+    >
       {actions.map((item) => {
         const { state, reason } = resolveAction(availability, item.action);
         if (state === 'unknown') {
@@ -79,6 +114,7 @@ export function ActionGuard({ availability, actions }: ActionGuardProps) {
             loading={item.loading}
             icon={item.icon}
             disabled={state === 'blocked'}
+            block={block}
             onClick={item.onClick}
           >
             {item.action}
@@ -88,12 +124,14 @@ export function ActionGuard({ availability, actions }: ActionGuardProps) {
         // 置灰按钮不触发 hover 事件，必须由外层元素承载 Tooltip，否则原因看不到
         return state === 'blocked' ? (
           <Tooltip key={item.action} title={reason}>
-            <span data-testid="guarded-action-reason" data-reason={reason ?? ''}>
+            <span data-testid="guarded-action-reason" data-reason={reason ?? ''} style={cellStyle}>
               {button}
             </span>
           </Tooltip>
         ) : (
-          <span key={item.action}>{button}</span>
+          <span key={item.action} style={cellStyle}>
+            {button}
+          </span>
         );
       })}
     </div>

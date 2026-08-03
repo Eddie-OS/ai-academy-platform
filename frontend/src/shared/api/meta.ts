@@ -38,8 +38,47 @@ export interface ThresholdMeta {
   expectFinishField: string;
 }
 
+/** 课程材料类型与各自的单文件上限（规则 F1）。上限由后端给，前端不抄。 */
+export interface MaterialTypeMeta {
+  materialType: string;
+  scene: string;
+  maxBytes: number;
+  maxSizeText: string;
+}
+
 export const metaApi = {
   enums: () => api.get<MachineMeta[]>('/api/meta/enums'),
   dicts: () => api.get<Record<string, DictOption[]>>('/api/meta/dicts'),
+  /** 非状态机的字段枚举：评审轨道、有效期时长、评审结果、试讲结论、验收标准…… */
+  fieldEnums: () => api.get<Record<string, string[]>>('/api/meta/field-enums'),
+  materialTypes: () => api.get<MaterialTypeMeta[]>('/api/meta/material-types'),
   thresholds: () => api.get<ThresholdMeta[]>('/api/meta/thresholds'),
 };
+
+/**
+ * 枚举名常量。<b>这些是枚举的「键」不是「值」</b>——键要与需求文档的字段名对齐才能人工对账，
+ * 值（如「内部端到端课程」）一律来自后端。
+ */
+export const FIELD_ENUM_KEYS = {
+  demandSource: '需求来源',
+  demandType: '需求类型',
+  demandPriority: '需求优先级',
+  demandOutlet: '需求分流出口',
+  demandAcceptanceResult: '需求验收结论',
+  reviewTrack: '课程评审轨道',
+  validityPeriod: '课程有效期',
+  validityStatus: '课程有效期状态',
+  qualityMark: '课程精品标注',
+  materialType: '课程材料类型',
+  reviewForm: '课程评审形式',
+  reviewResult: '课程评审结果',
+  trialConclusion: '试讲结论',
+  acceptanceCheckPrefix: '试讲验收标准·',
+  lecturerTrainingState: '讲师培养状态',
+  lecturerPoolState: '讲师在池状态',
+  lecturerJoinType: '讲师入池方式',
+  caseAuditResult: '案例审核结论',
+  caseQualityMark: '案例精品标注',
+  caseBoardSort: '案例看板排序',
+  caseReportGenerateMode: '总结报告生成方式',
+} as const;

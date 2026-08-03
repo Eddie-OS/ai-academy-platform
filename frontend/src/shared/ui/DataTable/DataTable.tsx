@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { App, Button, Segmented, Table, Typography } from 'antd';
 import type { ColumnType } from 'antd/es/table';
-import { layout, neutral, radius, space } from '@/shared/theme/designTokens';
+import { brand, layout, neutral, radius, space } from '@/shared/theme/designTokens';
 import { useIsOperator } from '@/shared/store/authStore';
 import { PageState } from '@/shared/ui/PageState';
 import { COLUMN_KINDS, type ColumnKind } from './columnKinds';
@@ -76,6 +76,15 @@ interface DataTableProps<T> {
   toolbarExtra?: ReactNode;
   /** 页面自己的吸顶高度（页头、筛选条），与顶栏 56px 相加得到表头吸顶偏移 */
   stickyOffset?: number;
+  /**
+   * 主从版式下「点行即在右侧面板打开」。给了它整行才有指针光标。
+   *
+   * <p>行内的链接、按钮、勾选框不触发它：点「查看」与点行是同一件事，两个都触发会导航两次；
+   * 而点勾选框的意图是批量选择，把面板一起打开会让批量录入每勾一条就重排一次页面。
+   */
+  onRowClick?: (row: T) => void;
+  /** 当前在右侧面板打开的那一行的 rowKey，整行高亮 */
+  activeRowKey?: string | null;
 }
 
 /** 空值统一 `—`（U+2014）。0 与 false 不是空值，必须原样显示。 */
@@ -118,6 +127,8 @@ export function DataTable<T>({
   bulkActions,
   toolbarExtra,
   stickyOffset = 0,
+  onRowClick,
+  activeRowKey = null,
 }: DataTableProps<T>) {
   const isOperator = useIsOperator();
   const { message } = App.useApp();
@@ -239,7 +250,7 @@ export function DataTable<T>({
           gap: space.md,
           padding: `0 ${space.lg}px`,
           borderBottom: `1px solid ${neutral[200]}`,
-          background: showBulkBar ? '#E8EEFF' : neutral[0],
+          background: showBulkBar ? brand[50] : neutral[0],
         }}
       >
         {showBulkBar ? (
@@ -300,7 +311,27 @@ export function DataTable<T>({
             onPageChange(nextPage, nextSize);
           },
         }}
-        onRow={() => ({ style: { height: spec.rowHeight } })}
+        onRow={(row) => {
+          if (showSkeleton || !onRowClick) {
+            return { style: { height: spec.rowHeight } };
+          }
+          const active = activeRowKey !== null && rowKey(row) === activeRowKey;
+          return {
+            'data-active': active,
+            style: {
+              height: spec.rowHeight,
+              cursor: 'pointer',
+              background: active ? brand[50] : undefined,
+            },
+            onClick: (event: React.MouseEvent<HTMLElement>) => {
+              const target = event.target as HTMLElement;
+              if (target.closest('a, button, input, .ant-checkbox, .ant-dropdown-trigger')) {
+                return;
+              }
+              onRowClick(row);
+            },
+          };
+        }}
       />
     </div>
   );

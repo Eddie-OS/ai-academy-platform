@@ -75,12 +75,23 @@ export const api = {
     request<T>(path, { method: 'POST', body: payload === undefined ? undefined : JSON.stringify(payload) }),
   put: <T>(path: string, payload?: unknown) =>
     request<T>(path, { method: 'PUT', body: payload === undefined ? undefined : JSON.stringify(payload) }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  /** 只改一个字段的局部更新。目前只有案例的停留时长回报用它 */
+  patch: <T>(path: string, payload?: unknown) =>
+    request<T>(path, { method: 'PATCH', body: payload === undefined ? undefined : JSON.stringify(payload) }),
+  /** DELETE 允许带请求体：解除附件引用要同时给出 refType／refId／refField 三元组 */
+  delete: <T>(path: string, payload?: unknown) =>
+    request<T>(path, { method: 'DELETE', body: payload === undefined ? undefined : JSON.stringify(payload) }),
   /** 文件上传。分片上传另见 storage 模块的接口，这里只管一次性的导入文件 */
   postFile: <T>(path: string, file: File, field = 'file') => {
     const form = new FormData();
     form.append(field, file);
     return request<T>(path, { method: 'POST', body: form });
+  },
+  /** 分片上传的单片（PUT）。分片是 Blob 而不是 File，因此不能复用 postFile */
+  putBlob: <T>(path: string, blob: Blob, fileName: string, field = 'file') => {
+    const form = new FormData();
+    form.append(field, blob, fileName);
+    return request<T>(path, { method: 'PUT', body: form });
   },
 };
 

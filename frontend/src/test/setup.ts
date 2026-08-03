@@ -30,3 +30,16 @@ if (!window.matchMedia) {
 const nativeGetComputedStyle = window.getComputedStyle.bind(window);
 window.getComputedStyle = ((element: Element) =>
   nativeGetComputedStyle(element)) as typeof window.getComputedStyle;
+
+/**
+ * jsdom 没有 ResizeObserver，而 V2.0 的 {@code Chart} 挂载时会订阅容器尺寸。
+ *
+ * <p>空实现即可：单测不关心图表重绘，只关心页面有没有把图表那一块渲染出来。
+ */
+if (!window.ResizeObserver) {
+  window.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  } as unknown as typeof ResizeObserver;
+}

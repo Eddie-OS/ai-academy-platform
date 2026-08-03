@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { authApi } from '@/shared/api/auth';
 import type { AccountInfo } from '@/shared/api/types';
+import { isRegressionMode } from '@/app/regressionMode';
+import { FIXTURE_ACCOUNT } from '@/fixtures/account';
 
 /**
  * 登录态。用 Zustand 管这一点点客户端状态即可，不引 Redux（《开发实施文档》3.4）。
@@ -21,6 +23,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   resolved: false,
 
   bootstrap: async () => {
+    // 视觉回归模式不打后端：文档 1.1 要求「禁用网络」。这里直接给冻结账号，
+    // 否则未登录会整体跳登录页，九张基线全拍成登录页
+    if (isRegressionMode()) {
+      set({ account: FIXTURE_ACCOUNT, resolved: true });
+      return;
+    }
     try {
       const account = await authApi.current();
       set({ account, resolved: true });

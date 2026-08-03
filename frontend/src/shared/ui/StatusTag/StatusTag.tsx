@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Archive,
   CalendarX,
   Check,
   Circle,
@@ -8,6 +7,7 @@ import {
   CircleDot,
   Clock,
   Hourglass,
+  Inbox,
   Infinity as InfinityIcon,
   Pencil,
 } from 'lucide-react';
@@ -61,18 +61,20 @@ const LECTURER_TRAINING: Record<string, TagSpec> = {
 };
 
 /**
- * 案例状态（需求 5.9）。
+ * 案例状态（需求 5.9 四值）。
  *
  * SV4：「待审核」用蓝色系不用黄色系——黄色的语义是「已逾期」（使用者做错了事），
  * 待审核是正常流程中的等待环节。两者共用黄色会让运营对黄色整体脱敏。
+ *
+ * <p><b>没有「已下架」。</b>设计规范 2.10 的表里有这一档，但转换表里没有：案例「下架修改」
+ * 的目标状态是「整理中」（需求 5.9 末行），下架不是一个可停留的状态。已记入文档待修清单。
  */
 const CASE_STATUS: Record<string, TagSpec> = {
+  // 自动建出来还没人动过。底色同「整理中」，靠图标区分：这一档要能一眼数出「积压了多少」
+  待整理: { ...NEUTRAL_TAG, icon: Inbox },
   整理中: { ...NEUTRAL_TAG, icon: Pencil },
   待审核: { bg: semantic.info.bg, color: semantic.info.textOnBg, icon: Hourglass },
   已上架: { bg: semantic.success.bg, color: semantic.success.textOnBg, icon: Check },
-  // 底色比「整理中」深一档，视觉上「沉下去」；文字用 neutral-700 而非 500，
-  // 因为下架案例仍需被检索与阅读，不属于 WCAG 的失效控件豁免
-  已下架: { bg: neutral[200], color: neutral[700], icon: Archive },
 };
 
 export const STATUS_TAG_GROUPS = {
