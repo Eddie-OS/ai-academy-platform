@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  培训计划列表的查询与计数（需求 11.8 P4-2）。
+
+  放在 XML 而不是注解里，只因为两条语句必须共用同一段 WHERE：筛选条件与分页要在同一条 SQL 里
+  才能得到正确的总数，而把筛选分支抄两遍迟早会改了一处忘了另一处，症状是「总数 37 条、翻到
+  第二页只剩 12 条」这类没人会怀疑到 SQL 上的怪事。
+-->
+<mapper namespace="com.aiacademy.business.training.repository.TrainingPlanMapper">
+
+    <sql id="planWhere">
+        WHERE p.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (p.plan_no ILIKE #{q.keywordLike} ESCAPE '\'
+              OR p.plan_name ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <if test="q.courseId != null">
+            AND p.course_id = #{q.courseId}
+        </if>
+        <if test="q.ownerNo != null and q.ownerNo != ''">
+            AND p.owner_no = #{q.ownerNo}
+        </if>
+        <if test="q.planState != null and q.planState != ''">
+            AND p.plan_state = #{q.planState}
+        </if>
+        <!--
+          日期区间按「计划期间与筛选区间有重叠」匹配，而不是「计划整段落在区间内」：运营筛 7 月
+          想看的是 7 月里在跑的计划，一个 6 月底开始、8 月初结束的计划正是 7 月的重头戏，按包含
+          关系筛会把它漏掉。
+        -->
+        <if test="q.dateFrom != null">
+            AND p.plan_end_date &gt;= #{q.dateFrom}
+        </if>
+        <if test="q.dateTo != null">
+            AND p.plan_start_date &lt;= #{q.dateTo}
+        </if>
+    </sql>
+
+    <!--
+      排序列与方向由 TrainingPlanQuery 白名单化后作为独立参数传入（拼接而非绑定，因此必须白名单）。
+      末尾用 id DESC 兜底，否则同一天开始的计划在两次翻页之间的相对次序可能变化，运营会看到
+      某条记录「消失」。
+    -->
+    <select id="selectPage" resultType="com.aiacademy.business.training.domain.TrainingPlanListItem">
+        SELECT p.*,
+               owner.employee_name AS owner_name,
+               (SELECT COUNT(*) FROM biz_training_session s
+                 WHERE s.plan_id = p.id AND s.deleted = FALSE) AS actual_session_count
+          FROM biz_training_plan p
+          LEFT JOIN org_employee owner ON owner.employee_no = p.owner_no AND owner.deleted = FALSE
+        <include refid="planWhere"/>
+         ORDER BY p.${sortColumn} ${sortDirection} NULLS LAST, p.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM biz_training_plan p
+        <include refid="planWhere"/>
+    </select>
+
+</mapper>

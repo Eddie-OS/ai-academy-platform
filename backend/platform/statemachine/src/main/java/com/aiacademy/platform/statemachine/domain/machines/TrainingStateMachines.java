@@ -18,6 +18,32 @@ public final class TrainingStateMachines {
     public static final String PLAN_OBJECT_TYPE = "TRAINING_PLAN";
     public static final String SESSION_OBJECT_TYPE = "TRAINING_SESSION";
 
+    /**
+     * 两个状态字段名。业务模块要按字段名调状态机，只能引用这里的常量。
+     *
+     * <p>字段名是<b>状态机的对外契约</b>（转换接口的 {@code stateField} 入参），不是状态值。
+     */
+    public static final String FIELD_PLAN_STATE = "培训计划状态";
+    public static final String FIELD_SESSION_STATE = "培训场次状态";
+
+    /** 新建培训计划时的初始转换（空 → 待执行）。 */
+    public static final String ACTION_CREATE_PLAN = "CREATE";
+
+    /** 新建培训场次时的初始转换（空 → 待开课）。带排课三项校验，见 {@link Effect#VALIDATE_SCHEDULING}。 */
+    public static final String ACTION_CREATE_SESSION = "CREATE";
+
+    /**
+     * 场次状态值的具名引用，供需要「只有某几个状态可以做某事」的业务代码使用
+     * （需求 14.4／14.6 的导入前置条件）。
+     *
+     * <p><b>状态值只应出现在这个模块里</b>（出口准则 E2-6）。业务代码需要按状态过滤时引用这些常量，
+     * 不要在自己那边再写一遍字符串——转换表改了状态名，写死的那一份不会报错，只会静默地不再匹配。
+     * 常量与转换表的一致性由 {@code StateLiteralGuardTest} 断言。
+     */
+    public static final String SESSION_OPENED = "已开课";
+    public static final String SESSION_FINISHED = "已结束";
+    public static final String SESSION_ARCHIVED = "已归档";
+
     private TrainingStateMachines() {
     }
 
@@ -31,8 +57,8 @@ public final class TrainingStateMachines {
      * 再次进入「已完成」也不覆盖首次值——{@link Effect#SET_ACTUAL_FINISHED_AT} 只在首次进入时写。
      */
     public static StateMachineDef plan() {
-        return new SimpleStateMachineDef("培训计划状态", PLAN_OBJECT_TYPE, "培训计划状态", List.of(
-                of(null, "CREATE", "创建培训计划", "待执行"),
+        return new SimpleStateMachineDef("培训计划状态", PLAN_OBJECT_TYPE, FIELD_PLAN_STATE, List.of(
+                of(null, ACTION_CREATE_PLAN, "创建培训计划", "待执行"),
                 of("待执行", "FIRST_SESSION_STARTED", "首个场次开课", "执行中"),
                 of("执行中", "ALL_SESSIONS_FINISHED", "全部场次结束", "已完成",
                         Effect.SET_ACTUAL_FINISHED_AT)
@@ -47,9 +73,9 @@ public final class TrainingStateMachines {
      * 之外不得自行添加任何前置校验。
      */
     public static StateMachineDef session() {
-        return new SimpleStateMachineDef("培训场次状态", SESSION_OBJECT_TYPE, "培训场次状态",
+        return new SimpleStateMachineDef("培训场次状态", SESSION_OBJECT_TYPE, FIELD_SESSION_STATE,
                 Set.of("已归档"), List.of(
-                of(null, "CREATE", "创建培训场次", "待开课",
+                of(null, ACTION_CREATE_SESSION, "创建培训场次", "待开课",
                         Effect.ATTACH_TO_PLAN, Effect.VALIDATE_SCHEDULING),
                 of("待开课", "START", "开课", "已开课"),
                 of("已开课", "FINISH", "结束", "已结束",

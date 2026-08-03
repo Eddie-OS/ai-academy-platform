@@ -103,4 +103,19 @@ public interface DictItemMapper {
              ORDER BY seq_no, item_code
             """)
     List<String> findEnabledNames(@Param("dictType") String dictType);
+
+    /**
+     * 某类字典的启用项<b>编码</b>。
+     *
+     * <p>与 {@link #findEnabledNames} 并存，是因为库里两种口径都存在：导入的多选列存名称
+     * （运营在 Excel 里填的就是中文名），而业务主表的 {@code domain_code}、{@code category_code}
+     * 存编码（{@code DictReferenceMapper} 的引用计数按 {@code IN (code, name)} 两头兼容，
+     * 正是这个历史的证据）。校验时按各自的口径查，不要在调用侧做名称与编码的互转。
+     */
+    @Select("""
+            SELECT item_code FROM dict_item
+             WHERE dict_type = #{dictType} AND enabled = TRUE AND deleted = FALSE
+             ORDER BY seq_no, item_code
+            """)
+    List<String> findEnabledCodes(@Param("dictType") String dictType);
 }

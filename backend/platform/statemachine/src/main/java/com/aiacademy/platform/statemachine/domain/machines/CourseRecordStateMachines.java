@@ -19,6 +19,19 @@ public final class CourseRecordStateMachines {
     public static final String REVIEW_OBJECT_TYPE = "COURSE_REVIEW";
     public static final String TRIAL_OBJECT_TYPE = "COURSE_TRIAL";
 
+    /** 两个状态字段名。业务侧按字段名调状态机，只引用这里的常量（同 {@link CourseStateMachines}）。 */
+    public static final String FIELD_REVIEW_STATE = "评审记录状态";
+    public static final String FIELD_TRIAL_STATE = "试讲记录状态";
+
+    /** 课程提交评审时创建评审记录（空 → 待录入结论）。 */
+    public static final String ACTION_CREATE_BY_COURSE_SUBMIT = "CREATE_BY_COURSE_SUBMIT";
+
+    /** 创建试讲记录（空 → 待录入结论）。 */
+    public static final String ACTION_CREATE_TRIAL = "CREATE";
+
+    /** 录入结论，两个状态机共用同一个动作码。 */
+    public static final String ACTION_RECORD_RESULT = "RECORD_RESULT";
+
     private CourseRecordStateMachines() {
     }
 
@@ -29,11 +42,11 @@ public final class CourseRecordStateMachines {
      * 结论与专业意见由运营依据线下会议纪要人工录入，一条记录一个结论。
      */
     public static StateMachineDef review() {
-        return new SimpleStateMachineDef("课程评审记录状态", REVIEW_OBJECT_TYPE, "评审记录状态",
+        return new SimpleStateMachineDef("课程评审记录状态", REVIEW_OBJECT_TYPE, FIELD_REVIEW_STATE,
                 Set.of("已完成"), List.of(
-                of(null, "CREATE_BY_COURSE_SUBMIT", "课程提交评审", "待录入结论",
+                of(null, ACTION_CREATE_BY_COURSE_SUBMIT, "课程提交评审", "待录入结论",
                         Effect.SET_ROUND_NO, Effect.BIND_MATERIAL_VERSION),
-                of("待录入结论", "RECORD_RESULT", "录入评审结果与专业意见", "已完成",
+                of("待录入结论", ACTION_RECORD_RESULT, "录入评审结果与专业意见", "已完成",
                         Effect.DRIVE_COURSE_MAIN_STATE)));
     }
 
@@ -45,11 +58,11 @@ public final class CourseRecordStateMachines {
      * 都置「结论不一致」标记，由线下评审会决定后由运营维护状态。
      */
     public static StateMachineDef trial() {
-        return new SimpleStateMachineDef("试讲记录状态", TRIAL_OBJECT_TYPE, "试讲记录状态",
+        return new SimpleStateMachineDef("试讲记录状态", TRIAL_OBJECT_TYPE, FIELD_TRIAL_STATE,
                 Set.of("已完成"), List.of(
-                of(null, "CREATE", "创建试讲记录", "待录入结论",
+                of(null, ACTION_CREATE_TRIAL, "创建试讲记录", "待录入结论",
                         Effect.SET_ROUND_NO),
-                of("待录入结论", "RECORD_RESULT", "录入意见、问题清单与双结论", "已完成",
+                of("待录入结论", ACTION_RECORD_RESULT, "录入意见、问题清单与双结论", "已完成",
                         Effect.DRIVE_COURSE_MAIN_STATE, Effect.UPDATE_LECTURER_TRIAL_FLAG)));
     }
 

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  需求列表的查询与计数。
+
+  放在 XML 而不是注解里，只因为两条语句必须共用同一段 WHERE：筛选条件与分页要在同一条 SQL 里
+  才能得到正确的总数，而把十来个 if 分支抄两遍，迟早会改了一处忘了另一处，症状是「总数 37 条、
+  翻到第二页只剩 12 条」这类没人会怀疑到 SQL 上的怪事。
+-->
+<mapper namespace="com.aiacademy.business.demand.repository.DemandMapper">
+
+    <sql id="demandWhere">
+        WHERE d.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (d.demand_no ILIKE #{q.keywordLike} ESCAPE '\'
+              OR d.demand_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR d.description ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <if test="q.domainCode != null and q.domainCode != ''">
+            AND d.domain_code = #{q.domainCode}
+        </if>
+        <if test="q.reviewState != null and q.reviewState != ''">
+            AND d.review_state = #{q.reviewState}
+        </if>
+        <if test="q.outlet != null and q.outlet != ''">
+            AND d.outlet = #{q.outlet}
+        </if>
+        <!-- 解决方案状态与开发状态各自筛各自那一列：两组状态字段互斥，出口一的需求 dev_state 恒为空 -->
+        <if test="q.solutionState != null and q.solutionState != ''">
+            AND d.solution_state = #{q.solutionState}
+        </if>
+        <if test="q.devState != null and q.devState != ''">
+            AND d.dev_state = #{q.devState}
+        </if>
+        <if test="q.acceptanceState != null and q.acceptanceState != ''">
+            AND d.acceptance_state = #{q.acceptanceState}
+        </if>
+        <if test="q.ownerNo != null and q.ownerNo != ''">
+            AND d.owner_no = #{q.ownerNo}
+        </if>
+        <if test="q.proposedFrom != null">
+            AND d.proposed_date &gt;= #{q.proposedFrom}
+        </if>
+        <if test="q.proposedTo != null">
+            AND d.proposed_date &lt;= #{q.proposedTo}
+        </if>
+        <if test="q.expectFinishFrom != null">
+            AND d.expect_finish_date &gt;= #{q.expectFinishFrom}
+        </if>
+        <if test="q.expectFinishTo != null">
+            AND d.expect_finish_date &lt;= #{q.expectFinishTo}
+        </if>
+        <if test="q.hasCourse != null">
+            <choose>
+                <when test="q.hasCourse">
+                    AND EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.demand_id = d.id)
+                </when>
+                <otherwise>
+                    AND NOT EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.demand_id = d.id)
+                </otherwise>
+            </choose>
+        </if>
+    </sql>
+
+    <!--
+      排序列与方向由 DemandQuery 白名单化后作为独立参数传入（拼接而非绑定，因此必须白名单）。
+      NULLS LAST 让没填的日期排在后面；末尾用 id DESC 兜底，否则同一天预计完成的需求在两次翻页
+      之间的相对次序可能变化，运营会看到某条记录「消失」。
+    -->
+    <select id="selectPage" resultType="com.aiacademy.business.demand.domain.DemandListItem">
+        SELECT d.*,
+               owner.employee_name AS owner_name,
+               proposer.employee_name AS proposer_name,
+               (SELECT COUNT(*) FROM rel_demand_course rc WHERE rc.demand_id = d.id) AS course_count
+          FROM biz_demand d
+          LEFT JOIN org_employee owner ON owner.employee_no = d.owner_no AND owner.deleted = FALSE
+          LEFT JOIN org_employee proposer ON proposer.employee_no = d.proposer_no
+                                         AND proposer.deleted = FALSE
+        <include refid="demandWhere"/>
+         ORDER BY d.${sortColumn} ${sortDirection} NULLS LAST, d.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM biz_demand d
+        <include refid="demandWhere"/>
+    </select>
+
+</mapper>

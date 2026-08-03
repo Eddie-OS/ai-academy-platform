@@ -91,6 +91,44 @@ public class StateTransitionService {
     }
 
     /**
+     * 补记一次<b>初始转换</b>：对象刚插入，状态列已经带着初始值落库，这里把「（空）→ 初始状态」
+     * 这一跳写进流转日志并盖上 {@code last_state_changed_at}。返回命中的转换，供调用方派发副作用。
+     *
+     * <p><b>为什么需要这个方法。</b>五张主表的状态列都是 {@code NOT NULL}，对象不可能先以空状态
+     * 存在、再由 {@link #transit} 推到初始状态——INSERT 的那一刻状态就已经有值了。若就此不记日志，
+     * 「立项 → 开发」的耗时能算出来，「立项」这个起点本身却没有时间戳，需求 15.2 的课程开发周期
+     * （立项到首次发布）会缺掉起点。
+     *
+     * <p>它<b>不写状态列的业务值</b>（那由 INSERT 负责），只做一次同值回写来落
+     * {@code last_state_changed_at}——新建对象的红灯停滞天数要从这一刻起算（需求 C5）。
+     * 校验状态列确实等于转换表里的初始目标状态，是为了让「INSERT 写死的初始值」与
+     * 「状态机定义的初始状态」不一致时当场失败，而不是安静地留下一条对不上的日志。
+     *
+     * @throws com.aiacademy.common.exception.IllegalTransitionException 转换表里没有「（空）→ ?」的这个动作
+     */
+    @Transactional
+    public Transition initialize(String objectType, long objectId, String stateField, String action) {
+        Transition transition = registry.require(objectType, stateField, null, action);
+
+        StateObjectMapping mapping = StateObjectMappings.require(objectType);
+        String column = mapping.columnOf(stateField);
+        String actual = mapper.lockAndSelectState(mapping.table(), column, objectId);
+        if (!transition.to().equals(actual)) {
+            throw new IllegalStateException(("新建 %s#%d 时 %s 落库值是「%s」，但「%s」的初始转换指向「%s」。"
+                    + "插入语句里的初始状态与状态机定义必须一致")
+                    .formatted(objectType, objectId, column, actual, action, transition.to()));
+        }
+
+        OffsetDateTime changedAt = OffsetDateTime.now();
+        mapper.updateState(mapping.table(), column, objectId, transition.to(), changedAt,
+                OperatorContext.current().account().name());
+
+        events.publishEvent(new StateChangedEvent(objectType, objectId, stateField,
+                null, transition.to(), transition.action(), changedAt, null));
+        return transition;
+    }
+
+    /**
      * 当前状态下没有这个动作时，先判断是不是「已经做过了」。
      *
      * <p>规则 K2 要求状态转换接口防重复提交，静默忽略而不是报错（开发 7.3 的 {@code DUPLICATE_SUBMIT}）。

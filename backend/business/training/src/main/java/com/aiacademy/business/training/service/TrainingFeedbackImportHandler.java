@@ -13,6 +13,7 @@ import com.aiacademy.platform.dataimport.domain.ImportType;
 import com.aiacademy.platform.dataimport.domain.PlannedRow;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeImportSupport;
+import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -48,8 +49,18 @@ public class TrainingFeedbackImportHandler implements ImportHandler {
     private static final String COL_SCORE = "评分";
     private static final String COL_CONTENT = "反馈内容";
 
-    /** 需求 14.6 A 列：已开课、已结束或已归档。比签到多一个「已归档」——反馈常常在结束后才收齐。 */
-    private static final Set<String> ALLOWED_SESSION_STATES = Set.of("已开课", "已结束", "已归档");
+    /**
+     * 需求 14.6 A 列：已开课、已结束或已归档。比签到多一个「已归档」——反馈常常在结束后才收齐。
+     *
+     * <p>状态值取状态机模块的常量，本文件里不出现状态字符串（出口准则 E2-6）。
+     */
+    private static final Set<String> ALLOWED_SESSION_STATES = Set.of(
+            TrainingStateMachines.SESSION_OPENED,
+            TrainingStateMachines.SESSION_FINISHED,
+            TrainingStateMachines.SESSION_ARCHIVED);
+
+    private static final String STATE_HINT = TrainingStateMachines.SESSION_OPENED + "、"
+            + TrainingStateMachines.SESSION_FINISHED + "或" + TrainingStateMachines.SESSION_ARCHIVED;
 
     private final TrainingImportMapper mapper;
     private final EmployeeImportSupport employees;
@@ -67,7 +78,7 @@ public class TrainingFeedbackImportHandler implements ImportHandler {
     @Override
     public ImportTemplateSpec template() {
         return new ImportTemplateSpec(ImportType.TRAINING_FEEDBACK, List.of(
-                ImportColumn.required(COL_SESSION, 64, "如 JH2026070001-01，须为已开课／已结束／已归档的场次",
+                ImportColumn.required(COL_SESSION, 64, "如 JH2026070001-01，须为" + STATE_HINT + "的场次",
                         "JH2026070001-01"),
                 ImportColumn.optional(COL_EMPLOYEE, 50, "留空即匿名；填写时须在人员台账中存在", ""),
                 ImportColumn.required(COL_SCORE, "整数 1–5", "5"),
@@ -93,8 +104,8 @@ public class TrainingFeedbackImportHandler implements ImportHandler {
                 valid = false;
             } else if (session != null && !ALLOWED_SESSION_STATES.contains(session.sessionState())) {
                 problems.error(row, COL_SESSION,
-                        "场次当前状态为「%s」，只有已开课、已结束或已归档的场次可以导入反馈"
-                                .formatted(session.sessionState()));
+                        "场次当前状态为「%s」，只有%s的场次可以导入反馈"
+                                .formatted(session.sessionState(), STATE_HINT));
                 valid = false;
             }
 

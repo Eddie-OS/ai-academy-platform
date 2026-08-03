@@ -1,5 +1,6 @@
 package com.aiacademy.business.lecturer.service;
 
+import com.aiacademy.business.lecturer.domain.LecturerEnums;
 import com.aiacademy.business.lecturer.repository.LecturerImportMapper;
 import com.aiacademy.platform.dataimport.ImportHandler;
 import com.aiacademy.platform.dataimport.ImportRowWriter;
@@ -54,9 +55,9 @@ public class LecturerImportHandler implements ImportHandler {
     /** 需求 14.5 D 列：多值用「;」分隔。 */
     private static final String DOMAIN_SEPARATOR = ";";
 
-    private static final Set<String> TRAINING_STATES = Set.of("待培养", "培养中", "可上岗");
-    private static final String DEFAULT_TRAINING_STATE = "待培养";
-    private static final Set<String> POOL_STATES = Set.of("在池", "已移出");
+    private static final List<String> TRAINING_STATES = LecturerEnums.TRAINING_STATES;
+    private static final String DEFAULT_TRAINING_STATE = LecturerEnums.TRAINING_PENDING;
+    private static final List<String> POOL_STATES = LecturerEnums.POOL_STATES;
 
     private final LecturerImportMapper mapper;
     private final EmployeeImportSupport employees;

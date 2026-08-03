@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  课程列表的查询与计数。
+
+  放在 XML 而不是注解里，只因为两条语句必须共用同一段 WHERE：筛选条件与分页要在同一条 SQL 里
+  才能得到正确的总数，而把十来个 if 分支抄两遍，迟早会改了一处忘了另一处，症状是「总数 37 条、
+  翻到第二页只剩 12 条」这类没人会怀疑到 SQL 上的怪事。sql 片段是注解式 Mapper 唯一给不了的东西。
+-->
+<mapper namespace="com.aiacademy.business.course.repository.CourseMapper">
+
+    <!--
+      有效期状态（需求 9.3.1a）。与 CourseValidity.of() 是同一口径的两份实现：
+      这份服务筛选，Java 那份服务展示。一致性由 CourseValidityConsistencyTest 钉住。
+
+      判定顺序不可调换：未发布优先于长期有效（没发布过就没有起算点），
+      长期有效优先于截止日比较（它的截止日本来就是 NULL）。
+    -->
+    <sql id="validityStatusExpr">
+        CASE
+            WHEN c.first_publish_date IS NULL THEN '未发布'
+            WHEN c.validity_period = '长期有效' THEN '长期有效'
+            WHEN c.validity_end_date &lt; CURRENT_DATE THEN '已过期'
+            WHEN c.validity_end_date &lt;= CURRENT_DATE + 30 THEN '30 天内到期'
+            ELSE '有效'
+        END
+    </sql>
+
+    <sql id="courseWhere">
+        WHERE c.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (c.course_no ILIKE #{q.keywordLike} ESCAPE '\'
+              OR c.course_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR c.summary ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <if test="q.reviewTrack != null and q.reviewTrack != ''">
+            AND c.review_track = #{q.reviewTrack}
+        </if>
+        <if test="q.domainCode != null and q.domainCode != ''">
+            AND c.domain_code = #{q.domainCode}
+        </if>
+        <if test="q.mainState != null and q.mainState != ''">
+            AND c.main_state = #{q.mainState}
+        </if>
+        <!-- 四组子状态的取值域两两不相交，一个入参匹配四列即可，见 CourseQuery.subState -->
+        <if test="q.subState != null and q.subState != ''">
+            AND (c.dev_state = #{q.subState}
+              OR c.selfcheck_state = #{q.subState}
+              OR c.trial_state = #{q.subState}
+              OR c.publish_state = #{q.subState})
+        </if>
+        <if test="q.ownerNo != null and q.ownerNo != ''">
+            AND c.owner_no = #{q.ownerNo}
+        </if>
+        <!-- 多选字段按「包含即命中」。jsonb 数组包含标量在 PostgreSQL 里就是元素包含判断 -->
+        <if test="q.qualityMark != null and q.qualityMark != ''">
+            AND c.quality_marks @&gt; to_jsonb(#{q.qualityMark}::TEXT)
+        </if>
+        <if test="q.validityStatus != null and q.validityStatus != ''">
+            AND (<include refid="validityStatusExpr"/>) = #{q.validityStatus}
+        </if>
+        <if test="q.initiatedFrom != null">
+            AND c.initiated_date &gt;= #{q.initiatedFrom}
+        </if>
+        <if test="q.initiatedTo != null">
+            AND c.initiated_date &lt;= #{q.initiatedTo}
+        </if>
+        <if test="q.expectPublishFrom != null">
+            AND c.expect_publish_date &gt;= #{q.expectPublishFrom}
+        </if>
+        <if test="q.expectPublishTo != null">
+            AND c.expect_publish_date &lt;= #{q.expectPublishTo}
+        </if>
+        <if test="q.hasDemand != null">
+            <choose>
+                <when test="q.hasDemand">
+                    AND EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.course_id = c.id)
+                </when>
+                <otherwise>
+                    AND NOT EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.course_id = c.id)
+                </otherwise>
+            </choose>
+        </if>
+    </sql>
+
+    <!--
+      排序列与方向由 CourseQuery 白名单化后作为独立参数传入（拼接而非绑定，因此必须白名单）。
+      NULLS LAST 让没填首次发布时间这类空值排在后面；末尾用 id DESC 兜底，
+      否则同一天预计发布的课程在两次翻页之间的相对次序可能变化，运营会看到某条记录「消失」。
+    -->
+    <select id="selectPage" resultType="com.aiacademy.business.course.domain.CourseListItem">
+        SELECT c.*,
+               e.employee_name AS owner_name,
+               (SELECT COUNT(*) FROM dtl_course_review r
+                 WHERE r.course_id = c.id AND r.deleted = FALSE) AS review_round,
+               EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.course_id = c.id) AS has_demand
+          FROM biz_course c
+          LEFT JOIN org_employee e ON e.employee_no = c.owner_no AND e.deleted = FALSE
+        <include refid="courseWhere"/>
+         ORDER BY c.${sortColumn} ${sortDirection} NULLS LAST, c.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM biz_course c
+        <include refid="courseWhere"/>
+    </select>
+
+</mapper>

@@ -14,6 +14,7 @@ import com.aiacademy.platform.dataimport.domain.PlannedRow;
 import com.aiacademy.platform.dataimport.domain.RowOp;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeImportSupport;
+import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -49,8 +50,18 @@ public class AttendanceImportHandler implements ImportHandler {
 
     private static final Set<String> ATTEND_STATUS = Set.of("已签到", "未签到");
 
-    /** 需求 14.4 A 列：须存在且场次状态为「已开课」或「已结束」。 */
-    private static final Set<String> ALLOWED_SESSION_STATES = Set.of("已开课", "已结束");
+    /**
+     * 需求 14.4 A 列：须存在且场次状态为「已开课」或「已结束」。
+     *
+     * <p>状态值取状态机模块的常量，本文件里不出现状态字符串（出口准则 E2-6）。
+     * {@code STATE_HINT} 是给运营看的那半句话，由同一份常量拼出来——否则改了状态名，
+     * 校验会跟着变而模板说明不会，运营照着一句过时的说明填表。
+     */
+    private static final Set<String> ALLOWED_SESSION_STATES =
+            Set.of(TrainingStateMachines.SESSION_OPENED, TrainingStateMachines.SESSION_FINISHED);
+
+    private static final String STATE_HINT = TrainingStateMachines.SESSION_OPENED
+            + "或" + TrainingStateMachines.SESSION_FINISHED;
 
     /** 需求 11.5.1 的加入方式取值。 */
     private static final String JOIN_BY_ATTENDANCE = "随签到导入自动加入";
@@ -71,7 +82,7 @@ public class AttendanceImportHandler implements ImportHandler {
     @Override
     public ImportTemplateSpec template() {
         return new ImportTemplateSpec(ImportType.ATTENDANCE, List.of(
-                ImportColumn.required(COL_SESSION, 64, "如 JH2026070001-01，须为已开课或已结束的场次",
+                ImportColumn.required(COL_SESSION, 64, "如 JH2026070001-01，须为" + STATE_HINT + "的场次",
                         "JH2026070001-01"),
                 ImportColumn.required(COL_EMPLOYEE, 50, "≤50 字符，须在人员台账中存在", "E0001"),
                 ImportColumn.optional(COL_NAME, 50, "仅用于人工核对，以工号为准", "张三"),
@@ -110,7 +121,8 @@ public class AttendanceImportHandler implements ImportHandler {
                 valid = false;
             } else if (session != null && !ALLOWED_SESSION_STATES.contains(session.sessionState())) {
                 problems.error(row, COL_SESSION,
-                        "场次当前状态为「%s」，只有已开课或已结束的场次可以导入签到".formatted(session.sessionState()));
+                        "场次当前状态为「%s」，只有%s的场次可以导入签到"
+                                .formatted(session.sessionState(), STATE_HINT));
                 valid = false;
             }
             if (!employeeNo.isEmpty() && employee == null) {

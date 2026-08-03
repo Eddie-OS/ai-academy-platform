@@ -1,6 +1,7 @@
 package com.aiacademy.business.training.service;
 
 import com.aiacademy.business.training.domain.SessionRef;
+import com.aiacademy.business.training.domain.TrainingEnums;
 import com.aiacademy.business.training.repository.TrainingImportMapper;
 import com.aiacademy.platform.dataimport.ImportHandler;
 import com.aiacademy.platform.dataimport.ImportRowWriter;
@@ -43,7 +44,7 @@ public class AttendeeImportHandler implements ImportHandler {
     private static final String COL_NAME = "学员姓名";
 
     /** 需求 11.5.1 的加入方式：通过名单导入进来的算「运营指派」。 */
-    private static final String JOIN_BY_OPS = "运营指派";
+    private static final String JOIN_BY_OPS = TrainingEnums.JOIN_ASSIGNED;
 
     private final TrainingImportMapper mapper;
     private final EmployeeImportSupport employees;

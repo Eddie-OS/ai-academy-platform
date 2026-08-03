@@ -47,7 +47,11 @@ class SchemaConventionTest {
             "import_batch", "import_row_snapshot", "snapshot_warning_light", "dict_item",
             "cfg_warning_threshold", "cfg_task_derive_rule", "cfg_selfcheck_item",
             // 表清单未列，附件多引用与孤儿清理必需（见 V1_001 的表头注释）
-            "sys_attachment_ref"));
+            "sys_attachment_ref",
+            // 表清单未列，规则 CK4「自检结果随材料版本一并快照」必需（见 V2_001 的表头注释）。
+            // dtl_course_selfcheck 上有 UNIQUE (course_id, item_id)，一题只有一行当前值，
+            // 历史快照没有地方放
+            "dtl_selfcheck_snapshot"));
 
     /**
      * 公共字段模板（6.1.2）的豁免表及理由。

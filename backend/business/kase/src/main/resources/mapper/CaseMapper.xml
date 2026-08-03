@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  案例看板／列表的查询与计数，以及详情。
+
+  放在 XML 而不是注解里的理由同 CourseMapper.xml：筛选与分页必须共用同一段 WHERE 才能得到
+  正确的总数，而把十来个 if 分支抄两遍迟早会改了一处忘了另一处，症状是「总数 37 条、翻到
+  第二页只剩 12 条」这类没人会怀疑到 SQL 上的怪事。sql 片段是注解式 Mapper 唯一给不了的东西。
+-->
+<mapper namespace="com.aiacademy.business.kase.repository.CaseMapper">
+
+    <!--
+      四项互动计数（需求 12.3 第 17～21 项，公式见 15.5）。全部现算，主表没有计数器列。
+
+      三点容易做错的地方：
+        * 浏览次数与点赞量**不带任何去重**——共享账号下系统不知道是谁，需求 12.4 三次强调这一点。
+          写成 COUNT(DISTINCT ...) 会让这两个数字长期偏小，而没人能说出偏小的原因。
+        * 评论数**必须带 deleted = FALSE**（需求 12.3 第 19 项）。漏了它，运营删掉的评论仍然计数。
+        * 累计阅读时长用 COALESCE(SUM, 0)：SUM 在没有行时返回 NULL，而「没人看过」的累计时长
+          是 0 秒不是无数据——无数据的是「平均」阅读时长（除数为 0），那一层由 Java 侧判断。
+    -->
+    <sql id="interactionColumns">
+        (SELECT COUNT(*) FROM dtl_case_view v WHERE v.case_id = c.id) AS view_count,
+        (SELECT COUNT(*) FROM dtl_case_like l WHERE l.case_id = c.id) AS like_count,
+        (SELECT COUNT(*) FROM dtl_case_comment m
+          WHERE m.case_id = c.id AND m.deleted = FALSE) AS comment_count,
+        (SELECT COALESCE(SUM(v.duration_seconds), 0) FROM dtl_case_view v
+          WHERE v.case_id = c.id) AS read_seconds
+    </sql>
+
+    <sql id="caseWhere">
+        WHERE c.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (c.case_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR c.content ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <!-- 应用领域与精品标注都是 jsonb 值数组，「包含标量」在 PostgreSQL 里就是元素包含判断 -->
+        <if test="q.domainCode != null and q.domainCode != ''">
+            AND c.domain_codes @&gt; to_jsonb(#{q.domainCode}::TEXT)
+        </if>
+        <if test="q.qualityMark != null and q.qualityMark != ''">
+            AND c.quality_marks @&gt; to_jsonb(#{q.qualityMark}::TEXT)
+        </if>
+        <if test="q.caseState != null and q.caseState != ''">
+            AND c.case_state = #{q.caseState}
+        </if>
+        <!-- 贡献组织是自由文本（N18），只能按包含匹配；它不能聚合成「覆盖了几个部门」，见 12.5 -->
+        <if test="q.contributingOrgLike != null">
+            AND c.contributing_org ILIKE #{q.contributingOrgLike} ESCAPE '\'
+        </if>
+        <if test="q.ownerNo != null and q.ownerNo != ''">
+            AND c.owner_no = #{q.ownerNo}
+        </if>
+        <if test="q.publishedFrom != null">
+            AND c.published_at &gt;= #{q.publishedFrom}
+        </if>
+        <!-- 止日含当天：published_at 是时间戳，直接与 DATE 比会把当天下午上架的案例漏掉 -->
+        <if test="q.publishedTo != null">
+            AND c.published_at &lt; (#{q.publishedTo}::DATE + 1)
+        </if>
+        <!--
+          活跃案例（需求 12.7，V1.2 确认口径）：近 30 天内有浏览、点赞或评论行为。
+          三个 EXISTS 而不是 JOIN + DISTINCT：EXISTS 命中第一条就停，且不会把主表行数放大。
+        -->
+        <if test="q.activeOnly != null and q.activeOnly">
+            AND (EXISTS (SELECT 1 FROM dtl_case_view v
+                          WHERE v.case_id = c.id AND v.viewed_at &gt;= NOW() - INTERVAL '30 days')
+              OR EXISTS (SELECT 1 FROM dtl_case_like l
+                          WHERE l.case_id = c.id AND l.liked_at &gt;= NOW() - INTERVAL '30 days')
+              OR EXISTS (SELECT 1 FROM dtl_case_comment m
+                          WHERE m.case_id = c.id AND m.deleted = FALSE
+                            AND m.commented_at &gt;= NOW() - INTERVAL '30 days'))
+        </if>
+    </sql>
+
+    <!--
+      排序表达式由 CaseQuery.sortExpression() 白名单化后整段传入（拼接而非绑定，因此必须白名单）。
+      末尾用 c.id DESC 兜底：同一天上架的案例在两次翻页之间的相对次序否则可能变化，
+      运营会看到某张卡片「消失」。
+    -->
+    <select id="selectPage" resultType="com.aiacademy.business.kase.domain.CaseListItem">
+        SELECT c.*,
+               owner.employee_name AS owner_name,
+               reviewer.employee_name AS reviewer_name,
+               <include refid="interactionColumns"/>
+          FROM biz_case c
+          LEFT JOIN org_employee owner ON owner.employee_no = c.owner_no AND owner.deleted = FALSE
+          LEFT JOIN org_employee reviewer ON reviewer.employee_no = c.reviewer_no
+                                         AND reviewer.deleted = FALSE
+        <include refid="caseWhere"/>
+         ORDER BY ${sortExpression}, c.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM biz_case c
+        <include refid="caseWhere"/>
+    </select>
+
+    <select id="selectDetailById" resultType="com.aiacademy.business.kase.domain.CaseListItem">
+        SELECT c.*,
+               owner.employee_name AS owner_name,
+               reviewer.employee_name AS reviewer_name,
+               <include refid="interactionColumns"/>
+          FROM biz_case c
+          LEFT JOIN org_employee owner ON owner.employee_no = c.owner_no AND owner.deleted = FALSE
+          LEFT JOIN org_employee reviewer ON reviewer.employee_no = c.reviewer_no
+                                         AND reviewer.deleted = FALSE
+         WHERE c.id = #{id} AND c.deleted = FALSE
+    </select>
+
+</mapper>

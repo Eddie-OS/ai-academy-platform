@@ -1,5 +1,10 @@
 package com.aiacademy.app.web.controller;
 
+import com.aiacademy.business.course.domain.CourseEnums;
+import com.aiacademy.business.demand.domain.DemandEnums;
+import com.aiacademy.business.kase.domain.CaseEnums;
+import com.aiacademy.business.lecturer.domain.LecturerEnums;
+import com.aiacademy.business.training.domain.TrainingEnums;
 import com.aiacademy.common.api.R;
 import com.aiacademy.platform.dict.domain.DictItem;
 import com.aiacademy.platform.dict.service.DictConfigService;
@@ -9,6 +14,7 @@ import com.aiacademy.platform.dict.service.WarningThresholdService;
 import com.aiacademy.platform.statemachine.domain.StateMachineDef;
 import com.aiacademy.platform.statemachine.domain.Transition;
 import com.aiacademy.platform.statemachine.service.StateMachineRegistry;
+import com.aiacademy.platform.storage.domain.AttachmentScene;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -113,6 +119,46 @@ public class MetaController {
 
     private static DictOption toOption(DictItem item) {
         return new DictOption(item.itemCode(), item.itemName(), item.parentCode());
+    }
+
+    /**
+     * 非状态机的字段枚举：评审轨道、有效期时长、精品标注、评审形式、试讲结论、验收标准……
+     *
+     * <p>{@code /enums} 下发的是 16 个状态机的状态与动作，而表单里还有一批同样不能由前端手写的
+     * 固定取值（纪律 STK-1）。它们与状态机的区别只是「没有转换关系」，被前端硬编码的后果是一样的：
+     * 设计稿里已经出现过 8 处状态机里不存在的状态值，字段枚举同样会出现「不通过·待定」这类
+     * 需求里没有的取值。
+     *
+     * <p>键是中文枚举名，与需求文档的字段名逐字对齐，方便人工对账。各驾驶舱在各自的段里往这里
+     * 补自己的枚举——课程（阶段 2 A 段）、需求（B 段）、培训（C 段）、讲师与案例（D 段）。
+     */
+    @GetMapping("/field-enums")
+    public R<Map<String, List<String>>> fieldEnums() {
+        Map<String, List<String>> result = new LinkedHashMap<>(CourseEnums.forMetaApi());
+        result.putAll(DemandEnums.forMetaApi());
+        result.putAll(TrainingEnums.forMetaApi());
+        result.putAll(LecturerEnums.forMetaApi());
+        result.putAll(CaseEnums.forMetaApi());
+        return R.ok(result);
+    }
+
+    /**
+     * 课程材料类型与各自的单文件上限（需求 9.3.3、规则 F1）。
+     *
+     * <p>上传组件要在选文件时就拦住超限文件，因此必须知道每类材料的上限。<b>前端不抄这张表</b>：
+     * 抄了之后规则 F1 调整上限，界面还会允许上传，直到保存那一刻才被拒。
+     */
+    @GetMapping("/material-types")
+    public R<List<MaterialTypeMeta>> materialTypes() {
+        return R.ok(CourseEnums.MATERIAL_TYPES.stream()
+                .map(type -> {
+                    AttachmentScene scene = AttachmentScene.of(CourseEnums.materialScene(type));
+                    return new MaterialTypeMeta(type, scene.name(), scene.maxBytes(), scene.maxSizeText());
+                })
+                .toList());
+    }
+
+    public record MaterialTypeMeta(String materialType, String scene, long maxBytes, String maxSizeText) {
     }
 
     /**

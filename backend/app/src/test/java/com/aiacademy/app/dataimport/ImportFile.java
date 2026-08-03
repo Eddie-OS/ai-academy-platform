@@ -16,13 +16,13 @@ import java.util.List;
  *
  * <p>默认带上示例行，模拟运营「下载模板 → 在示例行下面接着填」的真实用法（规则 I2）。
  */
-final class ImportFile {
+public final class ImportFile {
 
     private ImportFile() {
     }
 
     /** 按模板表头造文件，含 {@code [示例]} 示例行。 */
-    static byte[] of(ImportTemplateSpec spec, List<List<String>> dataRows) {
+    public static byte[] of(ImportTemplateSpec spec, List<List<String>> dataRows) {
         List<List<String>> rows = new ArrayList<>();
         rows.add(spec.exampleRow());
         rows.addAll(dataRows);

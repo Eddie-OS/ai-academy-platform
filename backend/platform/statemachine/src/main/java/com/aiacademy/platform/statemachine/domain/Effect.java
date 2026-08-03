@@ -42,6 +42,27 @@ public final class Effect {
     /** 5.2.1 第 5 条：重新评审会清空分流出口，需二次确认。 */
     public static final String CONFIRM_CLEAR_OUTLET = "CONFIRM_CLEAR_OUTLET";
 
+    /**
+     * 5.2.4 第 4／6 条：进入「已上线」时写最新上线时间，首次进入时同时写首次上线时间。
+     *
+     * <p>这一项<b>不在 5.2.4 的「系统副作用」列里</b>（那一列整列只写了「写日志」），来源是需求
+     * 字段清单 8.3.3 第 25／26 项：首次上线时间「状态首次变为『已上线』时自动写入，效率指标取
+     * 此值」，最新上线时间「每次进入『已上线』时更新」。字段清单要求它自动写入，而转换表漏标，
+     * 除了挂在这两条转换上它没有别的落点。
+     *
+     * <p><b>「首次」的判断必须在 SQL 的 {@code WHERE first_online_date IS NULL} 里</b>：需求可以
+     * 从「已上线」反复回到「优化中」（议题 2 不设上限），每次优化上线都会再次触发本效果，
+     * 而 E1 规定效率指标取首次到达的时间，重算会把需求处理周期变成「最后一次上线用了多久」。
+     */
+    public static final String SET_ONLINE_DATES = "SET_ONLINE_DATES";
+
+    /**
+     * 5.2.4 第 5 条：进入「优化中」时优化次数 +1。
+     *
+     * <p>同样来自字段清单（8.3.3 第 27 项「统计进入『优化中』的次数」）而非转换表副作用列。
+     */
+    public static final String INCREMENT_OPTIMIZE_COUNT = "INCREMENT_OPTIMIZE_COUNT";
+
     /** 5.2.5：标记交付使用时写交付时间。 */
     public static final String SET_DELIVERED_AT = "SET_DELIVERED_AT";
 

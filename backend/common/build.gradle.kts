@@ -4,6 +4,7 @@
 dependencies {
     api(libs.spring.web)
     api(libs.jackson.annotations)
+    api(libs.jackson.databind)
     api(libs.slf4j.api)
     implementation(libs.spring.context)
     compileOnly(libs.jakarta.servlet.api)

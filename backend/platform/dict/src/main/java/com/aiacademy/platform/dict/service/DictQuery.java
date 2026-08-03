@@ -37,4 +37,10 @@ public class DictQuery {
     public Set<String> enabledNameSet(String dictType) {
         return new LinkedHashSet<>(mapper.findEnabledNames(dictType));
     }
+
+    /** 启用项编码。业务主表的 {@code domain_code}、{@code category_code} 存的是编码而非名称。 */
+    @Transactional(readOnly = true)
+    public Set<String> enabledCodeSet(String dictType) {
+        return new LinkedHashSet<>(mapper.findEnabledCodes(dictType));
+    }
 }

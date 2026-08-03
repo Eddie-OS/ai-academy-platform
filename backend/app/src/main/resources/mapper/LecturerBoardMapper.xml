@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  讲师驾驶舱的跨模块只读查询（需求 10.3、10.5、10.6、10.7）。
+
+  三项累计统计（累计授课次数、累计学员人次、平均评分）都在 LATERAL 子查询里算，而不是先分页
+  再逐行补：需求 10.7 要求默认按累计授课次数降序、支持平均评分区间筛选，这两件事必须在同一条
+  SQL 里完成，否则排序只对当前页有效——运营翻到第二页会发现次数比第一页还多。
+
+  状态值（已结束/已归档、已签到）一律作为参数传入，SQL 文本里不写（出口准则 E2-6）。
+-->
+<mapper namespace="com.aiacademy.app.repository.LecturerBoardMapper">
+
+    <!--
+      一位讲师的三项累计统计。
+
+      场次只数「已结束」与「已归档」两态：待开课与已开课的场次还没上完，计进累计授课次数会让
+      「这位讲师上过几次课」变成「排过几次课」。
+
+      平均评分保留 1 位小数（设计规范 3.3），在 SQL 里 ROUND 而不是交给前端——前端拿到
+      4.333333 再四舍五入，与后端按同一批数据算出的筛选结果会有边界差异：筛「≥4.4」时
+      一位真实均分 4.35 的讲师，界面显示 4.4 却不在结果里。
+    -->
+    <sql id="statsJoin">
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*)                              AS teaching_count,
+                   COALESCE(SUM(t.attendee_count), 0)    AS attendee_count
+              FROM (SELECT (SELECT COUNT(*)
+                              FROM dtl_attendance a
+                             WHERE a.session_id = s.id
+                               AND a.deleted = FALSE
+                               AND a.attend_status = #{attendPresent}) AS attendee_count
+                      FROM biz_training_session s
+                     WHERE s.lecturer_id = l.id
+                       AND s.deleted = FALSE
+                       AND s.session_state IN
+                       <foreach collection="finishedStates" item="st" open="(" separator="," close=")">#{st}</foreach>
+                   ) t
+        ) stats ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT ROUND(AVG(f.score)::NUMERIC, 1) AS avg_score
+              FROM dtl_training_feedback f
+              JOIN biz_training_session s ON s.id = f.session_id AND s.deleted = FALSE
+             WHERE s.lecturer_id = l.id AND f.deleted = FALSE
+        ) rating ON TRUE
+    </sql>
+
+    <sql id="lecturerWhere">
+        WHERE l.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (l.lecturer_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR l.employee_no ILIKE #{q.keywordLike} ESCAPE '\'
+              OR l.teaching_direction ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <if test="q.sourceDept != null and q.sourceDept != ''">
+            AND l.source_dept = #{q.sourceDept}
+        </if>
+        <!-- 多选字段按「包含即命中」。jsonb 数组包含标量在 PostgreSQL 里就是元素包含判断 -->
+        <if test="q.expertiseDomain != null and q.expertiseDomain != ''">
+            AND l.expertise_domains @&gt; to_jsonb(#{q.expertiseDomain}::TEXT)
+        </if>
+        <if test="q.trainingState != null and q.trainingState != ''">
+            AND l.training_state = #{q.trainingState}
+        </if>
+        <if test="q.trialQualified != null">
+            AND l.trial_qualified = #{q.trialQualified}
+        </if>
+        <if test="q.poolState != null and q.poolState != ''">
+            AND l.pool_state = #{q.poolState}
+        </if>
+        <if test="q.joinType != null and q.joinType != ''">
+            AND l.join_type = #{q.joinType}
+        </if>
+        <if test="q.joinedFrom != null">
+            AND l.joined_date &gt;= #{q.joinedFrom}
+        </if>
+        <if test="q.joinedTo != null">
+            AND l.joined_date &lt;= #{q.joinedTo}
+        </if>
+        <!--
+          评分区间筛的是算出来的均分。没有任何反馈的讲师 avg_score 为 NULL，一旦填了区间就会被
+          排除——这是对的：「平均评分 ≥ 4」问的是评分够高的人，还没有人评过的讲师回答不了这个问题。
+        -->
+        <if test="q.scoreFrom != null">
+            AND rating.avg_score &gt;= #{q.scoreFrom}
+        </if>
+        <if test="q.scoreTo != null">
+            AND rating.avg_score &lt;= #{q.scoreTo}
+        </if>
+    </sql>
+
+    <!--
+      排序列与方向由 LecturerQuery 白名单化后作为独立参数传入（拼接而非绑定，因此必须白名单）。
+      末尾用 id DESC 兜底：授课次数相同的讲师很多，没有稳定次序时翻页会看到某条记录「消失」。
+    -->
+    <select id="selectPage" resultType="com.aiacademy.business.lecturer.domain.LecturerListItem">
+        SELECT l.*,
+               stats.teaching_count,
+               stats.attendee_count,
+               rating.avg_score
+          FROM biz_lecturer l
+        <include refid="statsJoin"/>
+        <include refid="lecturerWhere"/>
+         ORDER BY ${sortColumn} ${sortDirection} NULLS LAST, l.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+          FROM biz_lecturer l
+        <include refid="statsJoin"/>
+        <include refid="lecturerWhere"/>
+    </select>
+
+    <select id="selectDetailById" resultType="com.aiacademy.business.lecturer.domain.LecturerListItem">
+        SELECT l.*,
+               stats.teaching_count,
+               stats.attendee_count,
+               rating.avg_score
+          FROM biz_lecturer l
+        <include refid="statsJoin"/>
+         WHERE l.id = #{id} AND l.deleted = FALSE
+    </select>
+
+    <!--
+      授课记录（需求 10.5）。课程名称在这里 JOIN 是可以的：本 Mapper 属 app 层，它的职责就是
+      跨模块拼装，与 business 模块内部不得 JOIN 别人的表不是一回事。
+    -->
+    <select id="teachingRecords" resultType="com.aiacademy.app.repository.LecturerBoardMapper$TeachingRecordRow">
+        SELECT s.id                       AS session_id,
+               s.session_no,
+               s.session_name,
+               s.course_id,
+               c.course_name,
+               s.training_date            AS teaching_date,
+               s.session_state,
+               (SELECT COUNT(*) FROM dtl_attendance a
+                 WHERE a.session_id = s.id AND a.deleted = FALSE
+                   AND a.attend_status = #{attendPresent}) AS attendee_count,
+               (SELECT ROUND(AVG(f.score)::NUMERIC, 1) FROM dtl_training_feedback f
+                 WHERE f.session_id = s.id AND f.deleted = FALSE) AS avg_score
+          FROM biz_training_session s
+          LEFT JOIN biz_course c ON c.id = s.course_id AND c.deleted = FALSE
+         WHERE s.lecturer_id = #{lecturerId}
+           AND s.deleted = FALSE
+           AND s.session_state IN
+           <foreach collection="finishedStates" item="st" open="(" separator="," close=")">#{st}</foreach>
+         ORDER BY s.training_date DESC, s.id DESC
+    </select>
+
+    <!--
+      学员评价（需求 10.6）。提交人姓名留空即匿名，这里原样返回 NULL 由前端渲染「匿名」——
+      在 SQL 里 COALESCE 成「匿名」会让「没填」与「真有人叫匿名」无法区分。
+    -->
+    <select id="evaluations" resultType="com.aiacademy.app.repository.LecturerBoardMapper$EvaluationRow">
+        SELECT f.id,
+               f.session_id,
+               s.session_no,
+               s.training_date,
+               f.submitter_name,
+               f.submitter_dept,
+               f.score,
+               f.content,
+               f.feedback_scene,
+               f.imported_at AS submitted_at
+          FROM dtl_training_feedback f
+          JOIN biz_training_session s ON s.id = f.session_id AND s.deleted = FALSE
+         WHERE s.lecturer_id = #{lecturerId} AND f.deleted = FALSE
+         ORDER BY f.imported_at DESC, f.id DESC
+    </select>
+
+</mapper>

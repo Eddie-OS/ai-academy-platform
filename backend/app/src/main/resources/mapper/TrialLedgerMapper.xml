@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  试讲台账（需求 10.2 页面 P3-3）。筛选与计数共用同一段 WHERE，理由同其他列表：抄两遍迟早会
+  改了一处忘另一处，症状是「总数 37 条、翻到第二页只剩 12 条」。
+-->
+<mapper namespace="com.aiacademy.app.repository.TrialLedgerMapper">
+
+    <sql id="ledgerWhere">
+        WHERE t.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (c.course_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR l.lecturer_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR t.participants ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <if test="q.courseId != null">
+            AND t.course_id = #{q.courseId}
+        </if>
+        <if test="q.lecturerId != null">
+            AND t.lecturer_id = #{q.lecturerId}
+        </if>
+        <if test="q.roundNo != null">
+            AND t.round_no = #{q.roundNo}
+        </if>
+        <if test="q.courseConclusion != null and q.courseConclusion != ''">
+            AND t.course_conclusion = #{q.courseConclusion}
+        </if>
+        <if test="q.lecturerConclusion != null and q.lecturerConclusion != ''">
+            AND t.lecturer_conclusion = #{q.lecturerConclusion}
+        </if>
+        <if test="q.inconsistent != null">
+            AND t.inconsistent = #{q.inconsistent}
+        </if>
+        <if test="q.recordState != null and q.recordState != ''">
+            AND t.record_state = #{q.recordState}
+        </if>
+        <if test="q.dateFrom != null">
+            AND t.trial_date &gt;= #{q.dateFrom}
+        </if>
+        <if test="q.dateTo != null">
+            AND t.trial_date &lt;= #{q.dateTo}
+        </if>
+    </sql>
+
+    <select id="selectPage" resultType="com.aiacademy.app.repository.TrialLedgerMapper$TrialLedgerRow">
+        SELECT t.id,
+               t.course_id,
+               c.course_no,
+               c.course_name,
+               t.round_no,
+               t.trial_date,
+               t.lecturer_id,
+               l.lecturer_no,
+               l.lecturer_name,
+               t.participants,
+               t.course_conclusion,
+               t.lecturer_conclusion,
+               t.inconsistent,
+               t.expert_opinion,
+               t.issue_list,
+               t.record_state
+          FROM dtl_course_trial t
+          JOIN biz_course c ON c.id = t.course_id
+          JOIN biz_lecturer l ON l.id = t.lecturer_id
+        <include refid="ledgerWhere"/>
+         ORDER BY ${sortColumn} ${sortDirection} NULLS LAST, t.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+          FROM dtl_course_trial t
+          JOIN biz_course c ON c.id = t.course_id
+          JOIN biz_lecturer l ON l.id = t.lecturer_id
+        <include refid="ledgerWhere"/>
+    </select>
+
+</mapper>

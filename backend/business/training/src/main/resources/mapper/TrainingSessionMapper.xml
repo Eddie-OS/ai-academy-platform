@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  培训场次列表／排期日历的查询与计数（需求 11.9、11.8 P4-1）。
+
+  日历与列表共用这一条 SQL：日历只是把同一批场次按培训日期铺开。各写一条迟早会出现「日历上
+  看得见、列表里搜不到」这类无从解释的不一致。
+-->
+<mapper namespace="com.aiacademy.business.training.repository.TrainingSessionMapper">
+
+    <sql id="sessionWhere">
+        WHERE s.deleted = FALSE
+        <if test="q.keywordLike != null">
+            AND (s.session_no ILIKE #{q.keywordLike} ESCAPE '\'
+              OR s.session_name ILIKE #{q.keywordLike} ESCAPE '\')
+        </if>
+        <if test="q.planId != null">
+            AND s.plan_id = #{q.planId}
+        </if>
+        <if test="q.courseId != null">
+            AND s.course_id = #{q.courseId}
+        </if>
+        <if test="q.lecturerId != null">
+            AND s.lecturer_id = #{q.lecturerId}
+        </if>
+        <if test="q.sessionState != null and q.sessionState != ''">
+            AND s.session_state = #{q.sessionState}
+        </if>
+        <if test="q.trainingForm != null and q.trainingForm != ''">
+            AND s.training_form = #{q.trainingForm}
+        </if>
+        <if test="q.dateFrom != null">
+            AND s.training_date &gt;= #{q.dateFrom}
+        </if>
+        <if test="q.dateTo != null">
+            AND s.training_date &lt;= #{q.dateTo}
+        </if>
+        <if test="q.attendanceImported != null">
+            <choose>
+                <when test="q.attendanceImported">
+                    AND EXISTS (SELECT 1 FROM dtl_attendance a
+                                 WHERE a.session_id = s.id AND a.deleted = FALSE)
+                </when>
+                <otherwise>
+                    AND NOT EXISTS (SELECT 1 FROM dtl_attendance a
+                                     WHERE a.session_id = s.id AND a.deleted = FALSE)
+                </otherwise>
+            </choose>
+        </if>
+    </sql>
+
+    <select id="selectPage" resultType="com.aiacademy.business.training.domain.TrainingSessionListItem">
+        SELECT s.*,
+               p.plan_no, p.plan_name,
+               (SELECT COUNT(*) FROM dtl_attendance a
+                 WHERE a.session_id = s.id AND a.deleted = FALSE
+                   AND a.attend_status = #{presentStatus}) AS actual_attendee_count,
+               EXISTS (SELECT 1 FROM dtl_attendance a
+                        WHERE a.session_id = s.id AND a.deleted = FALSE) AS attendance_imported
+          FROM biz_training_session s
+          JOIN biz_training_plan p ON p.id = s.plan_id
+        <include refid="sessionWhere"/>
+         ORDER BY s.${sortColumn} ${sortDirection} NULLS LAST, s.start_time, s.id DESC
+         LIMIT #{q.pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session s
+        <include refid="sessionWhere"/>
+    </select>
+
+</mapper>

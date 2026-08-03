@@ -27,6 +27,9 @@ spring-security-test = { module = "org.springframework.security:spring-security-
 spring-web = { module = "org.springframework:spring-web" }
 spring-context = { module = "org.springframework:spring-context" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+# JSONB 多选列的读写（精品标注、评审形式、验收标准勾选、案例应用领域……）。
+# 手写 JSON 拼接在单处是安全的，散到五个模块之后就不是了
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 slf4j-api = { module = "org.slf4j:slf4j-api" }
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
 # 平台模块里的表单只需要注解本身，校验的执行由 app 的 starter-validation 提供
