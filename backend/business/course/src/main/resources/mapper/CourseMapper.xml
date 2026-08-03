@@ -73,6 +73,17 @@
         <if test="q.expectPublishTo != null">
             AND c.expect_publish_date &lt;= #{q.expectPublishTo}
         </if>
+        <if test="q.light != null and q.light != ''">
+            AND calc_light(
+                  c.expect_publish_date,
+                  c.last_state_changed_at,
+                  (SELECT t.blue_days FROM cfg_warning_threshold t
+                    WHERE t.object_type = '课程' AND t.deleted = FALSE),
+                  (SELECT t.red_days FROM cfg_warning_threshold t
+                    WHERE t.object_type = '课程' AND t.deleted = FALSE),
+                  c.main_state IN ('已关闭', '课程归档', '案例归档')
+                ) = #{q.light}
+        </if>
         <if test="q.hasDemand != null">
             <choose>
                 <when test="q.hasDemand">

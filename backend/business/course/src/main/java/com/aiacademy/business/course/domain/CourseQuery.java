@@ -7,16 +7,16 @@ import java.time.LocalDate;
 /**
  * 课程列表的筛选条件（需求 9.10）。
  *
- * <p><b>灯色筛选不在这里。</b>三色灯的计算属于阶段 3 的 {@code aggregate/warning}，
- * 阶段 2 只在列表上留出灯色列的位置。提前在课程模块里算一遍灯色，等阶段 3 落地时就会有两份
- * 阈值判定逻辑，而其中一份不会被 13.9.2「阈值保存后灯色实时重算」覆盖到。
- *
- * <p>导出接口复用同一个查询对象（开发 5.11.2：导出必须复用列表查询的筛选条件，不另写一套）。
+ * <p>灯色筛选走数据库 {@code calc_light}（阶段 3A），阈值来自 {@code cfg_warning_threshold}。
+ * 导出接口复用同一查询对象（开发 5.11.2）。
  */
 public class CourseQuery extends PageQuery {
 
     /** 关键字，匹配课程ID、课程名称、课程简介三列（需求 9.10）。 */
     private String keyword;
+
+    /** 灯色筛选。取值 {@code BLUE}/{@code YELLOW}/{@code RED}/{@code NONE}。 */
+    private String light;
 
     private String reviewTrack;
 
@@ -61,6 +61,14 @@ public class CourseQuery extends PageQuery {
 
     public void setKeyword(String keyword) {
         this.keyword = keyword;
+    }
+
+    public String getLight() {
+        return light;
+    }
+
+    public void setLight(String light) {
+        this.light = light;
     }
 
     public String getReviewTrack() {

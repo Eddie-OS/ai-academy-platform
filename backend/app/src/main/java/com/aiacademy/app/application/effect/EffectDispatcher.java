@@ -1,11 +1,9 @@
 package com.aiacademy.app.application.effect;
 
-import com.aiacademy.platform.statemachine.domain.Effect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +16,7 @@ import java.util.Map;
  * 表现只是「归档成功了但归档时间是空的」「课程发布了但有效期截止日没算」，要等到按这个字段
  * 统计时才暴露，那时已经积累了一批错数据。
  *
- * <p>{@code EffectCoverageTest} 拿 {@link Effect} 的全部常量与本表 + 已注册处理器对账，
+ * <p>{@code EffectCoverageTest} 拿 Effect 的全部常量与本表 + 已注册处理器对账，
  * 保证新增副作用码时必须显式决定它归哪一段。
  */
 @Component
@@ -31,36 +29,10 @@ public class EffectDispatcher {
     /**
      * 已排期到后续阶段的副作用码 → 归属说明。
      *
-     * <p>阶段 2 分四段（A 课程 / B 需求 / C 培训 / D 讲师+案例），每段实现自己那几项时
-     * 从本表移走。任务相关的两项属于阶段 3 的 {@code aggregate/worklist}。
+     * <p>阶段 2／3A 已把全部既有副作用码实现完毕；本表目前为空。新增副作用码时必须二选一：
+     * 现在实现，或在此登记归属阶段。
      */
-    static final Map<String, String> DEFERRED = deferred();
-
-    private static Map<String, String> deferred() {
-        Map<String, String> map = new LinkedHashMap<>();
-
-        // 课程侧的五项已实现：SNAPSHOT_MATERIAL、CREATE_REVIEW_ROUND、SET_ROUND_NO、
-        // BIND_MATERIAL_VERSION、DRIVE_COURSE_MAIN_STATE（A-3 评审记录，A-4 补齐试讲记录分支）
-
-        // 需求侧十项已全部实现：REQUIRE_OUTLET、CONFIRM_CLEAR_OUTLET（B-2 分流出口），
-        // SET_ONLINE_DATES、INCREMENT_OPTIMIZE_COUNT（B-2 开发状态的三个自动字段），
-        // SET_DELIVERED_AT、RECORD_ACCEPTANCE、REVERT_BY_OUTLET、INCREMENT_ACCEPTANCE_ROUND、
-        // REQUIRE_ACCEPTANCE_PASSED、SET_ARCHIVED_AT（B-3 交付、业务验收与归档）
-
-        // 培训侧三项已全部实现：SET_ACTUAL_FINISHED_AT（C-1 培训计划），
-        // ATTACH_TO_PLAN、VALIDATE_SCHEDULING（C-2 培训场次与排课校验）
-
-        // 讲师侧一项已实现：UPDATE_LECTURER_TRIAL_FLAG（D-1 试讲合格标记）
-
-        // 案例侧三项已全部实现：CREATE_CASE（D-3 课程达精品自动建案例）、
-        // RECORD_CASE_AUDIT、SET_CASE_PUBLISHED_AT（D-3 案例审核）
-
-        // 任务派生与自动关闭都要读 cfg_task_derive_rule 并写 sys_task，那是 worklist 的职责
-        map.put(Effect.CLOSE_RELATED_TASKS, "阶段 3（任务中心）");
-        map.put(DERIVE_TASK_PREFIX, "阶段 3（任务中心）");
-
-        return Map.copyOf(map);
-    }
+    static final Map<String, String> DEFERRED = Map.of();
 
     private final List<EffectHandler> handlers;
 

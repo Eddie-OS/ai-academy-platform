@@ -21,6 +21,17 @@ public final class TaskStateMachine {
 
     public static final String OBJECT_TYPE = "TASK";
 
+    public static final String FIELD_TASK_STATE = "任务状态";
+
+    /**
+     * 状态值具名常量。业务／app 代码需要按状态过滤时引用这里，不要再写一遍字面量
+     * （出口准则 E2-6、{@code StateLiteralGuardTest}）。
+     */
+    public static final String STATE_PENDING = "待处理";
+    public static final String STATE_IN_PROGRESS = "处理中";
+    public static final String STATE_DONE = "已完成";
+    public static final String STATE_CLOSED = "已关闭";
+
     private TaskStateMachine() {
     }
 
@@ -32,15 +43,15 @@ public final class TaskStateMachine {
      * <p>「已完成」有一条「重新打开」，所以只有「已关闭」是终态。
      */
     public static StateMachineDef task() {
-        return new SimpleStateMachineDef("任务状态", OBJECT_TYPE, "任务状态",
-                Set.of("已关闭"), List.of(
-                of(null, "CREATE", "流程节点派生 或 人工创建", "待处理"),
-                of("待处理", "START", "开始处理", "处理中"),
-                of("处理中", "COMPLETE", "完成", "已完成"),
+        return new SimpleStateMachineDef("任务状态", OBJECT_TYPE, FIELD_TASK_STATE,
+                Set.of(STATE_CLOSED), List.of(
+                of(null, "CREATE", "流程节点派生 或 人工创建", STATE_PENDING),
+                of(STATE_PENDING, "START", "开始处理", STATE_IN_PROGRESS),
+                of(STATE_IN_PROGRESS, "COMPLETE", "完成", STATE_DONE),
                 // 需求表格第 4 行：待处理 / 处理中 → 关闭（业务对象已关闭时）→ 已关闭
-                of("待处理", "CLOSE", "关闭（业务对象已关闭时）", "已关闭"),
-                of("处理中", "CLOSE", "关闭（业务对象已关闭时）", "已关闭"),
-                of("已完成", "REOPEN", "重新打开", "待处理")));
+                of(STATE_PENDING, "CLOSE", "关闭（业务对象已关闭时）", STATE_CLOSED),
+                of(STATE_IN_PROGRESS, "CLOSE", "关闭（业务对象已关闭时）", STATE_CLOSED),
+                of(STATE_DONE, "REOPEN", "重新打开", STATE_PENDING)));
     }
 
     public static List<StateMachineDef> all() {

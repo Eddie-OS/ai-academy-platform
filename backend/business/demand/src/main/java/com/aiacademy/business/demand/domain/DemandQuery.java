@@ -7,16 +7,18 @@ import java.time.LocalDate;
 /**
  * 需求列表的筛选条件（需求 8.6）。
  *
- * <p><b>灯色筛选不在这里。</b>三色灯的计算属于阶段 3 的 {@code aggregate/warning}，阶段 2 只在
- * 列表上留出灯色列的位置。提前在需求模块里算一遍，等阶段 3 落地时就会有两份阈值判定逻辑，
- * 而其中一份不会被 13.9.2「阈值保存后灯色实时重算」覆盖到。
- *
- * <p>导出接口复用同一个查询对象（开发 5.11.2：导出必须复用列表查询的筛选条件，不另写一套）。
+ * <p>灯色筛选走数据库 {@code calc_light}（阶段 3A），阈值来自 {@code cfg_warning_threshold}，
+ * 不在业务模块里复制一份判定逻辑。导出接口复用同一查询对象（开发 5.11.2）。
  */
 public class DemandQuery extends PageQuery {
 
     /** 关键字，匹配需求ID、需求名称、需求描述三列（需求 8.6）。 */
     private String keyword;
+
+    /**
+     * 灯色筛选。取值 {@code BLUE}/{@code YELLOW}/{@code RED}/{@code NONE}（与 calc_light 返回值一致）。
+     */
+    private String light;
 
     private String domainCode;
 
@@ -54,6 +56,14 @@ public class DemandQuery extends PageQuery {
 
     public void setKeyword(String keyword) {
         this.keyword = keyword;
+    }
+
+    public String getLight() {
+        return light;
+    }
+
+    public void setLight(String light) {
+        this.light = light;
     }
 
     public String getDomainCode() {

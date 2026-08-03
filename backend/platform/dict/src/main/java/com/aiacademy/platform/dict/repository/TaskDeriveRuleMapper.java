@@ -29,6 +29,14 @@ public interface TaskDeriveRuleMapper {
             """)
     TaskDeriveRule findById(@Param("id") long id);
 
+    @Select("""
+            SELECT id, task_type, title_template, owner_source, due_base, due_offset_days,
+                   enabled, updated_at, updated_by
+              FROM cfg_task_derive_rule
+             WHERE task_type = #{taskType} AND deleted = FALSE
+            """)
+    TaskDeriveRule findByTaskType(@Param("taskType") String taskType);
+
     /**
      * 可改：标题模板、截止天数、启用状态。
      *
