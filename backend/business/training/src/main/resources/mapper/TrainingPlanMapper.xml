@@ -37,6 +37,18 @@
         <if test="q.dateTo != null">
             AND p.plan_start_date &lt;= #{q.dateTo}
         </if>
+        <!-- 退出预警：计划「已完成」（exitsWarningScope，非终态；与 WarningLightService 同口径） -->
+        <if test="q.light != null and q.light != ''">
+            AND calc_light(
+                  p.plan_end_date,
+                  p.last_state_changed_at,
+                  (SELECT t.blue_days FROM cfg_warning_threshold t
+                    WHERE t.object_type = '培训计划' AND t.deleted = FALSE),
+                  (SELECT t.red_days FROM cfg_warning_threshold t
+                    WHERE t.object_type = '培训计划' AND t.deleted = FALSE),
+                  p.plan_state = '已完成'
+                ) = #{q.light}
+        </if>
     </sql>
 
     <!--

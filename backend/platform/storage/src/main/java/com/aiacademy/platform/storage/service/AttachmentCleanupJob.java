@@ -5,7 +5,6 @@ import com.aiacademy.platform.storage.domain.StorageProperties;
 import com.aiacademy.platform.storage.repository.AttachmentMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -25,6 +24,9 @@ import java.util.List;
  *
  * <p>两类垃圾都物理删除，这与规则 F5「附件逻辑删除」不冲突：F5 保护的是被业务引用过的附件
  * （历史评审记录还要能下载它）。这里删的是从未被任何对象引用的文件。
+ *
+ * <p>当前假设单实例部署，多实例需引入分布式锁。执行日志由 app 模块的包装任务写入
+ * {@code sys_job_run_log}（见 {@code AttachmentCleanupJobBridge}）。
  */
 @Component
 public class AttachmentCleanupJob {
@@ -42,7 +44,10 @@ public class AttachmentCleanupJob {
         this.files = files;
     }
 
-    @Scheduled(cron = "0 0 3 * * *")
+    /**
+     * 保留给测试直接调用。生产调度入口在 app 的 {@code AttachmentCleanupJobBridge}，
+     * 以便写 {@code sys_job_run_log} 且不让 platform 依赖 app。
+     */
     public void runDaily() {
         CleanupResult result = cleanup(OffsetDateTime.now().minus(GRACE));
         log.info("附件清理完成：孤儿附件 {} 个、tmp 分片目录 {} 个",

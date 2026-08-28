@@ -74,9 +74,9 @@
   border-radius: var(--radius-tag);
   background: var(--brand-100);
   color: var(--brand-action);
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-weight: var(--type-body-medium-weight);
-  line-height: 18px;
+  line-height: var(--lh-18);
   font-variant-numeric: tabular-nums;
 }
 
@@ -90,8 +90,8 @@
   flex: 0 0 auto;
   margin-right: auto;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
 }
 
@@ -109,4 +109,54 @@
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/*
+ * 课程 / 需求详情弹窗共用外框。宽高锁死，切页签不改尺寸、不改位置。
+ * 试讲完整日历另用 .crs-cal-full 覆盖宽高。
+ */
+.crs-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 45%);
+}
+
+.crs-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(1100px, calc(100vw - 48px));
+  height: min(1200px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
+}
+
+.crs-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.crs-modal-close:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
 }

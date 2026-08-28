@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { lecturerApi } from '@/shared/api/lecturers';
 import { FIELD_ENUM_KEYS } from '@/shared/api/meta';
+import { useBusinessDomains } from '@/shared/meta/domains';
 import {
   DICT_KEYS,
   META_STALE_TIME,
@@ -28,10 +29,9 @@ import {
 export const TRIAL_OBJECT_TYPE_CODE = 'COURSE_TRIAL';
 export const TRIAL_STATE_FIELD = '试讲记录状态';
 
-/** 擅长领域的取值来自「作战单元」字典（需求 10.3 第 5 项），与需求的所属领域同一套。 */
+/** 擅长领域与需求所属领域同一套现场口径。 */
 export function useExpertiseDomains() {
-  const dicts = useDicts();
-  return (dicts.data?.[DICT_KEYS.combatUnit] ?? []).map((item) => item.name);
+  return useBusinessDomains();
 }
 
 /**

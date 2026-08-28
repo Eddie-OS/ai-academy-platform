@@ -31,6 +31,8 @@ interface AttachmentFieldProps {
   /** 空态文案，说明这个字段该放什么 */
   emptyHint: string;
   scene?: string;
+  /** 浏览器文件选择过滤；后端仍按场景码校验大小 */
+  accept?: string;
 }
 
 export function AttachmentField({
@@ -39,6 +41,7 @@ export function AttachmentField({
   refField,
   emptyHint,
   scene = ATTACHMENT_SCENE_GENERAL,
+  accept,
 }: AttachmentFieldProps) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -120,6 +123,7 @@ export function AttachmentField({
       {isOperator && (
         <Upload
           multiple={false}
+          accept={accept}
           showUploadList={false}
           beforeUpload={(file) => {
             void attach.mutateAsync(file as unknown as File);

@@ -28,8 +28,8 @@ public enum ErrorCode {
     /** 幂等键命中，规则 K2/K3。前端应静默忽略并表现为「操作成功」。 */
     DUPLICATE_SUBMIT(HttpStatus.CONFLICT, "请求已处理"),
 
-    /** 催办防重复窗口（48 小时，决策 D41）。 */
-    URGE_TOO_FREQUENT(HttpStatus.CONFLICT, "距上次催办不足 48 小时"),
+    /** 催办防重复窗口（需求 D1／13.9.5，默认可配置 24 小时）。 */
+    URGE_TOO_FREQUENT(HttpStatus.CONFLICT, "距上次催办不足窗口期"),
 
     IMPORT_VALIDATION_FAILED(HttpStatus.UNPROCESSABLE_ENTITY, "导入校验失败"),
 

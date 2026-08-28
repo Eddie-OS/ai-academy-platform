@@ -99,7 +99,7 @@ test.describe('P07 任务中心', () => {
     await expect(page.getByText('我的任务', { exact: true })).toHaveCount(0);
     await expect(page.getByTestId('task-tab').nth(1)).toHaveText('按负责人');
     await expect(page.getByTestId('task-filter').nth(2)).toContainText('全部');
-    await expect(page.locator("[data-region='R8']")).toContainText('暂无需要关注的任务');
+    await expect(page.locator("[data-region='R8']")).toContainText('没有找到任务？');
     await expect(page.locator("[data-region='R8']").getByRole('button', { name: '新建任务' })).toBeVisible();
   });
 });

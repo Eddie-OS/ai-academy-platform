@@ -9,6 +9,7 @@ import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.common.json.JsonArrays;
+import com.aiacademy.platform.dict.domain.BusinessDomains;
 import com.aiacademy.platform.dict.service.DictQuery;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeService;
@@ -204,21 +205,18 @@ public class LecturerService {
     }
 
     /**
-     * 擅长领域必须取自作战单元字典（需求 10.3 第 5 项）。
+     * 擅长领域与需求同一套现场口径。历史行仍可能是作战单元名称，那些名称继续合法。
      *
-     * <p>校验的是<b>启用中</b>的字典项：停用项只在配置中心可见，新建时不再可选（规则 DC1）。
-     * 已经存着停用值的老讲师不受影响——编辑时才会撞到，那正是提醒运营改一下的时机。
-     *
-     * <p>存的是字典项<b>名称</b>而不是编码，与讲师导入（{@code LecturerImportHandler}）一致。
-     * 两处存法不同的话，导入进来的讲师与手工新增的讲师会在同一个筛选条件下互相看不见。
+     * <p>存的是名称而不是编码，与讲师导入（{@code LecturerImportHandler}）一致。
      */
     private void validateDomains(List<String> domains) {
-        Set<String> allowed = dicts.enabledNameSet(DictQuery.TYPE_COMBAT_UNIT);
-        List<String> unknown = domains.stream().filter(d -> !allowed.contains(d)).toList();
+        Set<String> historical = dicts.enabledNameSet(DictQuery.TYPE_COMBAT_UNIT);
+        List<String> unknown = domains.stream()
+                .filter(d -> !BusinessDomains.contains(d) && !historical.contains(d))
+                .toList();
         if (!unknown.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_INVALID,
-                    "擅长领域「%s」不在作战单元字典中，请在配置中心先维护"
-                            .formatted(String.join("、", unknown)));
+                    "擅长领域只能是：%s".formatted(String.join(" / ", BusinessDomains.NAMES)));
         }
     }
 

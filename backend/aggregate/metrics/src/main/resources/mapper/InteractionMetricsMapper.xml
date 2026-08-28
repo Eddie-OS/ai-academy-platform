@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.aiacademy.aggregate.metrics.repository.InteractionMetricsMapper">
+
+    <select id="viewsByCase" resultType="long">
+        SELECT COUNT(*) FROM dtl_case_view WHERE case_id = #{caseId}
+    </select>
+
+    <select id="likesByCase" resultType="long">
+        SELECT COUNT(*) FROM dtl_case_like WHERE case_id = #{caseId}
+    </select>
+
+    <select id="commentsByCase" resultType="long">
+        SELECT COUNT(*) FROM dtl_case_comment
+         WHERE case_id = #{caseId} AND deleted = FALSE
+    </select>
+
+    <!-- 15.5 #5：单次停留超 30 分钟按 30 分钟（1800 秒）计入 -->
+    <select id="avgReadDurationSeconds" resultType="java.math.BigDecimal">
+        SELECT CASE WHEN COUNT(*) = 0 THEN NULL
+                    ELSE ROUND(
+                         (SUM(LEAST(COALESCE(duration_seconds, 0), 1800))::NUMERIC
+                          / COUNT(*)), 1)
+               END
+          FROM dtl_case_view
+    </select>
+
+    <select id="countActiveCases" resultType="long">
+        SELECT COUNT(DISTINCT case_id) FROM (
+            SELECT case_id FROM dtl_case_view WHERE viewed_at &gt;= #{since}
+            UNION
+            SELECT case_id FROM dtl_case_like WHERE liked_at &gt;= #{since}
+            UNION
+            SELECT case_id FROM dtl_case_comment
+             WHERE deleted = FALSE AND commented_at &gt;= #{since}
+        ) t
+    </select>
+
+    <select id="countCasesPublishedBetween" resultType="long">
+        SELECT COUNT(*) FROM biz_case
+         WHERE deleted = FALSE
+           AND case_state = #{publishedState}
+           AND published_at IS NOT NULL
+           AND published_at &gt;= #{from}
+           AND published_at &lt; #{to}
+    </select>
+
+</mapper>

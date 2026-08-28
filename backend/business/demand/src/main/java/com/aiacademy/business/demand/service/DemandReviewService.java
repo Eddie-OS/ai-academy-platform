@@ -4,6 +4,7 @@ import com.aiacademy.business.demand.domain.Demand;
 import com.aiacademy.business.demand.domain.DemandEnums;
 import com.aiacademy.business.demand.domain.DemandReview;
 import com.aiacademy.business.demand.domain.DemandReviewForm;
+import com.aiacademy.business.demand.domain.DemandReviewInfoForm;
 import com.aiacademy.business.demand.repository.DemandMapper;
 import com.aiacademy.business.demand.repository.DemandReviewMapper;
 import com.aiacademy.common.api.ErrorCode;
@@ -43,6 +44,17 @@ public class DemandReviewService {
      */
     @Transactional
     public long recordConclusion(long demandId, DemandReviewForm form) {
+        return recordConclusion(demandId, form, null, null);
+    }
+
+    /**
+     * 录入一轮评审结论，并同时写下评审备注与开发优先级。
+     *
+     * <p>历史行只 INSERT，不改旧轮次。
+     */
+    @Transactional
+    public long recordConclusion(long demandId, DemandReviewForm form,
+                                 String reviewRemark, String priority) {
         if (demands.lockById(demandId) == null) {
             throw new NotFoundException("需求不存在或已删除：" + demandId);
         }
@@ -54,12 +66,39 @@ public class DemandReviewService {
         Demand current = require(demandId);
         int version = form.version() == null ? current.getVersion() : form.version();
         if (demands.recordReviewConclusion(demandId, form.reviewDate(), form.reviewConclusion(),
-                form.reviewOpinion(), form.outlet(), operator(), version) == 0) {
+                form.reviewOpinion(), blankToNull(reviewRemark), blankToNull(priority),
+                form.outlet(), operator(), version) == 0) {
             throw concurrentModified(current);
         }
 
         return reviews.insert(demandId, reviews.nextRoundNo(demandId), form.reviewDate(),
-                form.reviewConclusion(), form.reviewOpinion(), operator());
+                form.reviewConclusion(), form.reviewOpinion(), blankToNull(reviewRemark), operator());
+    }
+
+    /**
+     * 只改主表当前评审快照，不写历史、不推进状态。
+     *
+     * @param writeOutlet 为真时同步分流出口（结论三值已映射）
+     */
+    @Transactional
+    public void updateSnapshot(long demandId, DemandReviewInfoForm form, String outlet,
+                               boolean writeOutlet, Integer expectedVersion) {
+        if (demands.lockById(demandId) == null) {
+            throw new NotFoundException("需求不存在或已删除：" + demandId);
+        }
+        Demand current = require(demandId);
+        if (demands.updateReviewSnapshot(demandId, form.reviewConclusion(), form.reviewOpinion(),
+                blankToNull(form.reviewRemark()), blankToNull(form.priority()),
+                outlet, writeOutlet, operator(), expectedVersion) == 0) {
+            if (expectedVersion != null) {
+                throw concurrentModified(current);
+            }
+            throw new NotFoundException("需求不存在或已删除：" + demandId);
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

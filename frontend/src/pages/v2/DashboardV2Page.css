@@ -39,9 +39,15 @@
   gap: var(--grid-gap);
 }
 
-/* R3 六张 KPI：y=86 h=124。顶栏 70 + 16 = 86 */
+/*
+ * R3 五张 KPI：y=86 h=124。顶栏 70 + 16 = 86。
+ *
+ * 列数与下面 .dash-entries 相同、gap 也是同一个 --grid-gap，因此两行的竖直分界线
+ * 逐列对齐。这是 V-70 撤掉「课程总数」要达到的效果，不是巧合 ——
+ * 改成 repeat(6) 或给这一行单独设 gap 都会让对齐消失，而错开两三像素看不出是错的。
+ */
 .dash-kpis {
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: 124px;
   margin-top: 16px;
 }
@@ -59,11 +65,13 @@
   margin-top: 16px;
 }
 
-/* R7+R8+R9：y=758 h=211。R5 结束于 743，+15 = 758 */
+/* R7+R9：y=758 h=211。R5 结束于 743，+15 = 758 */
 .dash-row-bottom {
   height: 211px;
   margin-top: 15px;
-  /* R7 807 + 13 + R8 239 + 11 + R9 250 = 1320。两个间距不等宽，同样是实测值 */
+  /* R7 807 + 13 + R9 500 = 1320。V-70 撤掉中间的 R8（239）后，
+     它的宽度连同 11px 间距一并归欢迎卡，于是 250 + 11 + 239 = 500。
+     间距由面板自己的 margin-right 给，所以这里是 0 */
   gap: 0;
 }
 
@@ -156,65 +164,73 @@ html:not([data-regression]) .dash-row-bottom {
 .panel.dash-worklist {
   flex: 0 1 calc((100% - 11px) * 810 / 1309);
   min-width: 0;
+  /* 上下也收紧：行高已经压到头像尺寸，标题再占默认档会把可视行数再挤掉一行 */
+  padding-top: var(--space-v2-2);
+  padding-bottom: var(--space-v2-2);
   padding-left: 0;
   padding-right: 0;
 }
 
-/* 标题与表头各收紧一档：282px 的面板要放下标题 + 表头 + 五行，
-   按默认间距算超出约 8px，第五行会被 overflow:hidden 裁掉半行 */
 .dash-worklist .panel-head {
-  margin-bottom: var(--space-v2-2);
+  margin-bottom: var(--space-v2-1);
   padding: 0 var(--card-pad);
 }
 
+/*
+ * 滚动容器吃掉标题以下的全部高度。多出来的行在这里滚，不是被 panel 的
+ * overflow:hidden 裁掉 —— 裁掉的表现是「清单是死的」，滚不出去也看不见下面。
+ */
+.worklist-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/*
+ * 列与列之间留 8px（V-70）。横向内边距吃在列宽里面，不改列宽。
+ * 纵向压到 2px（V-71）：原先表格 flex:1 把五行拉满面板，单行约 40px；
+ * 现在行高跟头像走（≈28px），大约是原来的一半，多出的行靠滚动看。
+ */
 .dash-worklist .worklist th {
+  padding-right: var(--space-v2-2);
   padding-bottom: var(--space-v2-1);
 }
 
-/* 行内边距取 4px 紧凑档。默认的 8px 下五行合计比 282px 的面板高出十几像素，
-   第五行会被裁掉半行 —— 这是「有第五行但看不全」，比干脆只显示四行更糟。
-   4px 是间距标尺上的一档，不是为了凑数临时算出来的 6px */
 .dash-worklist .worklist td {
-  padding: var(--space-v2-1) 0;
+  padding: 2px var(--space-v2-2) 2px 0;
 }
 
-/* 底部三格同理。减去的 24px 是 13 + 11 两个面板间距，1296 是三个设计宽度之和 */
+/* 面板左右内边距被清零好让表格通栏描边，首列要自己补回标题那一档缩进，
+   否则「业务对象」列比面板标题往左出去 16px，读起来像表格没对齐 */
+.dash-worklist .worklist th:nth-child(1),
+.dash-worklist .worklist td:nth-child(1) {
+  padding-left: var(--card-pad);
+}
+
+.dash-worklist .worklist th:nth-child(2),
+.dash-worklist .worklist td:nth-child(2) {
+  padding-left: var(--space-v2-2);
+}
+
+/* 末列不留右内边距：它已经贴着卡片右沿，再留 8px 会让「去处理」比其余六列的
+   右边界往里缩一档，看起来像操作列没对齐 */
+.dash-worklist .worklist th:last-child,
+.dash-worklist .worklist td:last-child {
+  padding-right: 0;
+}
+
+/* 底部两格同理。减去的 13px 是唯一的面板间距，1307 是两个设计宽度之和（807 + 500） */
 .dash-efficiency {
-  flex: 0 1 calc((100% - 24px) * 807 / 1296);
+  flex: 0 1 calc((100% - 13px) * 807 / 1307);
   min-width: 0;
   margin-right: 13px;
   /* 四张图各带纵轴刻度与横轴日期，比只画趋势线时高出约 30px，内边距收一档让出空间 */
   padding: var(--card-pad-compact);
 }
 
-.dash-value {
-  flex: 0 1 calc((100% - 24px) * 239 / 1296);
-  min-width: 0;
-  margin-right: 11px;
-  padding: var(--card-pad-compact);
-}
-
-/*
- * 239px 的卡头要同时放「业务价值」16px、「（人工填报）」11px、「查看明细」14px，
- * 按默认字号合计约 216px（含两处 8px 间距），比 215px 的内容宽多 1px，
- * 结果是标题折成两行、把三条数值整体往下顶出卡外。
- * 动作降到 11px 并去掉箭头间距后合计 196px。
- */
-.dash-value .panel-head {
-  gap: var(--space-v2-1);
-  margin-bottom: var(--space-v2-2);
-}
-
-.dash-value .panel-action {
-  font-size: 11px;
-}
-
-.dash-value .panel-note {
-  margin-right: var(--space-v2-1);
-}
-
 .dash-welcome {
-  flex: 0 1 calc((100% - 24px) * 250 / 1296);
+  flex: 0 1 calc((100% - 13px) * 500 / 1307);
   min-width: 0;
   padding: var(--card-pad-compact);
 }
@@ -290,11 +306,11 @@ html:not([data-regression]) .dash-row-bottom {
   line-height: var(--type-caption-line);
 }
 
-/* 环比的比较基准。灰色小字而不是与百分比同色 ——「较上周期」是量词不是数据，
+/* 环比的比较基准。灰色小字而不是与百分比同色 ——「月度环比（较上月）」是量词不是数据，
    同色会让人以为它也是指标的一部分 */
 .kpi-baseline {
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
   line-height: var(--type-caption-line);
 }
 
@@ -342,18 +358,8 @@ html:not([data-regression]) .dash-row-bottom {
   text-overflow: ellipsis;
 }
 
-/* 总量徽章。用品牌浅底而不是语义色 —— 它是个中性的量，不表示好坏（WV4） */
-.entry-badge {
-  flex: 0 0 auto;
-  padding: 0 6px;
-  border-radius: var(--radius-tag);
-  background: var(--brand-100);
-  color: var(--brand-action);
-  font-size: 11px;
-  font-weight: var(--type-body-medium-weight);
-  line-height: 18px;
-  font-variant-numeric: tabular-nums;
-}
+/* V-70 撤掉了标题右侧的总量徽章（.entry-badge）。它显示的是该驾驶舱对应的那张 KPI，
+   与 R3 那一行重复了同一个数，卡头因此只剩标题与「去查看」两块 */
 
 .entry-link {
   display: inline-flex;
@@ -362,8 +368,8 @@ html:not([data-regression]) .dash-row-bottom {
   flex: 0 0 auto;
   margin-left: auto;
   color: var(--brand-action);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-18);
   white-space: nowrap;
 }
 
@@ -377,11 +383,18 @@ html:not([data-regression]) .dash-row-bottom {
   object-fit: contain;
 }
 
-/* 底部三数横排。竖排会让每张卡只能显示三行 label:value，
-   与图上「三个并列的统计口径」表达的不是一回事 */
+/*
+ * 底部数横排。竖排会让每张卡只能显示几行 label:value，
+ * 与图上「并列的几个统计口径」表达的不是一回事。
+ *
+ * 列数按实际条数自适应（grid-auto-columns: 1fr 等分），不写 repeat(3)：
+ * V-70 之后培训卡与案例卡只有两条，写死三列会让它们右边空出整整一格 ——
+ * 而空出来的那一格看着像「第三个指标没取到数」。
+ */
 .entry-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: var(--space-v2-1);
   padding-top: var(--space-v2-2);
   border-top: var(--border-v2);
@@ -395,8 +408,8 @@ html:not([data-regression]) .dash-row-bottom {
 
 .entry-stat-label {
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
 }
 
@@ -404,7 +417,7 @@ html:not([data-regression]) .dash-row-bottom {
   color: var(--text-primary);
   font-size: var(--type-kpi-small-size);
   font-weight: var(--type-kpi-small-weight);
-  line-height: 26px;
+  line-height: var(--lh-26);
   font-variant-numeric: tabular-nums;
 }
 
@@ -413,34 +426,29 @@ html:not([data-regression]) .dash-row-bottom {
  *
  * 业务裁决（V-9）蓝灯即健康态，所以没有第四张健康卡。
  * 卡片内部（色名／数字／副文案／示例对象／更多／一键催办）由 WarningSummaryCard
- * 的 compact 档负责，这里只分配栅格。
+ * 的 compact 档负责，字号走 --type-unit，这里只分配栅格。
  * =========================================================================== */
 
 .warning-grid {
   display: grid;
   flex: 1;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr;
   gap: var(--space-v2-2);
   min-height: 0;
 }
 
 /* ===========================================================================
- * R6 待办行动清单。列宽必须照抄（文档 5「内部几何」），合计 810px
+ * R6 待办行动清单。列宽合计 810px（V-71 按三字人名重排，见 WORKLIST_COLUMNS）
  * =========================================================================== */
 
 /*
  * 表格宽度要正好 810，而卡片的 1px 边框让内容盒只剩 808 ——
- * 少的 2px 全落在唯一可伸缩的「业务对象」列上（163 而不是 165），超出 L1 的 2px 容差。
+ * 少的 2px 全落在唯一可伸缩的「业务对象」列上，超出 L1 的 2px 容差。
  * 所以让表格向两侧各外扩 1px，压在卡片边框上。
- *
- * 视觉上没有副作用：单元格本身没有左右边框，外扩的效果只是行分隔线延伸到卡片边缘，
- * 这正是通栏表格该有的样子。改动其余六列的宽度去凑是不行的 —— 文档标注「必须照抄」。
  */
 .worklist {
-  /* 表格吃满面板高度，多出来的高度由五行平分。
-     不给的话面板变高时表格仍贴在顶部，下面空一大片 —— 而这片空白在面板<b>里面</b>，
-     比页面下方的空白更像坏了 */
-  flex: 1;
+  /* 不再 flex:1 拉高行距。行高跟内容走，多出行在 .worklist-scroll 里滚 */
   width: calc(100% + 2px);
   margin: 0 -1px;
   border-collapse: collapse;
@@ -450,8 +458,12 @@ html:not([data-regression]) .dash-row-bottom {
 }
 
 .worklist th {
-  padding: 0 0 var(--space-v2-2);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0 0 var(--space-v2-1);
   border-bottom: var(--border-v2);
+  background: var(--bg-page);
   color: var(--text-tertiary);
   font-weight: var(--type-body-medium-weight);
   text-align: left;
@@ -459,7 +471,8 @@ html:not([data-regression]) .dash-row-bottom {
 }
 
 .worklist td {
-  padding: var(--space-v2-2) 0;
+  /* 裁在列宽里：不裁的话窄列文字会画到下一格上，看起来像两列叠在一起 */
+  overflow: hidden;
   border-bottom: 1px solid var(--border-light);
   color: var(--text-secondary);
   vertical-align: middle;
@@ -469,12 +482,19 @@ html:not([data-regression]) .dash-row-bottom {
   display: inline-flex;
   align-items: center;
   gap: var(--space-v2-2);
+  box-sizing: border-box;
   min-width: 0;
+  max-width: 100%;
   color: var(--text-primary);
 }
 
-/* 业务对象列是唯一允许伸缩的列，其余七列宽度写死。
-   一旦让别的列也伸缩，1320px 下四舍五入的 1px 会在七列上累积成 3~4px */
+/* 三字名完整可见；再长才 ellipsis。列宽已按「16px 缩进 + 头像 + 三字」量过 */
+.worklist-owner-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .worklist-cell-object {
   overflow: hidden;
   color: var(--text-primary);
@@ -483,12 +503,16 @@ html:not([data-regression]) .dash-row-bottom {
 }
 
 .worklist-cell-date {
+  overflow: hidden;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .worklist-cell-days {
+  overflow: hidden;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -525,7 +549,12 @@ html:not([data-regression]) .dash-row-bottom {
   color: var(--brand-action);
   font-family: inherit;
   font-size: var(--type-table-size);
+  text-decoration: none;
   cursor: pointer;
+}
+
+.worklist-action:hover {
+  text-decoration: underline;
 }
 
 /* ===========================================================================
@@ -551,8 +580,8 @@ html:not([data-regression]) .dash-row-bottom {
 .efficiency-label {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -568,7 +597,7 @@ html:not([data-regression]) .dash-row-bottom {
   color: var(--text-primary);
   font-size: var(--type-kpi-small-size);
   font-weight: var(--type-kpi-small-weight);
-  line-height: 28px;
+  line-height: var(--lh-28);
   font-variant-numeric: tabular-nums;
 }
 
@@ -579,15 +608,15 @@ html:not([data-regression]) .dash-row-bottom {
  */
 .efficiency-delta {
   color: var(--success);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
 }
 
 .efficiency-baseline {
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
 }
 
 /*
@@ -603,98 +632,25 @@ html:not([data-regression]) .dash-row-bottom {
 }
 
 /* ===========================================================================
- * R8 业务价值 / R9 欢迎卡
+ * R9 欢迎卡
+ *
+ * V-70 撤掉了这一节原先在前面的 R8「业务价值」（三行图标 + 标签 + 数值）。
  * =========================================================================== */
 
-.value-list {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-v2-2);
-  justify-content: center;
-}
-
-.value-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-v2-2);
-  min-width: 0;
-}
-
 /*
- * 三条各用一色，只为在 239px 的窄卡里让三行一眼可分。
- *
- * 三个色都取自品牌与中性色系，不碰四个语义色（蓝灯／黄灯／红灯／成功）——
- * WV4 明令四个语义色不得出现在装饰位。用绿色标「效率提升」看着很自然，
- * 但那会让人以为这里也在报预警状态。
+ * 文案与插画左右分栏，而不是上下堆叠：卡片只有两行字，竖排时插画被挤成一条,
+ * 右列给到 1.2fr 让插画拿到卡片一半以上的宽度。
  */
-.value-plate {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-control);
-}
-
-.value-item[data-tone='blue'] .value-plate {
-  background: var(--brand-50);
-  color: var(--brand-action);
-}
-
-.value-item[data-tone='violet'] .value-plate {
-  background: #efeafd;
-  color: #7c6cf0;
-}
-
-.value-item[data-tone='amber'] .value-plate {
-  background: #fdf3e2;
-  color: #c98a1e;
-}
-
-.value-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.value-number {
-  flex: 0 0 auto;
-  font-size: var(--type-kpi-small-size);
-  font-weight: var(--type-kpi-small-weight);
-  line-height: var(--type-kpi-small-line);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.value-item[data-tone='blue'] .value-number {
-  color: var(--brand-action);
-}
-
-.value-item[data-tone='violet'] .value-number {
-  color: #7c6cf0;
-}
-
-.value-item[data-tone='amber'] .value-number {
-  color: #c98a1e;
-}
-
-.value-trend {
-  margin-right: 2px;
-  font-size: var(--type-caption-size);
-}
-
 .welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-rows: auto auto 1fr;
+  column-gap: var(--space-v2-2);
   overflow: hidden;
 }
 
 .welcome-title {
+  grid-column: 1;
   color: var(--text-primary);
   font-size: var(--type-body-size);
   font-weight: var(--type-body-medium-weight);
@@ -702,19 +658,23 @@ html:not([data-regression]) .dash-row-bottom {
 }
 
 .welcome-caption {
+  grid-column: 1;
   margin-top: var(--space-v2-1);
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
-/* 插画贴右下角。居中会把它顶到两行文案中间，卡片读起来像被切成两半 */
+/* 插画独占右列并跨满三行，底对齐：给死 max-width 时卡片变宽只会在右边空一块 */
 .welcome-illustration {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   min-height: 0;
-  align-self: flex-end;
-  max-width: 140px;
-  margin-top: var(--space-v2-2);
+  max-width: none;
+  margin: 0;
   object-fit: contain;
-  object-position: right bottom;
+  object-position: center bottom;
 }

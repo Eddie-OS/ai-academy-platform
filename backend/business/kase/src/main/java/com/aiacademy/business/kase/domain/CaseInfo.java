@@ -52,7 +52,7 @@ public class CaseInfo {
     /** 贡献人工号数组，JSON 文本（需求 12.3 第 5 项，多选）。 */
     private String contributors;
 
-    /** 应用领域，作战单元字典编码数组，JSON 文本（需求 12.3 第 6 项，多选、必填）。 */
+    /** 应用领域，与需求同一套现场口径；历史行可能仍是作战单元编码。 */
     private String domainCodes;
 
     /**

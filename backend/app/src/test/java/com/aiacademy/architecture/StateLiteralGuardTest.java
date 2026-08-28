@@ -2,7 +2,11 @@ package com.aiacademy.architecture;
 
 import com.aiacademy.platform.statemachine.domain.StateMachineDef;
 import com.aiacademy.platform.statemachine.domain.Transition;
+import com.aiacademy.platform.statemachine.domain.machines.CaseStateMachines;
+import com.aiacademy.platform.statemachine.domain.machines.CourseStateMachines;
+import com.aiacademy.platform.statemachine.domain.machines.DemandStateMachines;
 import com.aiacademy.platform.statemachine.domain.machines.StateMachineCatalog;
+import com.aiacademy.platform.statemachine.domain.machines.TaskStateMachine;
 import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -162,9 +166,43 @@ class StateLiteralGuardTest {
 
         assertThat(sessionStates)
                 .describedAs("场次状态常量必须出现在培训场次状态机的转换表里")
-                .contains(TrainingStateMachines.SESSION_OPENED,
+                .contains(TrainingStateMachines.SESSION_PENDING,
+                        TrainingStateMachines.SESSION_OPENED,
                         TrainingStateMachines.SESSION_FINISHED,
                         TrainingStateMachines.SESSION_ARCHIVED);
+
+        assertThat(statesOf(CourseStateMachines.mainState()))
+                .describedAs("课程主状态常量必须出现在课程主状态机的转换表里")
+                .contains(CourseStateMachines.MAIN_REVIEW_DECISION,
+                        CourseStateMachines.MAIN_OPTIMIZE);
+        assertThat(statesOf(CourseStateMachines.trialSubState()))
+                .describedAs("试讲子状态常量必须出现在试讲子状态机的转换表里")
+                .contains(CourseStateMachines.TRIAL_PENDING);
+
+        assertThat(statesOf(DemandStateMachines.acceptance()))
+                .describedAs("业务验收状态常量必须出现在验收状态机的转换表里")
+                .contains(DemandStateMachines.ACCEPTANCE_PENDING);
+
+        assertThat(statesOf(CaseStateMachines.caseState()))
+                .describedAs("案例状态常量必须出现在案例状态机的转换表里")
+                .contains(CaseStateMachines.STATE_PENDING_ORGANIZE,
+                        CaseStateMachines.STATE_ORGANIZING,
+                        CaseStateMachines.STATE_PENDING_AUDIT,
+                        CaseStateMachines.STATE_PUBLISHED);
+
+        assertThat(statesOf(TaskStateMachine.task()))
+                .describedAs("任务状态常量必须出现在任务状态机的转换表里")
+                .contains(TaskStateMachine.STATE_PENDING, TaskStateMachine.STATE_IN_PROGRESS);
+    }
+
+    private static Set<String> statesOf(StateMachineDef machine) {
+        Set<String> states = new TreeSet<>();
+        for (Transition transition : machine.transitions()) {
+            Stream.of(transition.from(), transition.to())
+                    .filter(state -> state != null)
+                    .forEach(states::add);
+        }
+        return states;
     }
 
     /** 全部状态机的状态值，去掉太短的与表示空状态的伪值。 */

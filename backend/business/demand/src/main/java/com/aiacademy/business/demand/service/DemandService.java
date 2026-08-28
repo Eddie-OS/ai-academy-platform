@@ -3,6 +3,8 @@ package com.aiacademy.business.demand.service;
 import com.aiacademy.business.demand.domain.Demand;
 import com.aiacademy.business.demand.domain.DemandEnums;
 import com.aiacademy.business.demand.domain.DemandForm;
+import com.aiacademy.business.demand.domain.DemandCourseLinkForm;
+import com.aiacademy.business.demand.domain.DemandProcessInfoForm;
 import com.aiacademy.business.demand.domain.DemandListItem;
 import com.aiacademy.business.demand.domain.DemandQuery;
 import com.aiacademy.business.demand.repository.DemandMapper;
@@ -11,7 +13,6 @@ import com.aiacademy.common.api.PageResult;
 import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
-import com.aiacademy.platform.dict.service.DictQuery;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeService;
 import com.aiacademy.platform.statemachine.domain.machines.DemandStateMachines;
@@ -20,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * 需求主表的读写（需求 8.3、8.6）。
@@ -34,14 +34,12 @@ import java.util.Set;
 public class DemandService {
 
     private final DemandMapper mapper;
-    private final DictQuery dicts;
     private final EmployeeService employees;
     private final StateMachineRegistry stateMachines;
 
-    public DemandService(DemandMapper mapper, DictQuery dicts, EmployeeService employees,
+    public DemandService(DemandMapper mapper, EmployeeService employees,
                          StateMachineRegistry stateMachines) {
         this.mapper = mapper;
-        this.dicts = dicts;
         this.employees = employees;
         this.stateMachines = stateMachines;
     }
@@ -79,6 +77,41 @@ public class DemandService {
 
         int version = expectedVersion == null ? current.getVersion() : expectedVersion;
         if (mapper.update(demand, operator(), version) == 0) {
+            throw concurrentModified(current);
+        }
+    }
+
+    /**
+     * 「分流与处理」页签只改业务字段，不写状态列。
+     */
+    @Transactional
+    public void updateProcessSnapshot(long id, DemandProcessInfoForm form, String outlet) {
+        Demand current = requireExisting(id);
+        String link = blankToNull(form.solutionLink());
+        if (link != null && !link.startsWith("http://") && !link.startsWith("https://")) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "关联链接请以 http:// 或 https:// 开头");
+        }
+        if (mapper.updateProcessSnapshot(id, outlet,
+                blankToNull(form.solutionName()), blankToNull(form.solutionRemark()),
+                blankToNull(form.devName()), blankToNull(form.devRemark()),
+                form.expectFinishDate(),
+                blankToNull(form.acceptanceRemark()), blankToNull(form.deliveryRemark()),
+                form.actualFinishDate(), link, operator(), form.version()) == 0) {
+            throw concurrentModified(current);
+        }
+    }
+
+    /**
+     * 「关联课程」页签只改外链，不写状态列。
+     */
+    @Transactional
+    public void updateCourseLink(long id, DemandCourseLinkForm form) {
+        Demand current = requireExisting(id);
+        String link = blankToNull(form.courseLink());
+        if (link != null && !link.startsWith("http://") && !link.startsWith("https://")) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "关联链接请以 http:// 或 https:// 开头");
+        }
+        if (mapper.updateCourseLink(id, link, operator(), form.version()) == 0) {
             throw concurrentModified(current);
         }
     }
@@ -136,16 +169,21 @@ public class DemandService {
 
     private void applyForm(Demand demand, DemandForm form) {
         demand.setDemandName(form.demandName().trim());
-        demand.setDomainCode(form.domainCode());
-        demand.setProposerNo(form.proposerNo());
-        demand.setProposerDept(deptOf(form.proposerNo()));
-        demand.setOwnerNo(form.ownerNo());
+        demand.setDomainCode(form.domainCode().trim());
+        demand.setProposerNo(form.proposerNo().trim());
+        demand.setProposerDept(deptOf(form.proposerNo().trim()));
+        demand.setOwnerNo(form.ownerNo().trim());
+        demand.setOwnerNames(blankToNull(form.ownerNames()) != null
+                ? form.ownerNames().trim() : form.ownerNo().trim());
         demand.setProposedDate(form.proposedDate());
         demand.setExpectFinishDate(form.expectFinishDate());
         demand.setDescription(form.description());
         demand.setDemandSource(blankToNull(form.demandSource()));
         demand.setDemandType(blankToNull(form.demandType()));
         demand.setPriority(blankToNull(form.priority()));
+        demand.setBusinessBackground(blankToNull(form.businessBackground()));
+        demand.setRoiAnalysis(blankToNull(form.roiAnalysis()));
+        demand.setRemark(blankToNull(form.remark()));
     }
 
     /**
@@ -165,31 +203,27 @@ public class DemandService {
      * 时间。运营录入的大多是已经发生的历史数据，日期本来就可能「不合常理」，拦下来只会逼他们
      * 改数据去迁就系统。
      *
-     * <p>所属领域查字典而不是写枚举（需求 13.9.3）：运营在配置中心新增一个作战单元后，登记表单
-     * 必须立刻能选到它。
+     * <p>所属领域：现场口径（D-21）允许零售／GTM 等固定项或手填；历史数据仍可能是作战单元编码，
+     * 那些编码继续合法，避免改一条旧需求就被拒。
      */
     private void validate(DemandForm form) {
-        Set<String> combatUnits = dicts.enabledCodeSet(DictQuery.TYPE_COMBAT_UNIT);
-        if (!combatUnits.contains(form.domainCode())) {
-            throw new BizException(ErrorCode.PARAM_INVALID,
-                    "「%s」不在作战单元字典中，当前可选：%s"
-                            .formatted(form.domainCode(), String.join("、", combatUnits)));
+        String domain = form.domainCode() == null ? "" : form.domainCode().trim();
+        if (domain.isEmpty() || DemandEnums.DOMAIN_MANUAL.equals(domain)) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "请选择或填写所属领域");
         }
-
-        requireEmployee(form.proposerNo(), "需求提出人");
-        requireEmployee(form.ownerNo(), "需求负责人");
+        if (domain.length() > 64) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "所属领域不超过 64 字");
+        }
+        if (form.proposerNo() != null && form.proposerNo().trim().length() > 50) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "需求提出人不超过 50 字");
+        }
+        if (form.ownerNo() != null && form.ownerNo().trim().length() > 50) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "需求负责人单人姓名不超过 50 字");
+        }
 
         requireInIfPresent(DemandEnums.SOURCES, form.demandSource(), "需求来源");
         requireInIfPresent(DemandEnums.TYPES, form.demandType(), "需求类型");
         requireInIfPresent(DemandEnums.PRIORITIES, form.priority(), "优先级");
-    }
-
-    /** 提出人与负责人都是「从导入人员中选」（需求 8.3.1 第 4、6 项），工号必须在台账里。 */
-    private void requireEmployee(String employeeNo, String label) {
-        if (employees.findByNo(employeeNo).isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_INVALID,
-                    "%s「%s」不在人员台账中，请先在导入中心导入人员".formatted(label, employeeNo));
-        }
     }
 
     private static void requireInIfPresent(List<String> allowed, String value, String label) {

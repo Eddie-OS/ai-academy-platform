@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ApiError } from '@/shared/api/client';
 import { DEMAND_OBJECT_TYPE, demandApi, type Demand, type DemandAcceptance } from '@/shared/api/demands';
 import { allowedAction, fieldOf, transitionApi } from '@/shared/api/transitions';
+import { invalidateDemandGraph } from '@/shared/query/invalidateGraph';
 import { useIsOperator } from '@/shared/store/authStore';
 import { formatDateTime } from '@/shared/format';
 import { neutral, space } from '@/shared/theme/designTokens';
@@ -40,6 +41,8 @@ interface ConclusionValues {
 const ACTION_MARK_DELIVERED = 'MARK_DELIVERED';
 const ACTION_RECORD_ACCEPTANCE_PASS = 'RECORD_ACCEPTANCE_PASS';
 const ACTION_RECORD_ACCEPTANCE_REJECT = 'RECORD_ACCEPTANCE_REJECT';
+const ACTION_RESUBMIT_ACCEPTANCE = 'RESUBMIT_ACCEPTANCE';
+const ACTION_ARCHIVE = 'ARCHIVE';
 
 export function DemandAcceptanceTab({ demand }: DemandAcceptanceTabProps) {
   const { message } = App.useApp();
@@ -64,8 +67,10 @@ export function DemandAcceptanceTab({ demand }: DemandAcceptanceTabProps) {
   const canRecord =
     allowedAction(acceptanceField, ACTION_RECORD_ACCEPTANCE_PASS) !== null ||
     allowedAction(acceptanceField, ACTION_RECORD_ACCEPTANCE_REJECT) !== null;
+  const resubmit = allowedAction(acceptanceField, ACTION_RESUBMIT_ACCEPTANCE);
+  const archive = allowedAction(deliveryField, ACTION_ARCHIVE);
 
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['demands'] });
+  const refresh = () => invalidateDemandGraph(queryClient);
 
   const deliver = useMutation({
     mutationFn: () => demandApi.markDelivered(demand.id, demand.version),
@@ -74,6 +79,38 @@ export function DemandAcceptanceTab({ demand }: DemandAcceptanceTabProps) {
       refresh();
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '标记失败，请重试'),
+  });
+
+  const resubmitAcceptance = useMutation({
+    mutationFn: () => {
+      if (!resubmit) throw new Error('当前不能重新提交验收');
+      return transitionApi.transit(DEMAND_OBJECT_TYPE, demand.id, {
+        stateField: DEMAND_STATE_FIELDS.acceptance,
+        action: resubmit.action,
+        version: demand.version,
+      });
+    },
+    onSuccess: () => {
+      message.success('已重新提交验收');
+      refresh();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '提交失败，请重试'),
+  });
+
+  const archiveDemand = useMutation({
+    mutationFn: () => {
+      if (!archive) throw new Error('当前不能归档');
+      return transitionApi.transit(DEMAND_OBJECT_TYPE, demand.id, {
+        stateField: DEMAND_STATE_FIELDS.deliveryMark,
+        action: archive.action,
+        version: demand.version,
+      });
+    },
+    onSuccess: () => {
+      message.success('归档完成，该需求退出预警，灯色变为无灯');
+      refresh();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '归档失败，请重试'),
   });
 
   const record = useMutation({
@@ -127,6 +164,25 @@ export function DemandAcceptanceTab({ demand }: DemandAcceptanceTabProps) {
                   录入验收结论
                 </Button>
               )}
+              {resubmit && (
+                <Button
+                  size="small"
+                  loading={resubmitAcceptance.isPending}
+                  onClick={() => resubmitAcceptance.mutate()}
+                >
+                  {resubmit.label}
+                </Button>
+              )}
+              {archive && (
+                <Button
+                  type="primary"
+                  size="small"
+                  loading={archiveDemand.isPending}
+                  onClick={() => archiveDemand.mutate()}
+                >
+                  {archive.label}
+                </Button>
+              )}
             </Space>
           )
         }
@@ -146,7 +202,9 @@ export function DemandAcceptanceTab({ demand }: DemandAcceptanceTabProps) {
             },
             { key: 'acceptor', label: '验收人', children: demand.acceptorName ?? '—' },
             { key: 'acceptedAt', label: '验收时间', children: demand.acceptedAt ?? '—' },
-            { key: 'archivedAt', label: '归档时间', children: demand.archivedAt ?? '—' },
+            // 前六项两两成行，归档时间是第七项：不占满整行的话，AntD 会把下面 span=2 的
+            // 验收意见挤进同一行算宽度，控制台报 span 不匹配，界面上则是这一格被压窄
+            { key: 'archivedAt', label: '归档时间', span: 2, children: demand.archivedAt ?? '—' },
             { key: 'opinion', label: '验收意见', span: 2, children: demand.acceptanceOpinion ?? '—' },
           ]}
         />

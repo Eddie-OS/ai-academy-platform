@@ -13,6 +13,7 @@
  * | R7 组织覆盖 + 第六张 KPI | **两种模式都渲染** | V-65 覆盖 V-8：整页对齐设计稿；数据仍是 fixture，不建 org_department |
  */
 
+import { withCurrentDates } from './fixtureClock';
 import { ASSETS } from '@/shared/theme/designTokensV2';
 
 /** 案例状态四值 */
@@ -73,7 +74,7 @@ export interface CaseCard {
  *
  * <p>默认选中第一张（文档 10）。第二张状态原设计稿是「审核中」，已换成「待审核」。
  */
-export const CASE_CARDS: CaseCard[] = [
+export const CASE_CARDS: CaseCard[] = withCurrentDates([
   {
     id: 'AL2024050001',
     title: 'AI助力智能合同审查',
@@ -132,9 +133,9 @@ export const CASE_CARDS: CaseCard[] = [
     comments: '88',
     cover: ASSETS.A18,
   },
-];
+]);
 
-export const CASE_SELECTED_ID = 'AL2024050001';
+export const CASE_SELECTED_ID = withCurrentDates('AL2024050001');
 export const CASE_CARD_WIDTH = 177;
 export const CASE_CARD_GAP = 12;
 
@@ -236,7 +237,7 @@ export const COVERAGE_TOTAL = 68;
 export const CASE_DETAIL_TABS = ['案例正文', '互动数据', '评论'] as const;
 export const CASE_DETAIL_ACTIVE_TAB = 0;
 
-export const CASE_DETAIL = {
+export const CASE_DETAIL = withCurrentDates({
   id: 'AL2024050001',
   title: 'AI助力智能合同审查',
   domain: '法务/合同管理',
@@ -262,9 +263,9 @@ export const CASE_DETAIL = {
     '推动「设备异常检测」从整理中完成审核上架',
     '对浏览次数＞5,000 且评论＜100 的案例补一波运营引导提问',
   ],
-} as const;
+} as const);
 
-export const CASE_COMMENTS = [
+export const CASE_COMMENTS = withCurrentDates([
   { name: '周敏', text: '条款定位很准，我们法务侧已经当成标准作业的一部分。', at: '2024-06-08 14:20' },
   { name: '韩磊', text: '希望后续能支持更多非标合同模板。', at: '2024-06-07 09:12' },
-] as const;
+] as const);

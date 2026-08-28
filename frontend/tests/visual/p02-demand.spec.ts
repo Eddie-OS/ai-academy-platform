@@ -32,20 +32,19 @@ const REGIONS: Region[] = [
   { id: 'R7', name: '需求详情', x: 1118, y: 264, w: 446, h: 694 },
 ];
 
-/** 文档 6「内部几何」：需求表 884px 的十二列宽度，标注为「必须照抄」 */
+/** 文档 6「内部几何」：需求表 884px 列宽合计；已去掉操作列，35px 并入 ID／名称 */
 const TABLE_COLUMN_WIDTHS = [
-  { label: '需求ID', width: 95 },
-  { label: '需求名称', width: 145 },
+  { label: '需求ID', width: 100 },
+  { label: '需求名称', width: 150 },
   { label: '领域', width: 75 },
   { label: '提出人', width: 60 },
   { label: '负责人', width: 60 },
   { label: '评审状态', width: 78 },
-  { label: '分流出口', width: 70 },
+  { label: '评审流转去向', width: 96 },
   { label: '处理状态', width: 78 },
-  { label: '预计完成', width: 98 },
-  { label: '灯色', width: 42 },
-  { label: '停滞', width: 48 },
-  { label: '', width: 35 },
+  { label: '预计完成', width: 88 },
+  { label: '灯色', width: 46 },
+  { label: '停滞', width: 53 },
 ];
 
 /** 文档 6「冻结 KPI」表 */
@@ -85,7 +84,7 @@ test.describe('P02 AI需求驾驶舱', () => {
     );
   });
 
-  test('L1 需求表十二列列宽（文档标注「必须照抄」）', async ({ page }) => {
+  test('L1 需求表十一列列宽（无操作列，合计 884）', async ({ page }) => {
     const headers = page.locator("[data-region='R5'] thead th");
     await expect(headers).toHaveCount(TABLE_COLUMN_WIDTHS.length);
 
@@ -113,24 +112,38 @@ test.describe('P02 AI需求驾驶舱', () => {
       await expect(card).toContainText(kpi.label);
       await expect(card).toContainText(kpi.value);
       await expect(card).toContainText(kpi.delta);
+      // 累计总数 + 月度环比；不得再出现「较上周期」（会让人以为跟顶栏日期窗挂钩）
+      await expect(card).toContainText('月度环比（较上月）');
+      await expect(card).not.toContainText('较上周期');
     }
   });
 
-  test('L2 需求表八行，且分流出口只有两个合法值', async ({ page }) => {
+  test('L2 需求驾驶舱顶栏不出现「+ 新建」', async ({ page }) => {
+    await expect(page.locator('.shell-create')).toHaveCount(0);
+  });
+
+  test('L2 需求表八行，且评审流转去向只有两个合法值', async ({ page }) => {
     const rows = page.locator("[data-region='R5'] tbody tr");
     await expect(rows).toHaveCount(8);
+
+    await expect(page.locator("[data-region='R4']")).toContainText('评审流转去向');
+    await expect(page.locator("[data-region='R4']")).not.toContainText('分流出口');
+    await expect(page.locator("[data-region='R5'] thead")).toContainText('评审流转去向');
+    await expect(page.locator("[data-region='R5'] thead")).not.toContainText('分流出口');
 
     // 文档 14.2 的三个分流值里，「采购/外部」是状态机外的第三个出口，已归入出口二
     await expect(page.locator("[data-region='R5'] tbody")).not.toContainText('采购');
     await expect(page.locator("[data-region='R5'] tbody")).not.toContainText('内部开发');
     await expect(page.locator("[data-region='R5'] tbody")).not.toContainText('复用工具');
+    // 「需求驳回」不是现有出口枚举；要加必须先改 DemandEnums 与库表 CHECK
+    await expect(page.locator("[data-region='R5'] tbody")).not.toContainText('需求驳回');
 
     const outlets = page.locator("[data-region='R5'] tbody tr td:nth-child(7)");
     for (let index = 0; index < 8; index += 1) {
       const text = ((await outlets.nth(index).textContent()) ?? '').trim();
       expect(
         text === '—' || LEGAL_OUTLET_LABELS.includes(text),
-        `第 ${index + 1} 行分流出口「${text}」不在两个合法值里`,
+        `第 ${index + 1} 行评审流转去向「${text}」不在两个合法值里`,
       ).toBe(true);
     }
   });
@@ -222,23 +235,16 @@ test.describe('P02 AI需求驾驶舱', () => {
     const detail = page.locator("[data-region='R7']");
     await expect(detail).toContainText('学员能力画像优化需求');
 
-    // 六个页签，默认落在第三个「分流与处理」（文档「默认状态与交互」）
+    // 六个页签，默认落在第一个「基本信息」
     const tabs = detail.locator("[data-testid='demand-tab']");
     await expect(tabs).toHaveCount(6);
-    await expect(tabs.nth(2)).toHaveText('分流与处理');
-    await expect(tabs.nth(2)).toHaveAttribute('data-active', 'true');
+    await expect(tabs.nth(0)).toHaveText('基本信息');
+    await expect(tabs.nth(0)).toHaveAttribute('data-active', 'true');
 
     // 六个页签必须在一行内。414px 里排六个标签只剩 10px 间距的余量，
     // 折行后第二行会盖住下面的字段区，而页签本身看起来完全正常
     const tabBar = await detail.locator('.dmd-tabs').boundingBox();
     expect(tabBar?.height, `页签条实测 ${tabBar?.height}px，单行应约 30px`).toBeLessThanOrEqual(34);
-
-    // 出口一激活解决方案状态，且「验证通过」不是合法值，已按业务裁决落成「已发布」
-    await expect(detail).toContainText('学员画像分析引擎 v2.3');
-    await expect(detail).toContainText('已发布');
-    await expect(detail).not.toContainText('验证通过');
-    // 需求开发状态是出口二专用，出口一的详情里整组不出现
-    await expect(detail).not.toContainText('需求开发状态');
 
     // 两个人各带岗位。岗位不是账号角色 —— 一期没有角色表（禁区第 11 项）
     const people = detail.locator("[data-testid='demand-person']");
@@ -246,6 +252,15 @@ test.describe('P02 AI需求驾驶舱', () => {
     await expect(people.nth(0)).toContainText('陈华');
     await expect(people.nth(0)).toContainText('AI平台产品经理');
     await expect(people.nth(1)).toContainText('张小北');
+
+    // 出口一字段在「分流与处理」页签：激活解决方案状态，「验证通过」不是合法值
+    await tabs.nth(2).click();
+    await expect(tabs.nth(2)).toHaveAttribute('data-active', 'true');
+    await expect(detail).toContainText('学员画像分析引擎 v2.3');
+    await expect(detail).toContainText('已发布');
+    await expect(detail).not.toContainText('验证通过');
+    // 需求开发状态是出口二专用，出口一的详情里整组不出现
+    await expect(detail).not.toContainText('需求开发状态');
   });
 
   test('L2 详情区在冻结数据下不需要滚动，需求描述与展开入口都在视野内', async ({ page }) => {

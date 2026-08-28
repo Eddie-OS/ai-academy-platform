@@ -5,6 +5,7 @@ import { ApiError } from '@/shared/api/client';
 import { DEMAND_OBJECT_TYPE, type Demand } from '@/shared/api/demands';
 import { transitionApi, type ActionOption, type FieldAvailability } from '@/shared/api/transitions';
 import { ActionGuard } from '@/shared/ui/ActionGuard';
+import { invalidateDemandGraph } from '@/shared/query/invalidateGraph';
 import { useIsOperator } from '@/shared/store/authStore';
 import { neutral, space } from '@/shared/theme/designTokens';
 
@@ -54,7 +55,7 @@ export function DemandTransitionPanel({ demand }: DemandTransitionPanelProps) {
       message.success(`${result.stateField}已变更为「${result.toState}」`);
       setPending(null);
       remarkForm.resetFields();
-      void queryClient.invalidateQueries({ queryKey: ['demands'] });
+      invalidateDemandGraph(queryClient);
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '状态变更失败，请重试'),
   });

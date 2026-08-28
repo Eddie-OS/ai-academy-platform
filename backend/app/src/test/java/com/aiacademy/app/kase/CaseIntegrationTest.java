@@ -268,7 +268,7 @@ class CaseIntegrationTest extends IntegrationTest {
                 "客服中心", List.of(), List.of("凭空捏造的领域"), before.getOwnerNo(),
                 List.of(), null, null), before.getVersion()))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("不在作战单元字典中");
+                .hasMessageContaining("应用领域只能是");
     }
 
     @Test
@@ -351,12 +351,12 @@ class CaseIntegrationTest extends IntegrationTest {
         return jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        initiation_no, main_state, created_by)
                 VALUES (?, ?, '内部端到端课程', ?, ?, CURRENT_DATE, CURRENT_DATE + 30,
-                        '长期有效', ?, 'operator')
+                        '长期有效', ?, ?, 'operator')
                 RETURNING id
                 """, Long.class, "KC" + System.nanoTime(), courseName, 启用中的作战单元编码(),
-                ownerNo, CourseStateMachines.MAIN_PROMOTION);
+                ownerNo, "LI" + System.nanoTime(), CourseStateMachines.MAIN_PROMOTION);
     }
 
     private String 初始状态() {

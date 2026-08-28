@@ -5,8 +5,8 @@ import java.time.LocalDate;
 /**
  * 课程列表的一行（需求 9.10 的默认展示列 + 可选列）。
  *
- * <p>继承 {@link Course} 拿到全部本体字段，本类只加四个<b>算出来的</b>列：负责人姓名、
- * 当前评审轮次、是否有关联需求、有效期状态。前三个由 SQL 投影，第四个由
+ * <p>继承 {@link Course} 拿到全部本体字段，本类只加算出来的列：负责人姓名、
+ * 当前评审轮次、最新评审记录状态、是否有关联需求、有效期状态。前四个由 SQL 投影，有效期由
  * {@link CourseValidity} 在 Java 侧算——<b>展示口径只有这一份</b>。
  *
  * <p>SQL 里另有一份有效期状态的 CASE 表达式，那份只服务于筛选（筛选条件必须在同一条 SQL 里
@@ -22,6 +22,12 @@ public class CourseListItem extends Course {
 
     /** 当前评审轮次 = 该课程已有评审记录数（需求 9.6.1 第 3 项）。没评审过时为 0。 */
     private Integer reviewRound;
+
+    /**
+     * 最新一轮评审记录状态。没开过评审时为 null。
+     * 与列表筛选项 {@code reviewRecordState} 同口径，不是立项主状态里的「评审决策」。
+     */
+    private String reviewRecordState;
 
     /** 是否有关联需求（需求 9.10 的筛选项之一）。 */
     private Boolean hasDemand;
@@ -55,6 +61,14 @@ public class CourseListItem extends Course {
 
     public void setReviewRound(Integer reviewRound) {
         this.reviewRound = reviewRound;
+    }
+
+    public String getReviewRecordState() {
+        return reviewRecordState;
+    }
+
+    public void setReviewRecordState(String reviewRecordState) {
+        this.reviewRecordState = reviewRecordState;
     }
 
     public Boolean getHasDemand() {

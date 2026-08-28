@@ -2,6 +2,7 @@ package com.aiacademy.app.warning;
 
 import com.aiacademy.aggregate.warning.domain.LightColor;
 import com.aiacademy.aggregate.warning.domain.WarningLightView;
+import com.aiacademy.aggregate.warning.domain.WarningObjectKind;
 import com.aiacademy.aggregate.warning.service.WarningLightService;
 import com.aiacademy.app.application.DemandApplicationService;
 import com.aiacademy.app.schedule.WarningLightSnapshotJob;
@@ -13,6 +14,7 @@ import com.aiacademy.common.audit.OperatorAccount;
 import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.platform.people.domain.EmployeeForm;
 import com.aiacademy.platform.people.service.EmployeeService;
+import com.aiacademy.platform.statemachine.domain.machines.CaseStateMachines;
 import com.aiacademy.platform.statemachine.domain.machines.DemandStateMachines;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,9 +27,10 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 出口准则 E3-2：三色灯三处边界 + L1（改错别字红灯不消失）。
+ * 出口准则 E3-2：三色灯边界 + L1（改错别字红灯不消失）；判定口径为 V-9。
  */
 class WarningLightIntegrationTest extends IntegrationTest {
 
@@ -63,41 +66,74 @@ class WarningLightIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("E3-2 边界：剩余 0 天 → 无灯（非蓝非黄）")
-    void 剩余零天无灯() {
+    @DisplayName("V-9 边界：剩余 0 天（今天到期）→ 黄灯（需要关注）")
+    void 剩余零天黄灯() {
         long id = 造需求(LocalDate.now());
-        // 刚创建，停滞天数不够红；预计完成日=今天 → 剩余 0
         assertThat(jdbc.queryForObject(
                 "SELECT calc_light(?::date, NOW(), 3, 5, FALSE)", String.class, LocalDate.now()))
-                .isEqualTo(LightColor.NONE.apiCode());
+                .isEqualTo(LightColor.YELLOW.apiCode());
 
         WarningLightView view = lights.calc(DemandStateMachines.OBJECT_TYPE, id);
-        assertThat(view.light()).isEqualTo(LightColor.NONE.apiCode());
-        assertThat(view.days()).isNull();
+        assertThat(view.light()).isEqualTo(LightColor.YELLOW.apiCode());
+        assertThat(view.days()).isZero();
+    }
+
+    @Test
+    @DisplayName("V-9：剩余大于蓝阈值 → 蓝灯（正常运行）；临近 → 黄灯")
+    void 余量蓝灯临近黄灯() {
+        assertThat(jdbc.queryForObject(
+                "SELECT calc_light(?::date, NOW(), 3, 5, FALSE)", String.class,
+                LocalDate.now().plusDays(10)))
+                .isEqualTo(LightColor.BLUE.apiCode());
+        assertThat(jdbc.queryForObject(
+                "SELECT calc_light(?::date, NOW(), 3, 5, FALSE)", String.class,
+                LocalDate.now().plusDays(2)))
+                .isEqualTo(LightColor.YELLOW.apiCode());
+    }
+
+    @Test
+    @DisplayName("V-9：已逾期 → 红灯，成因为已逾期")
+    void 逾期红灯() {
+        LocalDate overdue = LocalDate.now().minusDays(2);
+        assertThat(jdbc.queryForObject(
+                "SELECT calc_light(?::date, NOW(), 3, 5, FALSE)", String.class, overdue))
+                .isEqualTo(LightColor.RED.apiCode());
+
+        long id = 造需求(overdue);
+        WarningLightView view = lights.calc(DemandStateMachines.OBJECT_TYPE, id);
+        assertThat(view.light()).isEqualTo(LightColor.RED.apiCode());
+        assertThat(view.reason()).isEqualTo("已逾期");
+        assertThat(view.days()).isEqualTo(2);
     }
 
     @Test
     @DisplayName("E3-2 边界：预计完成时间为空 → 不参与蓝黄，仍可红")
     void 预计为空仍可红() {
-        // 空预计 + 停滞超过红阈值 → RED
         assertThat(jdbc.queryForObject(
                 "SELECT calc_light(NULL, NOW() - INTERVAL '10 days', 3, 5, FALSE)", String.class))
                 .isEqualTo(LightColor.RED.apiCode());
 
-        // 空预计 + 刚变更 → NONE（不蓝不黄）
         assertThat(jdbc.queryForObject(
                 "SELECT calc_light(NULL, NOW(), 3, 5, FALSE)", String.class))
                 .isEqualTo(LightColor.NONE.apiCode());
     }
 
     @Test
-    @DisplayName("E3-2 边界：红黄同时满足 → 红")
-    void 红优先于黄() {
+    @DisplayName("E3-2 边界：停滞与逾期同时满足 → 红（停滞优先，成因=状态停滞）")
+    void 停滞优先于逾期() {
         LocalDate overdue = LocalDate.now().minusDays(2);
         assertThat(jdbc.queryForObject(
                 "SELECT calc_light(?::date, NOW() - INTERVAL '10 days', 3, 5, FALSE)",
                 String.class, overdue))
                 .isEqualTo(LightColor.RED.apiCode());
+
+        long id = 造需求(overdue);
+        jdbc.update("""
+                UPDATE biz_demand SET last_state_changed_at = NOW() - INTERVAL '10 days' WHERE id = ?
+                """, id);
+        WarningLightView view = lights.calc(DemandStateMachines.OBJECT_TYPE, id);
+        assertThat(view.light()).isEqualTo(LightColor.RED.apiCode());
+        assertThat(view.reason()).isEqualTo("状态停滞");
     }
 
     @Test
@@ -134,19 +170,35 @@ class WarningLightIntegrationTest extends IntegrationTest {
         jdbc.update("""
                 UPDATE biz_demand SET last_state_changed_at = NOW() - INTERVAL '10 days' WHERE id = ?
                 """, redId);
-        long noneId = 造需求(LocalDate.now().plusDays(30));
+        long blueId = 造需求(LocalDate.now().plusDays(30));
 
         DemandQuery query = new DemandQuery();
         query.setLight(LightColor.RED.apiCode());
         query.setPageSize(200);
         var ids = demandService.page(query).records().stream().map(r -> r.getId()).toList();
-        assertThat(ids).contains(redId).doesNotContain(noneId);
+        assertThat(ids).contains(redId).doesNotContain(blueId);
+    }
+
+    @Test
+    @DisplayName("业务改版 V-70：预警范围只剩三类，案例阈值已下线")
+    void 预警范围三类不含案例() {
+        assertThat(WarningObjectKind.values())
+                .extracting(WarningObjectKind::thresholdType)
+                .containsExactly("AI需求", "课程", "培训计划");
+        assertThatThrownBy(() -> WarningObjectKind.require(CaseStateMachines.OBJECT_TYPE))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // V5_002 逻辑删了阈值行。留着它，calc_light 会照旧给案例算灯，只是没人再读
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM cfg_warning_threshold
+                 WHERE object_type = '案例' AND deleted = FALSE
+                """, Integer.class)).isZero();
     }
 
     @Test
     @DisplayName("快照任务写入中文灯色，不抛异常")
     void 快照落库() {
-        long id = 造需求(LocalDate.now().plusDays(1)); // 蓝灯区间（阈值 3）
+        long id = 造需求(LocalDate.now().plusDays(1)); // V-9：临近 → 黄
         snapshotJob.snapshot();
         String light = jdbc.queryForObject("""
                 SELECT light FROM snapshot_warning_light
@@ -162,7 +214,7 @@ class WarningLightIntegrationTest extends IntegrationTest {
     private DemandForm 表单(String name, LocalDate expectFinish) {
         return new DemandForm(name, "COURSE", ownerNo, ownerNo,
                 LocalDate.now().minusDays(1), expectFinish,
-                name + " 描述", "部门提出", "效率提升", "高");
+                name + " 描述", "部门提出", "效率提升", "P0（紧急重要）");
     }
 
     private String 造人员(String name) {

@@ -1,4 +1,18 @@
 import '@testing-library/jest-dom/vitest';
+import { configure } from '@testing-library/react';
+
+/**
+ * Testing Library 的 {@code findBy*} 默认只等 1000ms。
+ *
+ * <p>本仓库的页面级用例要等好几层 React Query 落地（列表 → 详情 → available），
+ * 单跑一个文件够用，33 个文件并行时同一台机器上就不够了——表现是随机某个
+ * {@code findByRole} 超时，重跑一次又绿。这类抖动比真失败更贵：它会训练人
+ * 「红了先重跑一次看看」，真回归也就跟着被无视了。
+ *
+ * <p>放宽的是<b>等待上限</b>，不是断言本身：元素真的没渲染出来时用例照样失败，
+ * 只是多花几秒才报出来。
+ */
+configure({ asyncUtilTimeout: 5000 });
 
 /**
  * jsdom 没有实现 matchMedia，而 AntD 的响应式栅格与 Table 会在挂载时订阅断点。

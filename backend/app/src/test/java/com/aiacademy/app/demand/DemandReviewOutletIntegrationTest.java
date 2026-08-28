@@ -6,6 +6,8 @@ import com.aiacademy.app.support.IntegrationTest;
 import com.aiacademy.business.demand.domain.DemandEnums;
 import com.aiacademy.business.demand.domain.DemandForm;
 import com.aiacademy.business.demand.domain.DemandReviewForm;
+import com.aiacademy.business.demand.domain.DemandProcessInfoForm;
+import com.aiacademy.business.demand.domain.DemandReviewInfoForm;
 import com.aiacademy.business.demand.service.DemandReviewService;
 import com.aiacademy.business.demand.service.DemandService;
 import com.aiacademy.common.api.ErrorCode;
@@ -86,6 +88,119 @@ class DemandReviewOutletIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("评审信息：评审中保存已评审时结论映射出口并留档")
+    void 评审信息录入结论() {
+        long id = 评审中的需求("评审信息页");
+        application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "已评审", DemandEnums.CONCLUSION_DEVELOPMENT,
+                "专家建议先做最小闭环", "备注仅本轮", "P0（紧急重要）", null));
+
+        var demand = demands.get(id);
+        assertThat(demand.getReviewState()).isEqualTo("已评审");
+        assertThat(demand.getOutlet()).isEqualTo(DemandEnums.OUTLET_DEVELOPMENT);
+        assertThat(demand.getReviewConclusion()).isEqualTo(DemandEnums.CONCLUSION_DEVELOPMENT);
+        assertThat(demand.getReviewOpinion()).isEqualTo("专家建议先做最小闭环");
+        assertThat(demand.getReviewRemark()).isEqualTo("备注仅本轮");
+        assertThat(demand.getPriority()).isEqualTo("P0（紧急重要）");
+        assertThat(reviews.listByDemand(id)).singleElement().satisfies(review -> {
+            assertThat(review.reviewConclusion()).isEqualTo(DemandEnums.CONCLUSION_DEVELOPMENT);
+            assertThat(review.remark()).isEqualTo("备注仅本轮");
+        });
+    }
+
+    @Test
+    @DisplayName("评审信息：待评审不能直接改为已评审")
+    void 评审信息禁止跳过评审中() {
+        long id = application.register(表单("跳过评审中"));
+        assertThatThrownBy(() -> application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "已评审", DemandEnums.CONCLUSION_SOLUTION, "意见", null, null, null)))
+                .isInstanceOf(BizException.class)
+                .satisfies(e -> assertThat(((BizException) e).errorCode())
+                        .isEqualTo(ErrorCode.ILLEGAL_TRANSITION));
+        assertThat(demands.get(id).getReviewState()).isEqualTo("待评审");
+        assertThat(reviews.listByDemand(id)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("评审信息：状态未变只改快照，不新增历史轮次")
+    void 评审信息同态只改快照() {
+        long id = 评审中的需求("同态快照");
+        application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "已评审", DemandEnums.CONCLUSION_SOLUTION, "第一轮意见", "第一轮备注", null, null));
+        int rounds = reviews.listByDemand(id).size();
+        int version = demands.get(id).getVersion();
+
+        application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "已评审", DemandEnums.CONCLUSION_SOLUTION, "改过的意见", "改过的备注", "P2（一般）", version));
+
+        assertThat(reviews.listByDemand(id)).hasSize(rounds);
+        var demand = demands.get(id);
+        assertThat(demand.getReviewOpinion()).isEqualTo("改过的意见");
+        assertThat(demand.getReviewRemark()).isEqualTo("改过的备注");
+        assertThat(demand.getPriority()).isEqualTo("P2（一般）");
+    }
+
+    @Test
+    @DisplayName("评审信息：待评审可以开始评审，此时还不写出口、不留历史")
+    void 评审信息开始评审() {
+        long id = application.register(表单("开始评审页"));
+        application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "评审中", DemandEnums.CONCLUSION_SOLUTION, "会前意见", null, null, null));
+
+        var demand = demands.get(id);
+        assertThat(demand.getReviewState()).isEqualTo("评审中");
+        assertThat(demand.getOutlet()).isNull();
+        assertThat(demand.getReviewOpinion()).isEqualTo("会前意见");
+        assertThat(reviews.listByDemand(id)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("分流与处理：出口一保存方案名称并一跳到已输出")
+    void 分流处理输出解决方案() {
+        long id = 评审中的需求("分流方案");
+        application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "已评审", DemandEnums.CONCLUSION_SOLUTION, "同意走解决方案", null, null, null));
+
+        application.saveProcessInfo(id, new DemandProcessInfoForm(
+                DemandEnums.OUTLET_SOLUTION, "合同要素抽取方案", DemandEnums.PROCESS_PENDING_OUTPUT,
+                "方案备注", null, null, null, LocalDate.now().plusDays(20),
+                null, "验收备忘", DemandEnums.DELIVERY_UNDELIVERED, "尚未交付",
+                LocalDate.now().plusDays(25), "https://example.com/solution", null));
+
+        var afterName = demands.get(id);
+        assertThat(afterName.getSolutionName()).isEqualTo("合同要素抽取方案");
+        assertThat(afterName.getSolutionRemark()).isEqualTo("方案备注");
+        assertThat(afterName.getSolutionLink()).isEqualTo("https://example.com/solution");
+        assertThat(afterName.getActualFinishDate()).isEqualTo(LocalDate.now().plusDays(25));
+        assertThat(afterName.getSolutionState()).isNull();
+
+        application.saveProcessInfo(id, new DemandProcessInfoForm(
+                DemandEnums.OUTLET_SOLUTION, "合同要素抽取方案", "已输出",
+                "方案备注", null, null, null, null,
+                null, null, DemandEnums.DELIVERY_UNDELIVERED, null,
+                null, "https://example.com/solution", demands.get(id).getVersion()));
+
+        assertThat(demands.get(id).getSolutionState()).isEqualTo("已输出");
+    }
+
+    @Test
+    @DisplayName("分流与处理：开发状态不能跳过中间态")
+    void 分流处理禁止跳过开发中间态() {
+        long id = 评审中的需求("分流开发");
+        application.saveReviewInfo(id, new DemandReviewInfoForm(
+                "已评审", DemandEnums.CONCLUSION_DEVELOPMENT, "同意开发", null, null, null));
+
+        assertThatThrownBy(() -> application.saveProcessInfo(id, new DemandProcessInfoForm(
+                DemandEnums.OUTLET_DEVELOPMENT, null, null, null, "报表开发", "已上线",
+                "开发备注", null, null, null, DemandEnums.DELIVERY_UNDELIVERED, null,
+                null, null, null)))
+                .isInstanceOf(BizException.class)
+                .satisfies(e -> assertThat(((BizException) e).errorCode())
+                        .isEqualTo(ErrorCode.ILLEGAL_TRANSITION));
+        assertThat(demands.get(id).getDevState()).isNull();
+    }
+
+    @Test
     @DisplayName("REQUIRE_OUTLET：绕过评审结论接口直接把状态推到「已评审」会被硬阻断")
     void 没有出口不能到已评审() {
         long id = 评审中的需求("绕过接口");
@@ -157,6 +272,30 @@ class DemandReviewOutletIntegrationTest extends IntegrationTest {
         assertThat(demand.getCurrentProcessState())
                 .describedAs("需求 8.6 的「当前处理状态」列：出口一看解决方案状态")
                 .isEqualTo("已输出");
+    }
+
+    @Test
+    @DisplayName("出口一尚未输出方案时，处理状态展示「待输出」")
+    void 解决方案未输出时处理状态是待输出() {
+        long id = 评审中的需求("待输出展示");
+        application.recordReviewConclusion(id, 结论表单(DemandEnums.OUTLET_SOLUTION));
+
+        assertThat(demands.get(id).getSolutionState()).isNull();
+        assertThat(demands.get(id).getCurrentProcessState())
+                .isEqualTo(DemandEnums.PROCESS_PENDING_OUTPUT);
+    }
+
+    @Test
+    @DisplayName("需求驳回：处理状态为结束，不激活两组状态字段")
+    void 需求驳回处理状态是结束() {
+        long id = 评审中的需求("驳回");
+        application.recordReviewConclusion(id, 结论表单(DemandEnums.OUTLET_REJECT));
+
+        var demand = demands.get(id);
+        assertThat(demand.getOutlet()).isEqualTo(DemandEnums.OUTLET_REJECT);
+        assertThat(demand.getCurrentProcessState()).isEqualTo(DemandEnums.PROCESS_ENDED);
+        assertThat(demand.getSolutionState()).isNull();
+        assertThat(demand.getDevState()).isNull();
     }
 
     // -------------------------------------------------------------------------
@@ -235,7 +374,7 @@ class DemandReviewOutletIntegrationTest extends IntegrationTest {
     private DemandForm 表单(String name) {
         return new DemandForm(name, "COURSE", employeeNo, employeeNo,
                 LocalDate.now().minusDays(10), LocalDate.now().plusDays(30),
-                name + " 的业务问题与场景", "部门提出", "效率提升", "中");
+                name + " 的业务问题与场景", "部门提出", "效率提升", "P1（重要）");
     }
 
     private String 造人员(String name) {

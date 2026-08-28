@@ -1,0 +1,26 @@
+/**
+ * 登记弹窗锁在第一视口：上下各留 24px（间距标尺 space.lg），
+ * 标题与「保存／取消」不跟着滚，只有表单区滚动。
+ */
+.demand-form-modal {
+  padding-bottom: 0;
+  max-height: calc(100vh - 48px);
+}
+
+.demand-form-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.demand-form-modal .ant-modal-header,
+.demand-form-modal .ant-modal-footer {
+  flex-shrink: 0;
+}
+
+.demand-form-modal .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}

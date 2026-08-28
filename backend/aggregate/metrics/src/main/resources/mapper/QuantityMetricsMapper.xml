@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  需求 15.1 数量类。所有状态／枚举比较值由 Java 参数传入（E2-6），SQL 只负责 COUNT + deleted=false（U1）。
+-->
+<mapper namespace="com.aiacademy.aggregate.metrics.repository.QuantityMetricsMapper">
+
+    <select id="countDemands" resultType="long">
+        SELECT COUNT(*) FROM biz_demand WHERE deleted = FALSE
+    </select>
+
+    <select id="countDemandsByReviewState" resultType="map">
+        SELECT review_state AS bucket, COUNT(*) AS cnt
+          FROM biz_demand
+         WHERE deleted = FALSE
+           AND review_state IN
+           <foreach collection="states" item="s" open="(" separator="," close=")">#{s}</foreach>
+         GROUP BY review_state
+    </select>
+
+    <select id="countDemandsByDevState" resultType="map">
+        SELECT dev_state AS bucket, COUNT(*) AS cnt
+          FROM biz_demand
+         WHERE deleted = FALSE
+           AND outlet = #{outlet}
+           AND dev_state IN
+           <foreach collection="states" item="s" open="(" separator="," close=")">#{s}</foreach>
+         GROUP BY dev_state
+    </select>
+
+    <select id="countDemandsByOutlet" resultType="map">
+        SELECT outlet AS bucket, COUNT(*) AS cnt
+          FROM biz_demand
+         WHERE deleted = FALSE
+           AND outlet IN
+           <foreach collection="outlets" item="o" open="(" separator="," close=")">#{o}</foreach>
+         GROUP BY outlet
+    </select>
+
+    <select id="countDemandsWithDeliveryMarks" resultType="long">
+        SELECT COUNT(*) FROM biz_demand
+         WHERE deleted = FALSE
+           AND delivery_mark IN
+           <foreach collection="marks" item="m" open="(" separator="," close=")">#{m}</foreach>
+    </select>
+
+    <select id="countDemandsByAcceptanceState" resultType="long">
+        SELECT COUNT(*) FROM biz_demand
+         WHERE deleted = FALSE AND acceptance_state = #{acceptanceState}
+    </select>
+
+    <select id="countDemandsByDevStateSingle" resultType="long">
+        SELECT COUNT(*) FROM biz_demand
+         WHERE deleted = FALSE AND outlet = #{outlet} AND dev_state = #{devState}
+    </select>
+
+    <select id="countCourses" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE
+    </select>
+
+    <select id="countCoursesExcluding" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE AND main_state IS DISTINCT FROM #{excludeState}
+    </select>
+
+    <select id="countCoursesInStates" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE
+           AND main_state IN
+           <foreach collection="states" item="s" open="(" separator="," close=")">#{s}</foreach>
+    </select>
+
+    <select id="countCoursesByState" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE AND main_state = #{state}
+    </select>
+
+    <!-- 走 idx_course_trial_state 部分索引（V1_004） -->
+    <select id="countCoursesByTrialState" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE AND trial_state = #{trialState}
+    </select>
+
+    <select id="countCoursesExpired" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE
+           AND validity_end_date IS NOT NULL
+           AND validity_end_date &lt; CURRENT_DATE
+    </select>
+
+    <select id="countCoursesExpiringWithinDays" resultType="long">
+        SELECT COUNT(*) FROM biz_course
+         WHERE deleted = FALSE
+           AND validity_end_date IS NOT NULL
+           AND validity_end_date &gt;= CURRENT_DATE
+           AND validity_end_date &lt;= CURRENT_DATE + #{days} * INTERVAL '1 day'
+    </select>
+
+    <select id="countLecturersInPool" resultType="long">
+        SELECT COUNT(*) FROM biz_lecturer
+         WHERE deleted = FALSE AND pool_state = #{poolState}
+    </select>
+
+    <select id="countLecturersTrialQualifiedInPool" resultType="long">
+        SELECT COUNT(*) FROM biz_lecturer
+         WHERE deleted = FALSE AND pool_state = #{poolState} AND trial_qualified = TRUE
+    </select>
+
+    <select id="countLecturersByTrainingInPool" resultType="long">
+        SELECT COUNT(*) FROM biz_lecturer
+         WHERE deleted = FALSE
+           AND pool_state = #{poolState}
+           AND training_state = #{trainingState}
+    </select>
+
+    <select id="countLecturersByTrainingStatesInPool" resultType="map">
+        SELECT training_state AS bucket, COUNT(*) AS cnt
+          FROM biz_lecturer
+         WHERE deleted = FALSE
+           AND pool_state = #{poolState}
+           AND training_state IN
+           <foreach collection="trainingStates" item="s" open="(" separator="," close=")">#{s}</foreach>
+         GROUP BY training_state
+    </select>
+
+    <select id="countPlansOverlapping" resultType="long">
+        SELECT COUNT(*) FROM biz_training_plan
+         WHERE deleted = FALSE
+           AND plan_start_date &lt;= #{rangeEnd}
+           AND plan_end_date &gt;= #{rangeStart}
+    </select>
+
+    <select id="countSessionsByState" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session
+         WHERE deleted = FALSE AND session_state = #{sessionState}
+    </select>
+
+    <select id="countSessionsInMonth" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session
+         WHERE deleted = FALSE
+           AND training_date &gt;= #{monthStart}
+           AND training_date &lt;= #{monthEnd}
+    </select>
+
+    <select id="countAttendancePresentInMonth" resultType="long">
+        SELECT COUNT(*) FROM dtl_attendance a
+          JOIN biz_training_session s ON s.id = a.session_id AND s.deleted = FALSE
+         WHERE a.attend_status = #{attendStatus}
+           AND s.training_date &gt;= #{monthStart}
+           AND s.training_date &lt;= #{monthEnd}
+    </select>
+
+    <select id="countAttendancePresent" resultType="long">
+        SELECT COUNT(*) FROM dtl_attendance
+         WHERE attend_status = #{attendStatus}
+    </select>
+
+    <select id="countDistinctAttendeesPresent" resultType="long">
+        SELECT COUNT(DISTINCT employee_no) FROM dtl_attendance
+         WHERE attend_status = #{attendStatus}
+           AND employee_no IS NOT NULL
+           AND employee_no &lt;&gt; ''
+    </select>
+
+    <select id="countOpenTasksByType" resultType="long">
+        SELECT COUNT(*) FROM sys_task
+         WHERE deleted = FALSE
+           AND task_type = #{taskType}
+           AND task_state IN
+           <foreach collection="openStates" item="s" open="(" separator="," close=")">#{s}</foreach>
+    </select>
+
+    <select id="countCases" resultType="long">
+        SELECT COUNT(*) FROM biz_case WHERE deleted = FALSE
+    </select>
+
+    <select id="countCasesByState" resultType="long">
+        SELECT COUNT(*) FROM biz_case
+         WHERE deleted = FALSE AND case_state = #{caseState}
+    </select>
+
+    <select id="countCasesWithQualityMark" resultType="long">
+        SELECT COUNT(*) FROM biz_case
+         WHERE deleted = FALSE
+           AND quality_marks @&gt; to_jsonb(#{qualityMark}::TEXT)
+    </select>
+
+    <!-- 15.3 #5：本月授课人次 = COUNT 结束态场次（非 SUM 签到；M-1 不读 dtl_teaching_record） -->
+    <select id="countTeachingSessionsInMonth" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session
+         WHERE deleted = FALSE
+           AND training_date &gt;= #{monthStart}
+           AND training_date &lt;= #{monthEnd}
+           AND session_state IN
+           <foreach collection="finishedStates" item="s" open="(" separator="," close=")">#{s}</foreach>
+    </select>
+
+    <select id="countActiveLecturers" resultType="long">
+        SELECT COUNT(DISTINCT lecturer_id) FROM biz_training_session
+         WHERE deleted = FALSE
+           AND lecturer_id IS NOT NULL
+           AND training_date &gt;= #{sinceDate}
+           AND session_state IN
+           <foreach collection="finishedStates" item="s" open="(" separator="," close=")">#{s}</foreach>
+    </select>
+
+    <select id="countCaseViews" resultType="long">
+        SELECT COUNT(*) FROM dtl_case_view
+    </select>
+
+    <select id="countCaseLikes" resultType="long">
+        SELECT COUNT(*) FROM dtl_case_like
+    </select>
+
+    <select id="countCaseComments" resultType="long">
+        SELECT COUNT(*) FROM dtl_case_comment WHERE deleted = FALSE
+    </select>
+
+</mapper>

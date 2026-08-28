@@ -90,9 +90,40 @@ function px(n: number): string {
   return `${n}px`;
 }
 
+/**
+ * 把字号档位折算回画布像素。
+ *
+ * <p>字号不再直接写 px：`--type-body-size` 指向阶梯档 `--fs-14`，档位又按
+ * `--type-unit` 计价（回归模式 1px = 画布 1px，产品模式随窗口比例长大）。
+ * 这里逐层展开，好让下面的断言仍然按《V2.0》给的画布像素对账。
+ */
+function resolveCanvasLength(vars: Record<string, string>, value: string): string {
+  let current = value;
+  for (let hop = 0; hop < 4; hop += 1) {
+    const alias = current.match(/^var\(--([\w-]+)\)$/);
+    if (alias) {
+      const next = vars[alias[1]!];
+      if (next === undefined) return current;
+      current = next;
+      continue;
+    }
+    const scaled = current.match(/^calc\(var\(--([\w-]+)\) \* (\d+(?:\.\d+)?)\)$/);
+    if (scaled) {
+      const unit = vars[scaled[1]!];
+      if (unit === undefined) return current;
+      const unitPx = Number(unit.replace('px', ''));
+      if (!Number.isFinite(unitPx)) return current;
+      return px(unitPx * Number(scaled[2]!));
+    }
+    return current;
+  }
+  return current;
+}
+
+
 function expectVar(vars: Record<string, string>, name: string, expected: string | number) {
-  const actual = vars[name];
-  expect(actual, `--${name}`).toBeDefined();
+  expect(vars[name], `--${name}`).toBeDefined();
+  const actual = resolveCanvasLength(vars, vars[name]!);
   const want =
     typeof expected === 'number'
       ? normalizeCssValue(String(expected))
@@ -147,6 +178,22 @@ describe('tokens-v2.css ↔ designTokensV2.ts', () => {
       expectVar(root, `type-${key}-weight`, triple.weight);
     }
     expectVar(root, 'type-body-medium-weight', typeV2.bodyMedium.weight);
+  });
+
+  /*
+   * 字号阶梯的两条口径：
+   *
+   * - 档位名必须与它的画布像素一致。写成 `--fs-11: calc(var(--type-unit) * 12)` 时
+   *   页面 CSS 读起来还是 11px，实际渲染 12px，谁都对不出来。
+   * - 回归模式的计价单位必须是 1px，否则九张基线整体偏一档。
+   */
+  it('2.2 字号阶梯档位名与画布像素一致', () => {
+    expectVar(root, 'type-unit', px(1));
+    const ladder = Object.keys(root).filter((name) => /^(fs|lh)-\d+$/.test(name));
+    expect(ladder.length, '阶梯档位').toBeGreaterThan(20);
+    for (const name of ladder) {
+      expectVar(root, name, px(Number(name.split('-')[1])));
+    }
   });
 
   it('2.3 间距阶梯、圆角、阴影、层级一致', () => {

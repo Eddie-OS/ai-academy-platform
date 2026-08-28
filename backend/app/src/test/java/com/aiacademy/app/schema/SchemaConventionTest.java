@@ -51,7 +51,11 @@ class SchemaConventionTest {
             // 表清单未列，规则 CK4「自检结果随材料版本一并快照」必需（见 V2_001 的表头注释）。
             // dtl_course_selfcheck 上有 UNIQUE (course_id, item_id)，一题只有一行当前值，
             // 历史快照没有地方放
-            "dtl_selfcheck_snapshot"));
+            "dtl_selfcheck_snapshot",
+            // 表清单未列，阶段 4 新增三张（见 V4_002／V4_003／V4_004 的表头注释）：
+            // 催办配置是需求 13.9.5 的配置中心第五个 Tab；导出任务表承载 >2000 行的异步导出
+            // 状态与过期清理；任务运行日志是四个定时任务的统一落点（开发 5.11.2）
+            "cfg_escalation", "sys_export_task", "sys_job_run_log"));
 
     /**
      * 公共字段模板（6.1.2）的豁免表及理由。

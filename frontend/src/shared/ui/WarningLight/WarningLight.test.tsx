@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { WarningLight, WarningSummaryCard, warningLightText } from './WarningLight';
+import { WarningLight, WarningSummaryCard, redLightReasonOf, warningLightText } from './WarningLight';
 
 /**
  * 设计规范 2.5 的 WV1–WV5，按业务重新裁决后的灯色口径（见 docs/文档待修清单.md V-9）。
@@ -83,5 +83,26 @@ describe('WarningLight（三色灯）', () => {
   it('三个灯色给了下钻回调时渲染「查看明细」', () => {
     render(<WarningSummaryCard color="BLUE" count={3} caption="距预计完成时间 3 天以上" onDrillDown={() => {}} />);
     expect(screen.getByText('查看明细')).toBeInTheDocument();
+  });
+
+  /**
+   * 后端 {@code lightReason} 是中文，组件要的是英文键。这层映射必须只有一处：
+   * 总看板曾自己写了一遍、写成「红灯一律停滞」，于是真正逾期的对象在待办清单上被说成停滞。
+   */
+  describe('redLightReasonOf（后端成因 → 成因键）', () => {
+    it('两种成因各自映射', () => {
+      expect(redLightReasonOf('已逾期')).toBe('OVERDUE');
+      expect(redLightReasonOf('状态停滞')).toBe('STALLED');
+    });
+
+    /*
+     * 兜底是停滞而不是逾期。逾期天数从预计完成时间往后数，只有真的过了那天才成立；
+     * 兜到「逾期」会让一条剩余天数还是正数的行显示「已逾期」，同一行里自己打自己的脸。
+     */
+    it('拿不到成因时兜到停滞', () => {
+      expect(redLightReasonOf(null)).toBe('STALLED');
+      expect(redLightReasonOf(undefined)).toBe('STALLED');
+      expect(redLightReasonOf('')).toBe('STALLED');
+    });
   });
 });

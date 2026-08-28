@@ -25,13 +25,14 @@ import java.util.List;
 public interface DemandMapper {
 
     String COLUMNS = """
-            id, demand_no, demand_name, domain_code, proposer_no, proposer_dept, owner_no,
+            id, demand_no, demand_name, domain_code, proposer_no, proposer_dept, owner_no, owner_names,
             proposed_date, expect_finish_date, description, demand_source, demand_type, priority,
-            review_state, review_date, review_conclusion, review_opinion,
-            outlet, solution_state, solution_name, dev_state,
+            business_background, roi_analysis, remark,
+            review_state, review_date, review_conclusion, review_opinion, review_remark,
+            outlet, solution_state, solution_name, solution_remark, dev_name, dev_state, dev_remark,
             first_online_date, latest_online_date, optimize_count,
-            delivery_mark, delivered_at, archived_at,
-            acceptance_state, acceptor_name, accepted_at, acceptance_opinion, acceptance_round,
+            delivery_mark, delivery_remark, delivered_at, actual_finish_date, solution_link, course_link, archived_at,
+            acceptance_state, acceptor_name, accepted_at, acceptance_opinion, acceptance_remark, acceptance_round,
             created_at, created_by, updated_at, updated_by, last_state_changed_at, version, deleted
             """;
 
@@ -79,12 +80,14 @@ public interface DemandMapper {
      */
     @Select("""
             INSERT INTO biz_demand (demand_no, demand_name, domain_code, proposer_no, proposer_dept,
-                                    owner_no, proposed_date, expect_finish_date, description,
-                                    demand_source, demand_type, priority, review_state,
+                                    owner_no, owner_names, proposed_date, expect_finish_date, description,
+                                    demand_source, demand_type, priority,
+                                    business_background, roi_analysis, remark, review_state,
                                     created_by, updated_by)
             VALUES (#{d.demandNo}, #{d.demandName}, #{d.domainCode}, #{d.proposerNo}, #{d.proposerDept},
-                    #{d.ownerNo}, #{d.proposedDate}, #{d.expectFinishDate}, #{d.description},
-                    #{d.demandSource}, #{d.demandType}, #{d.priority}, #{d.reviewState},
+                    #{d.ownerNo}, #{d.ownerNames}, #{d.proposedDate}, #{d.expectFinishDate}, #{d.description},
+                    #{d.demandSource}, #{d.demandType}, #{d.priority},
+                    #{d.businessBackground}, #{d.roiAnalysis}, #{d.remark}, #{d.reviewState},
                     #{operator}, #{operator})
             RETURNING id
             """)
@@ -104,12 +107,16 @@ public interface DemandMapper {
                    proposer_no = #{d.proposerNo},
                    proposer_dept = #{d.proposerDept},
                    owner_no = #{d.ownerNo},
+                   owner_names = #{d.ownerNames},
                    proposed_date = #{d.proposedDate},
                    expect_finish_date = #{d.expectFinishDate},
                    description = #{d.description},
                    demand_source = #{d.demandSource},
                    demand_type = #{d.demandType},
                    priority = #{d.priority},
+                   business_background = #{d.businessBackground},
+                   roi_analysis = #{d.roiAnalysis},
+                   remark = #{d.remark},
                    updated_at = NOW(),
                    updated_by = #{operator},
                    version = version + 1
@@ -130,6 +137,8 @@ public interface DemandMapper {
                SET review_date = #{reviewDate},
                    review_conclusion = #{reviewConclusion},
                    review_opinion = #{reviewOpinion},
+                   review_remark = #{reviewRemark},
+                   priority = COALESCE(#{priority}, priority),
                    outlet = #{outlet},
                    updated_at = NOW(),
                    updated_by = #{operator},
@@ -140,9 +149,42 @@ public interface DemandMapper {
                                @Param("reviewDate") LocalDate reviewDate,
                                @Param("reviewConclusion") String reviewConclusion,
                                @Param("reviewOpinion") String reviewOpinion,
+                               @Param("reviewRemark") String reviewRemark,
+                               @Param("priority") String priority,
                                @Param("outlet") String outlet,
                                @Param("operator") String operator,
                                @Param("expectedVersion") int expectedVersion);
+
+    /**
+     * 评审信息页签改当前快照：结论／意见／备注／优先级。
+     *
+     * <p>不写历史表——当时会议结论不可改。{@code writeOutlet} 为真时才回写分流出口
+     * （已经在「已评审」或正在写入「已评审」）。{@code expectedVersion} 为空则不做乐观锁。
+     */
+    @Update("""
+            UPDATE biz_demand
+               SET review_conclusion = #{reviewConclusion},
+                   review_opinion = #{reviewOpinion},
+                   review_remark = #{reviewRemark},
+                   priority = COALESCE(#{priority}, priority),
+                   outlet = CASE WHEN #{writeOutlet} THEN #{outlet} ELSE outlet END,
+                   review_date = CASE WHEN #{writeOutlet} THEN COALESCE(review_date, CURRENT_DATE)
+                                     ELSE review_date END,
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{id} AND deleted = FALSE
+               AND (#{expectedVersion}::int IS NULL OR version = #{expectedVersion})
+            """)
+    int updateReviewSnapshot(@Param("id") long id,
+                             @Param("reviewConclusion") String reviewConclusion,
+                             @Param("reviewOpinion") String reviewOpinion,
+                             @Param("reviewRemark") String reviewRemark,
+                             @Param("priority") String priority,
+                             @Param("outlet") String outlet,
+                             @Param("writeOutlet") boolean writeOutlet,
+                             @Param("operator") String operator,
+                             @Param("expectedVersion") Integer expectedVersion);
 
     /**
      * 重新评审时清空分流出口（需求 5.2.1 第 5 条）。
@@ -167,6 +209,58 @@ public interface DemandMapper {
     int updateSolutionName(@Param("id") long id,
                            @Param("solutionName") String solutionName,
                            @Param("operator") String operator);
+
+    /**
+     * 「分流与处理」页签的业务字段快照。不动状态列与 {@code last_state_changed_at}。
+     */
+    @Update("""
+            UPDATE biz_demand
+               SET outlet = #{outlet},
+                   solution_name = #{solutionName},
+                   solution_remark = #{solutionRemark},
+                   dev_name = #{devName},
+                   dev_remark = #{devRemark},
+                   expect_finish_date = COALESCE(#{expectFinishDate}, expect_finish_date),
+                   acceptance_remark = #{acceptanceRemark},
+                   delivery_remark = #{deliveryRemark},
+                   actual_finish_date = #{actualFinishDate},
+                   solution_link = #{solutionLink},
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{id} AND deleted = FALSE
+               AND (#{expectedVersion}::int IS NULL OR version = #{expectedVersion})
+            """)
+    int updateProcessSnapshot(@Param("id") long id,
+                              @Param("outlet") String outlet,
+                              @Param("solutionName") String solutionName,
+                              @Param("solutionRemark") String solutionRemark,
+                              @Param("devName") String devName,
+                              @Param("devRemark") String devRemark,
+                              @Param("expectFinishDate") LocalDate expectFinishDate,
+                              @Param("acceptanceRemark") String acceptanceRemark,
+                              @Param("deliveryRemark") String deliveryRemark,
+                              @Param("actualFinishDate") LocalDate actualFinishDate,
+                              @Param("solutionLink") String solutionLink,
+                              @Param("operator") String operator,
+                              @Param("expectedVersion") Integer expectedVersion);
+
+    /**
+     * 「关联课程」页签的外链。不动状态列与 {@code last_state_changed_at}。
+     */
+    @Update("""
+            UPDATE biz_demand
+               SET course_link = #{courseLink},
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{id} AND deleted = FALSE
+               AND (#{expectedVersion}::int IS NULL OR version = #{expectedVersion})
+            """)
+    int updateCourseLink(@Param("id") long id,
+                         @Param("courseLink") String courseLink,
+                         @Param("operator") String operator,
+                         @Param("expectedVersion") Integer expectedVersion);
 
     /**
      * 进入「已上线」时写上线时间（需求 8.3.3 第 25／26 项）。

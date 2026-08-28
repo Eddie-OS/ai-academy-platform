@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.aiacademy.business.demand.repository.ValueReportMapper">
+
+    <resultMap id="ValueReportMap" type="com.aiacademy.business.demand.domain.ValueReport">
+        <id property="id" column="id"/>
+        <result property="reportPeriod" column="report_period"/>
+        <result property="efficiencyGain" column="efficiency_gain"/>
+        <result property="qualityGain" column="quality_gain"/>
+        <result property="costSaving" column="cost_saving"/>
+        <result property="costSavingUnit" column="cost_saving_unit"/>
+        <result property="demandIds" column="demand_ids"
+                typeHandler="com.aiacademy.business.demand.repository.JsonLongListTypeHandler"/>
+        <result property="caseIds" column="case_ids"
+                typeHandler="com.aiacademy.business.demand.repository.JsonLongListTypeHandler"/>
+        <result property="description" column="description"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="updatedBy" column="updated_by"/>
+    </resultMap>
+
+    <select id="selectByYearPrefix" resultMap="ValueReportMap">
+        SELECT * FROM biz_value_report
+         WHERE deleted = FALSE
+           AND report_period LIKE #{yearPrefix} || '%'
+         ORDER BY report_period DESC, id DESC
+    </select>
+
+    <select id="findById" resultMap="ValueReportMap">
+        SELECT * FROM biz_value_report WHERE id = #{id} AND deleted = FALSE
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_value_report (
+            report_period, efficiency_gain, quality_gain, cost_saving, cost_saving_unit,
+            demand_ids, case_ids, description, created_by)
+        VALUES (
+            #{reportPeriod}, #{efficiencyGain}, #{qualityGain}, #{costSaving}, #{costSavingUnit},
+            #{demandIds, typeHandler=com.aiacademy.business.demand.repository.JsonLongListTypeHandler},
+            #{caseIds, typeHandler=com.aiacademy.business.demand.repository.JsonLongListTypeHandler},
+            #{description}, #{createdBy})
+    </insert>
+
+    <update id="update">
+        UPDATE biz_value_report
+           SET report_period = #{reportPeriod},
+               efficiency_gain = #{efficiencyGain},
+               quality_gain = #{qualityGain},
+               cost_saving = #{costSaving},
+               cost_saving_unit = #{costSavingUnit},
+               demand_ids = #{demandIds, typeHandler=com.aiacademy.business.demand.repository.JsonLongListTypeHandler},
+               case_ids = #{caseIds, typeHandler=com.aiacademy.business.demand.repository.JsonLongListTypeHandler},
+               description = #{description},
+               updated_at = NOW(),
+               updated_by = #{updatedBy}
+         WHERE id = #{id} AND deleted = FALSE
+    </update>
+
+    <update id="softDelete">
+        UPDATE biz_value_report
+           SET deleted = TRUE, updated_at = NOW(), updated_by = #{updatedBy}
+         WHERE id = #{id} AND deleted = FALSE
+    </update>
+
+    <select id="countEfficiencyGain" resultType="long">
+        SELECT COUNT(*) FROM biz_value_report
+         WHERE deleted = FALSE
+           AND report_period LIKE #{yearPrefix} || '%'
+           AND efficiency_gain IS NOT NULL
+           AND efficiency_gain &lt;&gt; ''
+    </select>
+
+    <select id="countQualityGain" resultType="long">
+        SELECT COUNT(*) FROM biz_value_report
+         WHERE deleted = FALSE
+           AND report_period LIKE #{yearPrefix} || '%'
+           AND quality_gain IS NOT NULL
+           AND quality_gain &lt;&gt; ''
+    </select>
+
+    <select id="sumCostSavingByUnit" resultType="map">
+        SELECT cost_saving_unit AS unit, COALESCE(SUM(cost_saving), 0) AS total
+          FROM biz_value_report
+         WHERE deleted = FALSE
+           AND report_period LIKE #{yearPrefix} || '%'
+           AND cost_saving IS NOT NULL
+           AND cost_saving_unit IS NOT NULL
+         GROUP BY cost_saving_unit
+    </select>
+
+</mapper>

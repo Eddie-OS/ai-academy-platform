@@ -36,6 +36,10 @@ const ALLOWED: Record<string, string> = {
   // 它们只往指标卡标题上渲染，不做比较、不当查表的键。集中在这一个文件里，
   // 五个驾驶舱页就仍然受门禁保护
   'src/shared/metrics/cockpitMetrics.tsx': '需求 15.x 的指标中文名，只作卡片标题渲染',
+  // 需求 9.4 的字段名「自检完成时间」是个日期字段，与课程自检子状态「自检完成」撞了子串。
+  // 页里状态一律走 transitions/available（提交评审那段读的是后端下发的 action），
+  // 「自检完成时间」只往 Form.Item 的 label 上渲染，不做比较也不当查表的键
+  'src/features/course/CourseSelfcheckTab.tsx': '需求 9.4 字段名「自检完成时间」，只作表单标签渲染',
 };
 
 /**

@@ -73,10 +73,13 @@ export function FunnelChart({ items, emptyText, labelWidth = 88 }: ChartProps) {
     return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} />;
   }
   const max = Math.max(...items.map((item) => item.count), 1);
+  const total = items.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <Space direction="vertical" size={space.xs} style={{ width: '100%' }}>
-      {items.map((item, index) => (
+      {items.map((item, index) => {
+        const share = total <= 0 ? '0.0%' : `${((item.count / total) * 100).toFixed(1)}%`;
+        return (
         <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: space.xs }}>
           <Text style={{ width: labelWidth, color: neutral[700] }} ellipsis={{ tooltip: item.label }}>
             {item.label}
@@ -86,6 +89,7 @@ export function FunnelChart({ items, emptyText, labelWidth = 88 }: ChartProps) {
               data-testid="funnel-stage"
               data-label={item.label}
               data-count={item.count}
+              data-share={share}
               style={{
                 width: `${Math.max((item.count / max) * 100, 4)}%`,
                 height: 28,
@@ -95,11 +99,15 @@ export function FunnelChart({ items, emptyText, labelWidth = 88 }: ChartProps) {
               }}
             />
           </div>
-          <Text style={{ width: 44, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+          <Text style={{ width: 72, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
             {item.count.toLocaleString()}
+            <Text type="secondary" style={{ marginLeft: space['2xs'] }}>
+              {share}
+            </Text>
           </Text>
         </div>
-      ))}
+        );
+      })}
     </Space>
   );
 }

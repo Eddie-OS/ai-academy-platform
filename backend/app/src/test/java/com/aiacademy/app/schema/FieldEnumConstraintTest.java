@@ -36,6 +36,7 @@ class FieldEnumConstraintTest {
             Map.entry("ck_course_review_track", CourseEnums.REVIEW_TRACKS),
             Map.entry("ck_course_validity_period", CourseEnums.VALIDITY_PERIODS),
             Map.entry("ck_course_material_type", CourseEnums.MATERIAL_TYPES),
+            Map.entry("ck_course_version_status", CourseEnums.VERSION_STATUSES),
             Map.entry("ck_course_review_result", CourseEnums.REVIEW_RESULTS),
             Map.entry("ck_training_form", TrainingEnums.FORMS),
             Map.entry("ck_attendance_status", TrainingEnums.ATTEND_STATUSES),

@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 
-/** 回到阶段 2 业务页的逃生门：`?legacy=1`。 */
+/** 回到阶段 2 业务页的逃生门：`?legacy=1`。五个驾驶舱主路径都用这套。 */
 const LEGACY_PARAM = 'legacy';
 
 /**

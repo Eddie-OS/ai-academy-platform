@@ -1,6 +1,7 @@
 package com.aiacademy.business.course.repository;
 
 import com.aiacademy.business.course.domain.CourseTrial;
+import com.aiacademy.business.course.domain.CourseTrialCalendarItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -85,4 +86,44 @@ public interface CourseTrialMapper {
              ORDER BY round_no DESC
             """)
     List<CourseTrial> findByCourse(@Param("courseId") long courseId);
+
+    /**
+     * 试讲日历：官方试讲日期 + 台账预定日期。同一天同一门课只留官方记录。
+     *
+     * <p>不 JOIN {@code biz_lecturer}（AR-1）。官方记录的讲师姓名由 app 层补。
+     */
+    @Select("""
+            SELECT t.trial_date AS trial_date,
+                   c.id AS course_id,
+                   c.course_name AS course_name,
+                   t.round_no AS round_no,
+                   CAST(NULL AS VARCHAR) AS round_label,
+                   t.lecturer_id AS lecturer_id,
+                   CAST(NULL AS VARCHAR) AS lecturer_name,
+                   t.participants AS audience_count
+              FROM dtl_course_trial t
+              JOIN biz_course c ON c.id = t.course_id AND c.deleted = FALSE
+             WHERE t.deleted = FALSE
+               AND t.trial_date BETWEEN #{from} AND #{to}
+            UNION ALL
+            SELECT c.trial_scheduled_date,
+                   c.id,
+                   c.course_name,
+                   CAST(NULL AS INT),
+                   c.trial_round_label,
+                   CAST(NULL AS BIGINT),
+                   e.employee_name,
+                   c.trial_audience_count
+              FROM biz_course c
+              LEFT JOIN org_employee e ON e.employee_no = c.trial_lecturer_no AND e.deleted = FALSE
+             WHERE c.deleted = FALSE
+               AND c.trial_scheduled_date BETWEEN #{from} AND #{to}
+               AND NOT EXISTS (
+                    SELECT 1 FROM dtl_course_trial t
+                     WHERE t.course_id = c.id AND t.deleted = FALSE
+                       AND t.trial_date = c.trial_scheduled_date)
+             ORDER BY 1, 3
+            """)
+    List<CourseTrialCalendarItem> calendar(@Param("from") LocalDate from,
+                                           @Param("to") LocalDate to);
 }

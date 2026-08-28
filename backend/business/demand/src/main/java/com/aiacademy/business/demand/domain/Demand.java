@@ -37,7 +37,7 @@ public class Demand {
 
     private String demandName;
 
-    /** 所属领域，取作战单元字典的编码。 */
+    /** 所属领域：现场口径为零售／GTM 等或手填；历史数据可能是作战单元编码。 */
     private String domainCode;
 
     private String proposerNo;
@@ -66,6 +66,15 @@ public class Demand {
 
     private String priority;
 
+    /** 多负责人姓名，顿号分隔。 */
+    private String ownerNames;
+
+    private String businessBackground;
+
+    private String roiAnalysis;
+
+    private String remark;
+
     private String reviewState;
 
     private LocalDate reviewDate;
@@ -74,6 +83,9 @@ public class Demand {
 
     private String reviewOpinion;
 
+    /** 评审备注，与登记表单 {@code remark} 独立。 */
+    private String reviewRemark;
+
     /** 分流出口（需求 5.2.2），只有两值。评审状态变为「已评审」时必填。 */
     private String outlet;
 
@@ -81,7 +93,13 @@ public class Demand {
 
     private String solutionName;
 
+    private String solutionRemark;
+
+    private String devName;
+
     private String devState;
+
+    private String devRemark;
 
     /** 首次上线时间。效率指标取此值（需求 8.3.3 第 25 项、规则 E1）。 */
     private LocalDate firstOnlineDate;
@@ -92,7 +110,16 @@ public class Demand {
 
     private String deliveryMark;
 
+    private String deliveryRemark;
+
     private LocalDate deliveredAt;
+
+    private LocalDate actualFinishDate;
+
+    private String solutionLink;
+
+    /** 关联课程外链。课程库 N:N 关联仍走 {@code rel_demand_course}。 */
+    private String courseLink;
 
     private LocalDate archivedAt;
 
@@ -104,6 +131,8 @@ public class Demand {
     private LocalDate acceptedAt;
 
     private String acceptanceOpinion;
+
+    private String acceptanceRemark;
 
     private Integer acceptanceRound;
 
@@ -233,6 +262,38 @@ public class Demand {
         this.priority = priority;
     }
 
+    public String getOwnerNames() {
+        return ownerNames;
+    }
+
+    public void setOwnerNames(String ownerNames) {
+        this.ownerNames = ownerNames;
+    }
+
+    public String getBusinessBackground() {
+        return businessBackground;
+    }
+
+    public void setBusinessBackground(String businessBackground) {
+        this.businessBackground = businessBackground;
+    }
+
+    public String getRoiAnalysis() {
+        return roiAnalysis;
+    }
+
+    public void setRoiAnalysis(String roiAnalysis) {
+        this.roiAnalysis = roiAnalysis;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
     public String getReviewState() {
         return reviewState;
     }
@@ -265,6 +326,14 @@ public class Demand {
         this.reviewOpinion = reviewOpinion;
     }
 
+    public String getReviewRemark() {
+        return reviewRemark;
+    }
+
+    public void setReviewRemark(String reviewRemark) {
+        this.reviewRemark = reviewRemark;
+    }
+
     public String getOutlet() {
         return outlet;
     }
@@ -289,12 +358,36 @@ public class Demand {
         this.solutionName = solutionName;
     }
 
+    public String getSolutionRemark() {
+        return solutionRemark;
+    }
+
+    public void setSolutionRemark(String solutionRemark) {
+        this.solutionRemark = solutionRemark;
+    }
+
+    public String getDevName() {
+        return devName;
+    }
+
+    public void setDevName(String devName) {
+        this.devName = devName;
+    }
+
     public String getDevState() {
         return devState;
     }
 
     public void setDevState(String devState) {
         this.devState = devState;
+    }
+
+    public String getDevRemark() {
+        return devRemark;
+    }
+
+    public void setDevRemark(String devRemark) {
+        this.devRemark = devRemark;
     }
 
     public LocalDate getFirstOnlineDate() {
@@ -329,12 +422,44 @@ public class Demand {
         this.deliveryMark = deliveryMark;
     }
 
+    public String getDeliveryRemark() {
+        return deliveryRemark;
+    }
+
+    public void setDeliveryRemark(String deliveryRemark) {
+        this.deliveryRemark = deliveryRemark;
+    }
+
     public LocalDate getDeliveredAt() {
         return deliveredAt;
     }
 
     public void setDeliveredAt(LocalDate deliveredAt) {
         this.deliveredAt = deliveredAt;
+    }
+
+    public LocalDate getActualFinishDate() {
+        return actualFinishDate;
+    }
+
+    public void setActualFinishDate(LocalDate actualFinishDate) {
+        this.actualFinishDate = actualFinishDate;
+    }
+
+    public String getSolutionLink() {
+        return solutionLink;
+    }
+
+    public void setSolutionLink(String solutionLink) {
+        this.solutionLink = solutionLink;
+    }
+
+    public String getCourseLink() {
+        return courseLink;
+    }
+
+    public void setCourseLink(String courseLink) {
+        this.courseLink = courseLink;
     }
 
     public LocalDate getArchivedAt() {
@@ -375,6 +500,14 @@ public class Demand {
 
     public void setAcceptanceOpinion(String acceptanceOpinion) {
         this.acceptanceOpinion = acceptanceOpinion;
+    }
+
+    public String getAcceptanceRemark() {
+        return acceptanceRemark;
+    }
+
+    public void setAcceptanceRemark(String acceptanceRemark) {
+        this.acceptanceRemark = acceptanceRemark;
     }
 
     public Integer getAcceptanceRound() {

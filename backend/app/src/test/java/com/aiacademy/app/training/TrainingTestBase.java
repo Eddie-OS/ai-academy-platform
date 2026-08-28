@@ -143,11 +143,12 @@ abstract class TrainingTestBase extends IntegrationTest {
         return jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        initiation_no, main_state, created_by)
                 VALUES (?, ?, '内部端到端课程', 'COURSE', ?, CURRENT_DATE,
-                        CURRENT_DATE + 30, '长期有效', ?, 'OPS')
+                        CURRENT_DATE + 30, '长期有效', ?, ?, 'OPS')
                 RETURNING id
-                """, Long.class, "KC" + System.nanoTime(), name, ownerNo, mainState);
+                """, Long.class, "KC" + System.nanoTime(), name, ownerNo,
+                "LI" + System.nanoTime(), mainState);
     }
 
     protected long 造课程(String name) {

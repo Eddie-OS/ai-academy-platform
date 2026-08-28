@@ -7,6 +7,7 @@ import { ApiError } from '@/shared/api/client';
 import { demandApi, type LinkedDemand } from '@/shared/api/demands';
 import { useIsOperator } from '@/shared/store/authStore';
 import { formatDateTime } from '@/shared/format';
+import { invalidateDemandCourseLink } from '@/shared/query/invalidateGraph';
 import { space } from '@/shared/theme/designTokens';
 
 /**
@@ -42,7 +43,7 @@ export function CourseDemandsTab({ courseId }: CourseDemandsTabProps) {
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['courses', courseId] });
-    void queryClient.invalidateQueries({ queryKey: ['demands'] });
+    invalidateDemandCourseLink(queryClient);
   };
 
   const link = useMutation({

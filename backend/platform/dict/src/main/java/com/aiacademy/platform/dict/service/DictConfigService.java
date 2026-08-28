@@ -144,13 +144,27 @@ public class DictConfigService implements AuditSnapshotSource {
     }
 
     /**
-     * 一期只有两类字典（{@code dict_item} 上的 CHECK 约束同样只允许这两类）。
+     * {@code dict_item} 上 CHECK 允许的类型。配置中心 Tab 只挂作战单元与课程分类
+     * （{@code ConfigController} 的类型列表）；立项两类由种子脚本维护，这里放行是为了
+     * {@code /api/meta/dicts} 能下发，前端不手写选项。
      *
-     * <p>自检 CheckList 清单项虽然在需求 13.9.3 的表格里与它们并列，但因为要快照题目文本而单独
-     * 建了表（开发 6.3.9），走 {@code SelfcheckConfigService}。
+     * <p>自检 CheckList 清单项单独建了表（开发 6.3.9），走 {@code SelfcheckConfigService}。
      */
     private String requireKnownType(String dictType) {
-        if (DictQuery.TYPE_COMBAT_UNIT.equals(dictType) || DictQuery.TYPE_COURSE_CATEGORY.equals(dictType)) {
+        if (DictQuery.TYPE_COMBAT_UNIT.equals(dictType)
+                || DictQuery.TYPE_COURSE_CATEGORY.equals(dictType)
+                || DictQuery.TYPE_COURSE_INITIATION_STATUS.equals(dictType)
+                || DictQuery.TYPE_COURSE_INITIATION_REVIEW_CONCLUSION.equals(dictType)
+                || DictQuery.TYPE_COURSE_SELFCHECK_RECORD_STATUS.equals(dictType)
+                || DictQuery.TYPE_COURSE_SELFCHECK_CONCLUSION.equals(dictType)
+                || DictQuery.TYPE_COURSE_REVIEW_PHASE.equals(dictType)
+                || DictQuery.TYPE_COURSE_REVIEW_LEDGER_STATUS.equals(dictType)
+                || DictQuery.TYPE_PRELIM_REVIEW_CONCLUSION.equals(dictType)
+                || DictQuery.TYPE_MEETING_CONCLUSION.equals(dictType)
+                || DictQuery.TYPE_COURSE_TRIAL_PHASE.equals(dictType)
+                || DictQuery.TYPE_COURSE_TRIAL_LEDGER_STATUS.equals(dictType)
+                || DictQuery.TYPE_COURSE_TRIAL_FORMAT.equals(dictType)
+                || DictQuery.TYPE_TRIAL_ACCEPTANCE_RESULT.equals(dictType)) {
             return dictType;
         }
         throw new BizException(ErrorCode.PARAM_INVALID, "未知的字典类型：" + dictType);

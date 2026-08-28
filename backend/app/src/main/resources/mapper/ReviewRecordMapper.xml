@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aiacademy.app.repository.ReviewRecordMapper">
+
+    <sql id="unionBody">
+        SELECT 'COURSE_REVIEW' AS tab, r.id, r.course_id AS objectId,
+               c.course_name AS objectName, r.round_no AS roundNo,
+               r.bound_version_no AS boundVersion, r.review_date AS occurredOn,
+               r.review_result AS result, NULL::text AS secondaryResult,
+               NULL::boolean AS inconsistent, NULL::text AS feedbackAvgScore,
+               r.review_opinion AS opinion, r.record_state AS recordState,
+               r.created_by AS operator, NULL::text AS outlet,
+               NULL::text AS acceptorName, r.created_at AS createdAt
+          FROM dtl_course_review r
+          JOIN biz_course c ON c.id = r.course_id AND c.deleted = FALSE
+         WHERE r.deleted = FALSE
+
+        UNION ALL
+
+        SELECT 'COURSE_TRIAL', t.id, t.course_id, c.course_name, t.round_no,
+               NULL, t.trial_date, t.course_conclusion, t.lecturer_conclusion,
+               t.inconsistent,
+               (SELECT ROUND(AVG(f.score)::numeric, 1)::text
+                  FROM dtl_trial_feedback f
+                 WHERE f.trial_id = t.id AND f.deleted = FALSE),
+               t.expert_opinion, t.record_state, t.created_by, NULL, NULL, t.created_at
+          FROM dtl_course_trial t
+          JOIN biz_course c ON c.id = t.course_id AND c.deleted = FALSE
+         WHERE t.deleted = FALSE
+
+        UNION ALL
+
+        SELECT 'DEMAND_REVIEW', r.id, r.demand_id, d.demand_name, r.round_no,
+               NULL, r.review_date, r.review_conclusion, NULL, NULL, NULL,
+               r.review_opinion, '已完成', r.created_by, d.outlet, NULL, r.created_at
+          FROM dtl_demand_review r
+          JOIN biz_demand d ON d.id = r.demand_id AND d.deleted = FALSE
+         WHERE r.deleted = FALSE
+
+        UNION ALL
+
+        SELECT 'DEMAND_ACCEPTANCE', a.id, a.demand_id, d.demand_name, a.round_no,
+               NULL, CAST(a.accepted_at AS date), a.acceptance_result, NULL, NULL, NULL,
+               a.acceptance_opinion, '已完成', a.created_by, NULL, a.acceptor_name, a.created_at
+          FROM dtl_demand_acceptance a
+          JOIN biz_demand d ON d.id = a.demand_id AND d.deleted = FALSE
+         WHERE a.deleted = FALSE
+
+        UNION ALL
+
+        SELECT 'CASE_AUDIT', k.id, k.id, k.case_name, NULL,
+               NULL, CAST(k.reviewed_at AS date), k.review_result, NULL, NULL, NULL,
+               k.review_opinion, '已完成', k.reviewer_no, NULL, NULL, k.updated_at
+          FROM biz_case k
+         WHERE k.deleted = FALSE AND k.review_result IS NOT NULL
+    </sql>
+
+    <sql id="pendingBody">
+        SELECT 'PENDING' AS tab, r.id, r.course_id AS objectId,
+               c.course_name AS objectName, r.round_no AS roundNo,
+               r.bound_version_no AS boundVersion, r.review_date AS occurredOn,
+               r.review_result AS result, NULL::text AS secondaryResult,
+               NULL::boolean AS inconsistent, NULL::text AS feedbackAvgScore,
+               r.review_opinion AS opinion, r.record_state AS recordState,
+               r.created_by AS operator, NULL::text AS outlet,
+               NULL::text AS acceptorName, r.created_at AS createdAt
+          FROM dtl_course_review r
+          JOIN biz_course c ON c.id = r.course_id AND c.deleted = FALSE
+         WHERE r.deleted = FALSE AND r.record_state = '待录入结论'
+
+        UNION ALL
+
+        SELECT 'PENDING', t.id, t.course_id, c.course_name, t.round_no,
+               NULL, t.trial_date, t.course_conclusion, t.lecturer_conclusion,
+               t.inconsistent, NULL, t.expert_opinion, t.record_state,
+               t.created_by, NULL, NULL, t.created_at
+          FROM dtl_course_trial t
+          JOIN biz_course c ON c.id = t.course_id AND c.deleted = FALSE
+         WHERE t.deleted = FALSE AND t.record_state = '待录入结论'
+
+        UNION ALL
+
+        SELECT 'PENDING', d.id, d.id, d.demand_name, NULL,
+               NULL, NULL, NULL, NULL, NULL, NULL, NULL, '待验收',
+               d.owner_no, d.outlet, NULL, d.updated_at
+          FROM biz_demand d
+         WHERE d.deleted = FALSE AND d.acceptance_state = '待验收'
+
+        UNION ALL
+
+        SELECT 'PENDING', k.id, k.id, k.case_name, NULL,
+               NULL, NULL, NULL, NULL, NULL, NULL, NULL, '待审核',
+               k.owner_no, NULL, NULL, k.updated_at
+          FROM biz_case k
+         WHERE k.deleted = FALSE AND k.case_state = '待审核'
+           AND k.review_result IS NULL
+    </sql>
+
+    <sql id="filters">
+        <if test="q.keyword != null and q.keyword != ''">
+            AND (objectName ILIKE CONCAT('%', #{q.keyword}, '%')
+                 OR operator ILIKE CONCAT('%', #{q.keyword}, '%'))
+        </if>
+        <if test="q.result != null and q.result != ''">
+            AND result = #{q.result}
+        </if>
+        <if test="q.dateFrom != null">
+            AND occurredOn &gt;= #{q.dateFrom}
+        </if>
+        <if test="q.dateTo != null">
+            AND occurredOn &lt;= #{q.dateTo}
+        </if>
+        <if test="q.operator != null and q.operator != ''">
+            AND operator = #{q.operator}
+        </if>
+        <if test="q.inconsistent != null">
+            AND inconsistent = #{q.inconsistent}
+        </if>
+    </sql>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM (
+        <choose>
+            <when test="q.tab == 'PENDING'">
+                <include refid="pendingBody"/>
+            </when>
+            <when test="q.tab != null and q.tab != ''">
+                SELECT * FROM (
+                <include refid="unionBody"/>
+                ) u WHERE tab = #{q.tab}
+            </when>
+            <otherwise>
+                <include refid="unionBody"/>
+            </otherwise>
+        </choose>
+        ) x WHERE 1 = 1
+        <include refid="filters"/>
+    </select>
+
+    <select id="page" resultType="com.aiacademy.app.web.dto.ReviewRecordVO">
+        SELECT * FROM (
+        <choose>
+            <when test="q.tab == 'PENDING'">
+                <include refid="pendingBody"/>
+            </when>
+            <when test="q.tab != null and q.tab != ''">
+                SELECT * FROM (
+                <include refid="unionBody"/>
+                ) u WHERE tab = #{q.tab}
+            </when>
+            <otherwise>
+                <include refid="unionBody"/>
+            </otherwise>
+        </choose>
+        ) x WHERE 1 = 1
+        <include refid="filters"/>
+        ORDER BY occurredOn DESC NULLS LAST, createdAt DESC NULLS LAST, id DESC
+        LIMIT #{q.pageSize} OFFSET #{q.offset}
+    </select>
+
+    <select id="kpis" resultType="com.aiacademy.app.web.dto.ReviewKpiVO">
+        SELECT
+          (SELECT COUNT(*) FROM dtl_course_review r
+            WHERE r.deleted = FALSE
+              AND date_trunc('month', COALESCE(r.review_date::timestamptz, r.created_at)) = date_trunc('month', CURRENT_TIMESTAMP)
+          ) AS courseReviewMonth,
+          (SELECT COUNT(*) FROM dtl_course_trial t
+            WHERE t.deleted = FALSE
+              AND date_trunc('month', COALESCE(t.trial_date::timestamptz, t.created_at)) = date_trunc('month', CURRENT_TIMESTAMP)
+          ) AS trialMonth,
+          (SELECT COUNT(*) FROM dtl_demand_review r WHERE r.deleted = FALSE) AS demandReviewTotal,
+          (
+            (SELECT COUNT(*) FROM dtl_course_review r WHERE r.deleted = FALSE AND r.record_state = '待录入结论')
+          + (SELECT COUNT(*) FROM dtl_course_trial t WHERE t.deleted = FALSE AND t.record_state = '待录入结论')
+          + (SELECT COUNT(*) FROM biz_demand d WHERE d.deleted = FALSE AND d.acceptance_state = '待验收')
+          + (SELECT COUNT(*) FROM biz_case k WHERE k.deleted = FALSE AND k.case_state = '待审核' AND k.review_result IS NULL)
+          ) AS pendingTotal
+    </select>
+</mapper>

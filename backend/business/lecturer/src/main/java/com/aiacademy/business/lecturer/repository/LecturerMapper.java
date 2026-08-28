@@ -42,6 +42,10 @@ public interface LecturerMapper {
      * {@code WHERE} 里的格式过滤不是多余的——库里只要有一个不符合 JS+数字 的讲师ID，
      * {@code ::int} 就会直接报错，新增讲师整个功能不可用。
      *
+     * <p>位数上限 {@code {1,9}} 是这条防御的另一半：{@code ^JS[0-9]+$} 放得过 JS 后跟 15 位数字，
+     * 而那样的号 {@code ::INT} 一样会溢出报错，症状与格式不合完全相同。9 位最大 999999999，
+     * 稳在 int 上限内；真到十亿位讲师时这个号规则本身早该重定了。
+     *
      * <p>{@code GREATEST(4, LENGTH(...))} 是为了躲开 {@code lpad} 的截断语义：
      * PostgreSQL 的 {@code lpad(s, n)} 在 {@code s} 比 {@code n} 长时<b>从右侧截掉</b>，
      * 而不是原样返回。写死 4 的话第 10000 位讲师会拿到 {@code JS1000}，
@@ -51,7 +55,7 @@ public interface LecturerMapper {
             SELECT 'JS' || lpad(next_no, GREATEST(4, LENGTH(next_no)), '0')
               FROM (SELECT (COALESCE(MAX(SUBSTRING(lecturer_no FROM 3)::INT), 0) + 1)::TEXT AS next_no
                       FROM biz_lecturer
-                     WHERE lecturer_no ~ '^JS[0-9]+$') t
+                     WHERE lecturer_no ~ '^JS[0-9]{1,9}$') t
             """)
     String nextLecturerNo();
 

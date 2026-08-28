@@ -51,6 +51,12 @@ public record CourseForm(
 
         String categoryCode,
 
+        @Size(max = 200, message = "来源不超过 200 字")
+        String source,
+
+        @Size(max = 2000, message = "备注不超过 2000 字")
+        String remark,
+
         @NotBlank(message = "请选择课程有效期")
         String validityPeriod,
 

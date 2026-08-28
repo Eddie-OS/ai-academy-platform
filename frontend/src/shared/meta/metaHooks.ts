@@ -20,6 +20,18 @@ export const META_STALE_TIME = 5 * 60 * 1000;
 export const DICT_KEYS = {
   combatUnit: '作战单元',
   courseCategory: '课程分类',
+  courseInitiationStatus: '课程立项状态',
+  courseInitiationReviewConclusion: '课程立项评审结论',
+  courseSelfcheckRecordStatus: '课程自检记录状态',
+  courseSelfcheckConclusion: '课程自检结论',
+  courseReviewPhase: '课程评审阶段',
+  courseReviewLedgerStatus: '课程评审台账状态',
+  prelimReviewConclusion: '初步评审结论',
+  meetingConclusion: '上会最终结论',
+  courseTrialPhase: '课程试讲阶段',
+  courseTrialLedgerStatus: '课程试讲台账状态',
+  courseTrialFormat: '课程试讲形式',
+  trialAcceptanceResult: '试讲验收结果',
 } as const;
 
 export function useFieldEnums() {
@@ -64,6 +76,20 @@ export function useEmployees() {
 export function useStates(objectType: string, stateField: string): string[] {
   const machines = useMachines();
   return machines.data?.find((m) => m.objectType === objectType && m.stateField === stateField)?.states ?? [];
+}
+
+/**
+ * 某个状态机的终态集合。
+ *
+ * <p>表单要排除「进去就出不来」的状态时用它，而不是比较状态名——终态是转换表算出来的，
+ * 后端加一条出边它就自动不再是终态，前端跟着变。
+ */
+export function useTerminalStates(objectType: string, stateField: string): string[] {
+  const machines = useMachines();
+  return (
+    machines.data?.find((m) => m.objectType === objectType && m.stateField === stateField)
+      ?.terminalStates ?? []
+  );
 }
 
 export function selectOptions(values: string[] | undefined) {

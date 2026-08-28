@@ -29,6 +29,10 @@ export interface TrainingPlan {
   lastStateChangedAt: string | null;
   updatedAt: string;
   updatedBy: string | null;
+  /** 灯色 API 码 BLUE／YELLOW／RED／NONE */
+  light: string;
+  lightDays: number | null;
+  lightReason: string | null;
 }
 
 export interface TrainingPlanForm {
@@ -44,6 +48,7 @@ export interface TrainingPlanForm {
 
 export interface TrainingPlanFilter {
   keyword?: string | null;
+  light?: string | null;
   courseId?: number | null;
   ownerNo?: string | null;
   planState?: string | null;

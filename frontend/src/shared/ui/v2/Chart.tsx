@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts/core';
 import { BarChart, FunnelChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
+import {
+  GraphicComponent,
+  GridComponent,
+  LegendComponent,
+  TooltipComponent,
+} from 'echarts/components';
 import { SVGRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts';
 import { isRegressionMode } from '@/app/regressionMode';
@@ -33,6 +38,10 @@ echarts.use([
   ScatterChart,
   GridComponent,
   TooltipComponent,
+  // 图例与自定义图形同属「漏注册不报错」那一类：option 里写了 legend／graphic，
+  // 未注册时图照画、图例与标注整块消失，控制台只在 dev 下提示一句
+  LegendComponent,
+  GraphicComponent,
   SVGRenderer,
 ]);
 

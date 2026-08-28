@@ -1,16 +1,24 @@
 package com.aiacademy.app.web.controller;
 
+import com.aiacademy.aggregate.warning.domain.WarningLightView;
 import com.aiacademy.app.application.DemandApplicationService;
 import com.aiacademy.app.application.DemandCourseLinkService;
+import com.aiacademy.app.export.ExportPaging;
+import com.aiacademy.app.export.ListExportService;
 import com.aiacademy.app.repository.DemandCourseLinkMapper;
+import com.aiacademy.app.web.WarningLightAssembler;
 import com.aiacademy.app.web.dto.DemandAcceptanceVO;
 import com.aiacademy.app.web.dto.DemandReviewVO;
 import com.aiacademy.app.web.dto.DemandVO;
+import com.aiacademy.platform.statemachine.domain.machines.DemandStateMachines;
 import com.aiacademy.business.demand.domain.DemandAcceptanceForm;
 import com.aiacademy.business.demand.domain.DemandForm;
 import com.aiacademy.business.demand.domain.DemandListItem;
 import com.aiacademy.business.demand.domain.DemandQuery;
 import com.aiacademy.business.demand.domain.DemandReviewForm;
+import com.aiacademy.business.demand.domain.DemandCourseLinkForm;
+import com.aiacademy.business.demand.domain.DemandProcessInfoForm;
+import com.aiacademy.business.demand.domain.DemandReviewInfoForm;
 import com.aiacademy.business.demand.service.DemandAcceptanceService;
 import com.aiacademy.business.demand.service.DemandReviewService;
 import com.aiacademy.business.demand.service.DemandService;
@@ -32,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 需求列表与详情（需求 8.3、8.6，页面 P1-1／P1-2）。
@@ -53,16 +62,22 @@ public class DemandController {
     private final DemandAcceptanceService acceptances;
     private final DemandApplicationService application;
     private final DemandCourseLinkService links;
+    private final WarningLightAssembler warningLights;
+    private final ListExportService exports;
 
     public DemandController(DemandService demands, DemandReviewService reviews,
                             DemandAcceptanceService acceptances,
                             DemandApplicationService application,
-                            DemandCourseLinkService links) {
+                            DemandCourseLinkService links,
+                            WarningLightAssembler warningLights,
+                            ListExportService exports) {
         this.demands = demands;
         this.reviews = reviews;
         this.acceptances = acceptances;
         this.application = application;
         this.links = links;
+        this.warningLights = warningLights;
+        this.exports = exports;
     }
 
     /** 登记需求（需求 5.2.1 第 1 行）。返回新需求的主键，前端据此跳详情页。 */
@@ -103,13 +118,49 @@ public class DemandController {
     @GetMapping
     public R<PageResult<DemandVO>> list(DemandQuery query) {
         PageResult<DemandListItem> page = demands.page(query);
-        return R.ok(new PageResult<>(page.records().stream().map(DemandVO::of).toList(),
+        Map<Long, WarningLightView> lights = warningLights.index(
+                DemandStateMachines.OBJECT_TYPE,
+                page.records().stream().map(DemandListItem::getId).toList());
+        return R.ok(new PageResult<>(page.records().stream()
+                .map(d -> DemandVO.of(d, lights.getOrDefault(d.getId(),
+                        WarningLightView.none(DemandStateMachines.OBJECT_TYPE, d.getId()))))
+                .toList(),
                 page.total(), page.pageNum(), page.pageSize()));
+    }
+
+    /**
+     * 导出当前筛选结果（开发 5.11.2）。复用 {@link DemandQuery}，不另写查询。
+     * ≤2000 同步文件流；&gt;2000 返回 {@code {async, taskId}} 供前端轮询。
+     */
+    @GetMapping("/export")
+    public Object export(DemandQuery query) {
+        query.setPageNum(1);
+        query.setPageSize(1);
+        long total = demands.page(query).total();
+        query.setPageSize(200);
+        List<String> headers = List.of("需求ID", "需求名称", "所属领域", "负责人", "评审状态",
+                "分流出口", "预计完成时间");
+        var result = exports.exportAll("demands", query, total,
+                () -> ExportPaging.loadAll(query::setPageNum, 200, ignored -> demands.page(query)),
+                headers,
+                d -> ListExportService.row(
+                        "需求ID", d.getId(),
+                        "需求名称", d.getDemandName(),
+                        "所属领域", d.getDomainCode(),
+                        "负责人", d.getOwnerName(),
+                        "评审状态", d.getReviewState(),
+                        "分流出口", d.getOutlet(),
+                        "预计完成时间", d.getExpectFinishDate()));
+        if (result.async()) {
+            return R.ok(Map.of("async", true, "taskId", result.taskId()));
+        }
+        return result.syncBody();
     }
 
     @GetMapping("/{id}")
     public R<DemandVO> detail(@PathVariable long id) {
-        return R.ok(DemandVO.of(demands.get(id)));
+        return R.ok(DemandVO.of(demands.get(id),
+                warningLights.one(DemandStateMachines.OBJECT_TYPE, id)));
     }
 
     // -------------------------------------------------------------------------
@@ -129,6 +180,17 @@ public class DemandController {
         return R.ok(application.recordReviewConclusion(id, form));
     }
 
+    /**
+     * 详情「评审信息」整页保存。结论三值映射分流出口；状态按转换表推进，不自动连跳。
+     */
+    @WriteApi
+    @PutMapping("/{id}/review-info")
+    public R<Void> saveReviewInfo(@PathVariable long id,
+                                  @Valid @RequestBody DemandReviewInfoForm form) {
+        application.saveReviewInfo(id, form);
+        return R.ok(null);
+    }
+
     /** 评审记录列表（详情页「评审信息」页签），最新一轮在前。 */
     @GetMapping("/{id}/reviews")
     public R<List<DemandReviewVO>> reviews(@PathVariable long id) {
@@ -140,6 +202,17 @@ public class DemandController {
     @PostMapping("/{id}/solution")
     public R<Void> createSolution(@PathVariable long id, @Valid @RequestBody SolutionRequest request) {
         application.createSolution(id, request.solutionName().trim(), request.version());
+        return R.ok(null);
+    }
+
+    /**
+     * 详情「分流与处理」整页保存。流转去向两条；状态按转换表推进，不自动连跳。
+     */
+    @WriteApi
+    @PutMapping("/{id}/process-info")
+    public R<Void> saveProcessInfo(@PathVariable long id,
+                                   @Valid @RequestBody DemandProcessInfoForm form) {
+        application.saveProcessInfo(id, form);
         return R.ok(null);
     }
 
@@ -190,6 +263,17 @@ public class DemandController {
     // -------------------------------------------------------------------------
     // 关联课程（需求 8.4，规则 R1／R4）
     // -------------------------------------------------------------------------
+
+    /**
+     * 详情「关联课程」页签保存外链。课程库 N:N 关联仍走 {@code /courses}。
+     */
+    @WriteApi
+    @PutMapping("/{id}/course-link")
+    public R<Void> saveCourseLink(@PathVariable long id,
+                                  @Valid @RequestBody DemandCourseLinkForm form) {
+        demands.updateCourseLink(id, form);
+        return R.ok(null);
+    }
 
     /** 需求详情页「关联课程」页签。同一份关联在课程详情页的「关联需求」页签里反向可见（R4）。 */
     @GetMapping("/{id}/courses")

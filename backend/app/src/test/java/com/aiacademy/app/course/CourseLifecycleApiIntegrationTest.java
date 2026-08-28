@@ -260,17 +260,20 @@ class CourseLifecycleApiIntegrationTest extends IntegrationTest {
     // -------------------------------------------------------------------------
 
     private long 立项(String ownerNo) throws Exception {
-        String body = json.writeValueAsString(Map.of(
-                "courseName", "端到端课程" + System.nanoTime(),
-                "reviewTrack", CourseEnums.TRACK_INTERNAL,
-                "domainCode", "COURSE",
-                "ownerNo", ownerNo,
-                "initiatedDate", LocalDate.now().toString(),
-                "expectPublishDate", LocalDate.now().plusDays(30).toString(),
-                "summary", "端到端主流程验证用课程",
-                "targetAudience", "一线客服",
-                "validityPeriod", "12 个月"));
-        return 数据(调用("POST", "/api/courses", body)).asLong();
+        Map<String, Object> form = new java.util.LinkedHashMap<>();
+        form.put("courseName", "端到端课程" + System.nanoTime());
+        form.put("reviewTrack", CourseEnums.TRACK_INTERNAL);
+        form.put("domainCode", "COURSE");
+        form.put("ownerNo", ownerNo);
+        form.put("initiatedDate", LocalDate.now().toString());
+        form.put("expectPublishDate", LocalDate.now().plusDays(30).toString());
+        form.put("summary", "端到端主流程验证用课程");
+        form.put("targetAudience", "一线客服");
+        form.put("classHours", "4.5");
+        form.put("categoryCode", "INDIVIDUAL");
+        form.put("source", "线下评审");
+        form.put("validityPeriod", "12 个月");
+        return 数据(调用("POST", "/api/courses", json.writeValueAsString(form))).asLong();
     }
 
     private void 转换(long courseId, String stateField, String action) throws Exception {

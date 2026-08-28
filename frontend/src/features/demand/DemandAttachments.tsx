@@ -15,21 +15,25 @@ const ATTACHMENT_OWNER_TYPE = 'DEMAND';
 export const DEMAND_REF_FIELDS = {
   reviewMinutes: 'review_minutes',
   solutionFiles: 'solution_files',
+  extras: 'demand_files',
+  courseDocs: 'course_docs',
 } as const;
 
 interface DemandAttachmentsProps {
   demandId: number;
   refField: string;
   emptyHint: string;
+  accept?: string;
 }
 
-export function DemandAttachments({ demandId, refField, emptyHint }: DemandAttachmentsProps) {
+export function DemandAttachments({ demandId, refField, emptyHint, accept }: DemandAttachmentsProps) {
   return (
     <AttachmentField
       ownerType={ATTACHMENT_OWNER_TYPE}
       ownerId={demandId}
       refField={refField}
       emptyHint={emptyHint}
+      accept={accept}
     />
   );
 }

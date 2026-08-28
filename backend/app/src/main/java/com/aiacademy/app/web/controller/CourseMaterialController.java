@@ -3,6 +3,7 @@ package com.aiacademy.app.web.controller;
 import com.aiacademy.business.course.domain.CourseMaterial;
 import com.aiacademy.business.course.domain.CourseMaterialVersion;
 import com.aiacademy.business.course.domain.CourseMaterialVersionFile;
+import com.aiacademy.business.course.domain.CourseVersionLedgerForm;
 import com.aiacademy.business.course.service.CourseMaterialService;
 import com.aiacademy.business.course.service.CourseVersionService;
 import com.aiacademy.common.api.R;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -107,6 +109,17 @@ public class CourseMaterialController {
     @GetMapping("/material-versions/{versionId}")
     public R<VersionDetail> versionDetail(@PathVariable long courseId, @PathVariable long versionId) {
         return R.ok(new VersionDetail(versions.files(versionId), versions.selfcheckSnapshot(versionId)));
+    }
+
+    /**
+     * 版本台账（版本号别名、状态、负责人、录屏外链等）。不改自动版本号，不删快照文件。
+     */
+    @WriteApi
+    @PutMapping("/material-versions/{versionId}/ledger")
+    public R<CourseMaterialVersion> saveLedger(@PathVariable long courseId,
+                                               @PathVariable long versionId,
+                                               @Valid @RequestBody CourseVersionLedgerForm form) {
+        return R.ok(versions.saveLedger(courseId, versionId, form));
     }
 
     /**

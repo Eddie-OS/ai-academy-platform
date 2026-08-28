@@ -32,24 +32,71 @@ public interface WarningLightMapper {
             SELECT id AS object_id,
                    ${expectCol} AS expect_finish,
                    last_state_changed_at,
-                   ${stateCol} AS current_state
+                   ${stateCol} AS current_state,
+                   ${extraCol} AS extra_state
               FROM ${table}
              WHERE deleted = FALSE
             """)
     List<Map<String, Object>> listCandidates(@Param("table") String table,
                                              @Param("expectCol") String expectCol,
-                                             @Param("stateCol") String stateCol);
+                                             @Param("stateCol") String stateCol,
+                                             @Param("extraCol") String extraCol);
 
     @Select("""
             SELECT id AS object_id,
                    ${expectCol} AS expect_finish,
                    last_state_changed_at,
-                   ${stateCol} AS current_state
+                   ${stateCol} AS current_state,
+                   ${extraCol} AS extra_state
               FROM ${table}
              WHERE id = #{id} AND deleted = FALSE
             """)
     Map<String, Object> findCandidate(@Param("table") String table,
                                       @Param("expectCol") String expectCol,
                                       @Param("stateCol") String stateCol,
+                                      @Param("extraCol") String extraCol,
                                       @Param("id") long id);
+
+    /**
+     * 列表页批量取灯色入参，避免对每行 {@link #findCandidate}（N+1）。
+     */
+    @Select("""
+            <script>
+            SELECT id AS object_id,
+                   ${expectCol} AS expect_finish,
+                   last_state_changed_at,
+                   ${stateCol} AS current_state,
+                   ${extraCol} AS extra_state
+              FROM ${table}
+             WHERE deleted = FALSE
+               AND id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </script>
+            """)
+    List<Map<String, Object>> listCandidatesByIds(@Param("table") String table,
+                                                  @Param("expectCol") String expectCol,
+                                                  @Param("stateCol") String stateCol,
+                                                  @Param("extraCol") String extraCol,
+                                                  @Param("ids") List<Long> ids);
+
+    /**
+     * 预警明细取数：名称／负责人一并带出（列名来自 {@code WarningObjectKind} 白名单）。
+     */
+    @Select("""
+            SELECT id AS object_id,
+                   ${expectCol} AS expect_finish,
+                   last_state_changed_at,
+                   ${stateCol} AS current_state,
+                   ${extraCol} AS extra_state,
+                   ${nameCol} AS object_name,
+                   ${ownerCol} AS owner_no
+              FROM ${table}
+             WHERE deleted = FALSE
+            """)
+    List<Map<String, Object>> listDetailCandidates(@Param("table") String table,
+                                                   @Param("expectCol") String expectCol,
+                                                   @Param("stateCol") String stateCol,
+                                                   @Param("extraCol") String extraCol,
+                                                   @Param("nameCol") String nameCol,
+                                                   @Param("ownerCol") String ownerCol);
 }

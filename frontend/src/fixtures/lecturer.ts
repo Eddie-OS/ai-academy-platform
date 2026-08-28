@@ -22,6 +22,8 @@
  * 区域高 484px 只放得下两组展开 + 一组折叠，<b>两个数不相等是对的</b>。
  */
 
+import { withCurrentDates } from './fixtureClock';
+
 /** R3 四张 KPI。四个标签都能在需求 15.1／15.3 里查到原名 */
 export const LECTURER_KPIS = [
   { id: 'poolSize', label: '讲师池人数', value: '1,268', delta: '↑ 12.5%', icon: 'Users' },
@@ -232,7 +234,7 @@ export interface TrialLedgerRow {
  *
  * <p>五条全部一致。双结论不一致的样例在 P09 评审记录中心，那页有专门的红色风险提示。
  */
-export const TRIAL_LEDGER: TrialLedgerRow[] = [
+export const TRIAL_LEDGER: TrialLedgerRow[] = withCurrentDates([
   {
     id: 'T-2405-09',
     course: '大模型应用开发实战',
@@ -278,7 +280,7 @@ export const TRIAL_LEDGER: TrialLedgerRow[] = [
     courseConclusion: '不合格',
     reviewedAt: '2024-05-06',
   },
-];
+]);
 
 /**
  * R6 列宽（文档 8「内部几何」标注「必须照抄」）。
@@ -331,7 +333,7 @@ export interface TrialTimelineItem {
  * 三轮变成「不合格 → 不合格 → 合格」，而这正是需求 5.4.3 允许的形状：
  * 试讲子状态在 待试讲 ↔ 试讲中 之间来回，直到某一轮课程结论为合格才进「待发布」。
  */
-export const TRIAL_TIMELINE: TrialTimelineItem[] = [
+export const TRIAL_TIMELINE: TrialTimelineItem[] = withCurrentDates([
   {
     round: '第 3 轮',
     conclusion: '合格',
@@ -353,7 +355,7 @@ export const TRIAL_TIMELINE: TrialTimelineItem[] = [
     participants: '赵敏、王宇',
     date: '2024-04-10',
   },
-];
+]);
 
 export interface TeachingRecord {
   course: string;
@@ -365,11 +367,11 @@ export interface TeachingRecord {
 }
 
 /** R7「近期授课记录」三条。李玥的授课记录，评分与她的平均分 4.86 同一量级 */
-export const TEACHING_RECORDS: TeachingRecord[] = [
+export const TEACHING_RECORDS: TeachingRecord[] = withCurrentDates([
   { course: '大模型原理与应用实战', session: '第 12 期', taughtOn: '2024-05-10', score: '4.86' },
   { course: '深度学习进阶实战', session: '第 9 期', taughtOn: '2024-04-28', score: '4.78' },
   { course: '机器学习算法精讲', session: '第 15 期', taughtOn: '2024-04-12', score: '4.81' },
-];
+]);
 
 /**
  * R7 底部的「讲师成长建议」。<b>仅回归模式渲染，产品模式整块隐藏。</b>

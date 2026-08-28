@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
 import { LecturerV2Page } from './LecturerV2Page';
 import { resetRegressionModeCache } from '@/app/regressionMode';
 
@@ -19,6 +20,16 @@ function setMode(regression: boolean): void {
   resetRegressionModeCache();
 }
 
+// 卡片列表读 ?focus= 决定选中哪位讲师，用 BrowserRouter 是为了让它和 setMode 看同一个
+// window.location —— MemoryRouter 自带一份内存历史，?fixture=1 传不进去
+function renderPage() {
+  return render(
+    <BrowserRouter>
+      <LecturerV2Page />
+    </BrowserRouter>,
+  );
+}
+
 describe('P04 成长建议的模式开关', () => {
   beforeEach(() => {
     resetRegressionModeCache();
@@ -31,7 +42,7 @@ describe('P04 成长建议的模式开关', () => {
 
   it('产品模式不渲染成长建议', () => {
     setMode(false);
-    render(<LecturerV2Page />);
+    renderPage();
 
     expect(screen.queryByTestId('growth-advice')).toBeNull();
     expect(screen.queryByText(/建议尝试开发进阶实战类课程/)).toBeNull();
@@ -39,7 +50,7 @@ describe('P04 成长建议的模式开关', () => {
 
   it('回归模式渲染成长建议', () => {
     setMode(true);
-    render(<LecturerV2Page />);
+    renderPage();
 
     expect(screen.getByTestId('growth-advice')).toBeTruthy();
   });
@@ -51,7 +62,7 @@ describe('P04 成长建议的模式开关', () => {
   it('两种模式下详情的其余四块都在', () => {
     for (const regression of [true, false]) {
       setMode(regression);
-      const { unmount } = render(<LecturerV2Page />);
+      const { unmount } = renderPage();
 
       expect(screen.getByTestId('trial-timeline'), `regression=${regression}`).toBeTruthy();
       expect(screen.getByTestId('teaching-block'), `regression=${regression}`).toBeTruthy();

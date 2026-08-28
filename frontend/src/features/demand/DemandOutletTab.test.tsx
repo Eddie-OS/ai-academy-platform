@@ -8,11 +8,7 @@ import type { AccountInfo } from '@/shared/api/types';
 import type { Demand } from '@/shared/api/demands';
 
 /**
- * 需求 8.3.3 的界面动态显示规则：<b>分流出口为空时字段 21–27 全部隐藏，出口一显示 21–23，
- * 出口二显示 24–27。</b>
- *
- * <p>两组字段同时摆出来的后果是，运营在出口一的需求上看到一个永远是「—」的「首次上线时间」，
- * 然后来问「为什么上线时间不自动填」。
+ * 需求 8.3.3 的界面动态显示规则：选解决方案只出方案字段，选需求开发只出开发字段。
  */
 
 const OUTLET_SOLUTION = '用现有工具输出解决方案';
@@ -37,7 +33,24 @@ vi.mock('./demandMeta', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./demandMeta')>();
   return {
     ...actual,
-    useOutlets: () => ({ solution: OUTLET_SOLUTION, development: OUTLET_DEVELOPMENT }),
+    useOutlets: () => ({
+      solution: OUTLET_SOLUTION,
+      development: OUTLET_DEVELOPMENT,
+      reject: '需求驳回',
+    }),
+    useStates: (_objectType: string, field: string) => {
+      if (field === '解决方案状态') return ['已输出', '已发布'];
+      if (field === '需求开发状态') return ['已立项', '待开发', '开发中', '已上线', '优化中'];
+      if (field === '业务验收状态') return ['待验收', '验收中', '验收通过', '验收不通过'];
+      if (field === '需求交付标记') return ['已交付', '已归档'];
+      return [];
+    },
+    useFieldEnums: () => ({
+      data: {
+        解决方案待输出: ['待输出'],
+        需求未交付展示: ['未交付'],
+      },
+    }),
   };
 });
 
@@ -64,7 +77,8 @@ function demand(outlet: string | null): Demand {
     reviewOpinion: null,
     outlet,
     solutionState: null,
-    solutionName: null,
+    solutionName: outlet === OUTLET_SOLUTION ? '抽取方案' : null,
+    devName: outlet === OUTLET_DEVELOPMENT ? '报表开发' : null,
     devState: null,
     currentProcessState: null,
     firstOnlineDate: null,
@@ -84,6 +98,9 @@ function demand(outlet: string | null): Demand {
     updatedAt: '2026-08-01T10:00:00+08:00',
     updatedBy: 'operator',
     version: 0,
+    light: 'NONE',
+    lightDays: null,
+    lightReason: null,
   };
 }
 
@@ -110,29 +127,49 @@ function renderTab(outlet: string | null) {
 }
 
 describe('分流与处理页签按出口显示字段', () => {
-  it('出口为空：两组字段都不显示，并说明出口在哪里录入', () => {
+  it('出口为空：只显示流转去向，不展开两组处理字段', () => {
     renderTab(null);
 
+    expect(screen.getByText('流转去向')).toBeTruthy();
+    expect(screen.getByText('关联解决方案')).toBeTruthy();
     expect(screen.queryByText('解决方案名称')).toBeNull();
+    expect(screen.queryByText('需求开发名称')).toBeNull();
     expect(screen.queryByText('首次上线时间')).toBeNull();
-    expect(screen.getByText(/出口在「评审信息」页签随评审结论一起录入/)).toBeTruthy();
   });
 
-  it('出口一：显示解决方案那一组，不显示上线与优化次数', () => {
+  it('出口一：显示解决方案那一组，不显示开发字段', () => {
     renderTab(OUTLET_SOLUTION);
 
     expect(screen.getByText('解决方案名称')).toBeTruthy();
-    expect(screen.getByText('解决方案附件')).toBeTruthy();
+    expect(screen.getByText('解决方案状态')).toBeTruthy();
+    expect(screen.getByText('关联解决方案')).toBeTruthy();
+    expect(screen.queryByText('需求开发名称')).toBeNull();
     expect(screen.queryByText('首次上线时间')).toBeNull();
-    expect(screen.queryByText('优化次数')).toBeNull();
   });
 
   it('出口二：显示开发那一组，不显示解决方案字段', () => {
     renderTab(OUTLET_DEVELOPMENT);
 
+    expect(screen.getByText('需求开发名称')).toBeTruthy();
+    expect(screen.getByText('需求开发状态')).toBeTruthy();
     expect(screen.getByText('首次上线时间')).toBeTruthy();
-    expect(screen.getByText('最新上线时间')).toBeTruthy();
-    expect(screen.getByText('优化次数')).toBeTruthy();
+    expect(screen.getByText('关联解决方案')).toBeTruthy();
     expect(screen.queryByText('解决方案名称')).toBeNull();
+  });
+
+  it('需求驳回：两组字段都不显示，处理状态为结束', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    useAuthStore.setState({ account: operatorAccount(), resolved: true });
+    render(
+      <QueryClientProvider client={client}>
+        <App>
+          <DemandOutletTab demand={{ ...demand('需求驳回'), currentProcessState: '结束' }} />
+        </App>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('结束')).toBeTruthy();
+    expect(screen.queryByText('解决方案名称')).toBeNull();
+    expect(screen.queryByText('首次上线时间')).toBeNull();
   });
 });

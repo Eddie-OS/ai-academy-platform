@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  需求 15.2 效率类。状态／结论比较值由 Java 参数传入（E2-6）；周期取首次到达（E1 = MIN）。
+-->
+<mapper namespace="com.aiacademy.aggregate.metrics.repository.EfficiencyMetricsMapper">
+
+    <select id="demandReviewCycleDays" resultType="int">
+        SELECT (MIN(l.changed_at)::DATE - d.proposed_date) AS days
+          FROM biz_demand d
+          JOIN audit_state_log l
+            ON l.object_type = #{objectType}
+           AND l.object_id = d.id
+           AND l.state_field = #{stateField}
+           AND l.to_state = #{toState}
+         WHERE d.deleted = FALSE
+           AND d.proposed_date IS NOT NULL
+         GROUP BY d.id, d.proposed_date
+    </select>
+
+    <select id="demandDeliveryCycleDays" resultType="int">
+        SELECT (d.delivered_at - d.proposed_date) AS days
+          FROM biz_demand d
+         WHERE d.deleted = FALSE
+           AND d.proposed_date IS NOT NULL
+           AND d.delivered_at IS NOT NULL
+           AND d.delivery_mark IN
+           <foreach collection="deliveryMarks" item="m" open="(" separator="," close=")">#{m}</foreach>
+    </select>
+
+    <select id="courseDevCycleDays" resultType="int">
+        SELECT (MIN(l.changed_at)::DATE - c.initiated_date) AS days
+          FROM biz_course c
+          JOIN audit_state_log l
+            ON l.object_type = #{objectType}
+           AND l.object_id = c.id
+           AND l.state_field = #{stateField}
+           AND l.to_state = #{toState}
+         WHERE c.deleted = FALSE
+           AND c.initiated_date IS NOT NULL
+         GROUP BY c.id, c.initiated_date
+    </select>
+
+    <select id="courseCompletedReviewRounds" resultType="int">
+        SELECT COUNT(*)::INT AS cnt
+          FROM dtl_course_review r
+         WHERE r.deleted = FALSE
+           AND r.record_state = #{completedState}
+         GROUP BY r.course_id
+    </select>
+
+    <select id="firstRoundReviewPassCounts" resultType="map">
+        SELECT COUNT(*) FILTER (WHERE r.review_result = #{passResult}) AS numerator,
+               COUNT(*) AS denominator
+          FROM dtl_course_review r
+         WHERE r.deleted = FALSE
+           AND r.round_no = 1
+           AND r.record_state = #{completedState}
+    </select>
+
+    <select id="courseCompletedTrialRounds" resultType="int">
+        SELECT COUNT(*)::INT AS cnt
+          FROM dtl_course_trial t
+         WHERE t.deleted = FALSE
+           AND t.record_state = #{completedState}
+         GROUP BY t.course_id
+    </select>
+
+    <select id="firstRoundTrialPassCounts" resultType="map">
+        SELECT COUNT(*) FILTER (WHERE t.course_conclusion = #{qualifiedConclusion}) AS numerator,
+               COUNT(*) AS denominator
+          FROM dtl_course_trial t
+         WHERE t.deleted = FALSE
+           AND t.round_no = 1
+           AND t.record_state = #{completedState}
+    </select>
+
+    <select id="casePublishCycleDays" resultType="int">
+        SELECT (c.published_at::DATE - c.created_at::DATE) AS days
+          FROM biz_case c
+         WHERE c.deleted = FALSE
+           AND c.case_state = #{publishedState}
+           AND c.published_at IS NOT NULL
+    </select>
+
+    <select id="planOnTimeCounts" resultType="map">
+        SELECT COUNT(*) FILTER (
+                   WHERE p.actual_finish_date IS NOT NULL
+                     AND p.actual_finish_date &lt;= p.plan_end_date
+               ) AS numerator,
+               COUNT(*) AS denominator
+          FROM biz_training_plan p
+         WHERE p.deleted = FALSE
+           AND p.plan_state = #{completedState}
+    </select>
+
+    <!-- 15.2.3／U7：趋势按终点事件月份归属；fromMonth 为近 6 个月窗口起点（当月首日往前 5 个月） -->
+    <select id="demandReviewCycleByMonth" resultType="map">
+        SELECT to_char(date_trunc('month', hit.hit_date), 'YYYY-MM') AS "monthKey",
+               AVG(hit.days)::DOUBLE PRECISION AS "avgDays"
+          FROM (
+                SELECT (MIN(l.changed_at)::DATE - d.proposed_date) AS days,
+                       MIN(l.changed_at)::DATE AS hit_date
+                  FROM biz_demand d
+                  JOIN audit_state_log l
+                    ON l.object_type = #{objectType}
+                   AND l.object_id = d.id
+                   AND l.state_field = #{stateField}
+                   AND l.to_state = #{toState}
+                 WHERE d.deleted = FALSE
+                   AND d.proposed_date IS NOT NULL
+                 GROUP BY d.id, d.proposed_date
+               ) hit
+         WHERE hit.hit_date &gt;= #{fromMonth}
+         GROUP BY 1
+         ORDER BY 1
+    </select>
+
+    <select id="courseDevCycleByMonth" resultType="map">
+        SELECT to_char(date_trunc('month', hit.hit_date), 'YYYY-MM') AS "monthKey",
+               AVG(hit.days)::DOUBLE PRECISION AS "avgDays"
+          FROM (
+                SELECT (MIN(l.changed_at)::DATE - c.initiated_date) AS days,
+                       MIN(l.changed_at)::DATE AS hit_date
+                  FROM biz_course c
+                  JOIN audit_state_log l
+                    ON l.object_type = #{objectType}
+                   AND l.object_id = c.id
+                   AND l.state_field = #{stateField}
+                   AND l.to_state = #{toState}
+                 WHERE c.deleted = FALSE
+                   AND c.initiated_date IS NOT NULL
+                 GROUP BY c.id, c.initiated_date
+               ) hit
+         WHERE hit.hit_date &gt;= #{fromMonth}
+         GROUP BY 1
+         ORDER BY 1
+    </select>
+
+    <select id="firstRoundReviewPassByMonth" resultType="map">
+        SELECT to_char(date_trunc('month', r.review_date), 'YYYY-MM') AS "monthKey",
+               COUNT(*) FILTER (WHERE r.review_result = #{passResult}) AS numerator,
+               COUNT(*) AS denominator
+          FROM dtl_course_review r
+         WHERE r.deleted = FALSE
+           AND r.round_no = 1
+           AND r.record_state = #{completedState}
+           AND r.review_date &gt;= #{fromMonth}
+         GROUP BY 1
+         ORDER BY 1
+    </select>
+
+    <select id="firstRoundTrialPassByMonth" resultType="map">
+        SELECT to_char(date_trunc('month', t.trial_date), 'YYYY-MM') AS "monthKey",
+               COUNT(*) FILTER (WHERE t.course_conclusion = #{qualifiedConclusion}) AS numerator,
+               COUNT(*) AS denominator
+          FROM dtl_course_trial t
+         WHERE t.deleted = FALSE
+           AND t.round_no = 1
+           AND t.record_state = #{completedState}
+           AND t.trial_date &gt;= #{fromMonth}
+         GROUP BY 1
+         ORDER BY 1
+    </select>
+
+    <select id="countCoursesCreatedBetween" resultType="long">
+        SELECT COUNT(*)
+          FROM biz_course
+         WHERE deleted = FALSE
+           AND created_at &gt;= #{from}
+           AND created_at &lt; #{to}
+    </select>
+
+    <select id="casePublishCycleByMonth" resultType="map">
+        SELECT to_char(date_trunc('month', c.published_at), 'YYYY-MM') AS "monthKey",
+               AVG((c.published_at::DATE - c.created_at::DATE))::DOUBLE PRECISION AS "avgDays"
+          FROM biz_case c
+         WHERE c.deleted = FALSE
+           AND c.case_state = #{publishedState}
+           AND c.published_at IS NOT NULL
+           AND c.published_at::DATE &gt;= #{fromMonth}
+         GROUP BY 1
+         ORDER BY 1
+    </select>
+
+</mapper>

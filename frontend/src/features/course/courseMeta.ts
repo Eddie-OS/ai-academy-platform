@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { FIELD_ENUM_KEYS, metaApi } from '@/shared/api/meta';
 import { configApi } from '@/shared/api/config';
+import { useBusinessDomains, useDomainLabel } from '@/shared/meta/domains';
 import {
   DICT_KEYS,
   META_STALE_TIME,
@@ -23,6 +24,10 @@ import {
  */
 
 export const COURSE_OBJECT_TYPE_CODE = 'COURSE';
+
+/** 与后端 {@code CourseRecordStateMachines} 一致。评审记录是独立对象，不是课程子状态。 */
+export const COURSE_REVIEW_OBJECT_TYPE_CODE = 'COURSE_REVIEW';
+export const COURSE_REVIEW_STATE_FIELD = '评审记录状态';
 
 /**
  * 五个状态<b>字段名</b>，与后端 {@code CourseStateMachines.FIELD_*} 一致。
@@ -67,7 +72,9 @@ export {
   DICT_KEYS,
   FIELD_ENUM_KEYS,
   selectOptions,
+  useBusinessDomains,
   useDicts,
+  useDomainLabel,
   useEmployees,
   useFieldEnums,
   useMachines,

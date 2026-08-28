@@ -24,6 +24,70 @@ export interface Course {
   targetAudience: string | null;
   classHours: string | null;
   categoryCode: string | null;
+  source: string | null;
+  remark: string | null;
+  /** 立项单号。与课程ID独立 */
+  initiationNo: string | null;
+  businessPain: string | null;
+  courseGoal: string | null;
+  courseValue: string | null;
+  outlineSummary: string | null;
+  estimateDevDays: string | null;
+  reviewJudges: string | null;
+  initiationReviewDate: string | null;
+  initiationReviewConclusion: string | null;
+  initiationReviewOpinion: string | null;
+  /** 立项状态字典编码，不是课程主状态 */
+  initiationStatus: string | null;
+  /** 计划课件初稿完成时间 */
+  planDraftDate: string | null;
+  /** 实际课件初稿完成时间 */
+  actualDraftDate: string | null;
+  /** 是否进入课程自检，是／否 */
+  enterSelfCheck: string | null;
+  selfcheckCheckerNo: string | null;
+  selfcheckCompletedDate: string | null;
+  selfcheckConclusion: string | null;
+  /** 自检页手选记录状态，不是课程自检子状态 */
+  selfcheckRecordStatus: string | null;
+  submitExpertReview: string | null;
+  selfcheckSpecAnswers: Record<string, string> | null;
+  /** 评审页手选轮数，不是自动建档的 roundNo */
+  reviewRoundLabel: string | null;
+  reviewCompletedDate: string | null;
+  /** 当前评审阶段字典编码，不是状态机 */
+  reviewLedgerPhase: string | null;
+  /** 评审页手选台账状态，不是评审记录状态 */
+  reviewLedgerStatus: string | null;
+  enterTrial: string | null;
+  prelimRoundLabel: string | null;
+  prelimReviewers: string | null;
+  prelimReviewDate: string | null;
+  prelimCompletedDate: string | null;
+  prelimConclusion: string | null;
+  prelimOpinion: string | null;
+  enterMeeting: string | null;
+  meetingRoundLabel: string | null;
+  meetingReviewers: string | null;
+  meetingActualDate: string | null;
+  meetingConclusion: string | null;
+  meetingOpinion: string | null;
+  trialLecturerNo: string | null;
+  trialCurrentPhase: string | null;
+  trialLedgerStatus: string | null;
+  trialRoundLabel: string | null;
+  trialScheduledDate: string | null;
+  trialAudienceGroup: string | null;
+  trialAudienceCount: string | null;
+  trialHours: string | null;
+  trialFormat: string | null;
+  trialSatisfaction: string | null;
+  trialOptimizeAdvice: string | null;
+  trialAcceptanceResult: string | null;
+  trialReadyToPublish: string | null;
+  trialLecturerQualified: string | null;
+  trialConclusionDate: string | null;
+  trialRemark: string | null;
   validityPeriod: string;
   validityEndDate: string | null;
   /** 有效 / 30 天内到期 / 已过期 / 长期有效 / 未发布（规则 EX7 实时计算） */
@@ -42,12 +106,18 @@ export interface Course {
   closeReason: string | null;
   currentMaterialVersion: string | null;
   reviewRound: number | null;
+  /** 最新一轮评审记录状态；未开评审为 null。与筛选项「评审状态」同口径 */
+  reviewRecordState: string | null;
   hasDemand: boolean;
   lastStateChangedAt: string | null;
   updatedAt: string;
   updatedBy: string | null;
   /** 乐观锁版本号（规则 K1）。编辑与状态转换都要原样带回 */
   version: number;
+  /** 灯色 API 码 BLUE／YELLOW／RED／NONE */
+  light: string;
+  lightDays: number | null;
+  lightReason: string | null;
 }
 
 export interface CourseForm {
@@ -61,16 +131,101 @@ export interface CourseForm {
   targetAudience?: string | null;
   classHours?: string | null;
   categoryCode?: string | null;
+  source?: string | null;
+  remark?: string | null;
   validityPeriod: string;
   externalLink?: string | null;
   qualityMarks?: string[];
 }
 
+export interface CourseDevelopmentForm {
+  ownerNo?: string | null;
+  planDraftDate?: string | null;
+  actualDraftDate?: string | null;
+  enterSelfCheck?: string | null;
+  version: number;
+}
+
+export interface CourseSelfcheckInfoForm {
+  selfcheckCheckerNo?: string | null;
+  selfcheckCompletedDate?: string | null;
+  selfcheckConclusion?: string | null;
+  selfcheckRecordStatus?: string | null;
+  submitExpertReview?: string | null;
+  specAnswers?: Record<string, string | null> | null;
+  version: number;
+}
+
+export interface CourseReviewLedgerForm {
+  ownerNo?: string | null;
+  reviewRoundLabel?: string | null;
+  reviewCompletedDate?: string | null;
+  reviewLedgerPhase?: string | null;
+  reviewLedgerStatus?: string | null;
+  enterTrial?: string | null;
+  prelimRoundLabel?: string | null;
+  prelimReviewers?: string | null;
+  prelimReviewDate?: string | null;
+  prelimCompletedDate?: string | null;
+  prelimConclusion?: string | null;
+  prelimOpinion?: string | null;
+  enterMeeting?: string | null;
+  meetingRoundLabel?: string | null;
+  meetingReviewers?: string | null;
+  meetingActualDate?: string | null;
+  meetingConclusion?: string | null;
+  meetingOpinion?: string | null;
+  version: number;
+}
+
+export interface CourseTrialLedgerForm {
+  ownerNo?: string | null;
+  trialLecturerNo?: string | null;
+  trialCurrentPhase?: string | null;
+  trialLedgerStatus?: string | null;
+  trialRoundLabel?: string | null;
+  trialScheduledDate?: string | null;
+  trialAudienceGroup?: string | null;
+  trialAudienceCount?: string | null;
+  trialHours?: string | null;
+  trialFormat?: string | null;
+  trialSatisfaction?: string | null;
+  trialOptimizeAdvice?: string | null;
+  trialAcceptanceResult?: string | null;
+  trialReadyToPublish?: string | null;
+  trialLecturerQualified?: string | null;
+  trialConclusionDate?: string | null;
+  trialRemark?: string | null;
+  version: number;
+}
+
+export interface CourseInitiationForm {
+  businessPain?: string | null;
+  courseGoal?: string | null;
+  courseValue?: string | null;
+  targetAudience?: string | null;
+  outlineSummary?: string | null;
+  estimateDevDays?: string | null;
+  reviewJudges?: string | null;
+  initiationReviewDate?: string | null;
+  initiationReviewConclusion?: string | null;
+  initiationReviewOpinion?: string | null;
+  initiationStatus?: string | null;
+  version: number;
+}
+
 export interface CourseFilter {
   keyword?: string | null;
+  light?: string | null;
   reviewTrack?: string | null;
   domainCode?: string | null;
+  categoryCode?: string | null;
   mainState?: string | null;
+  devState?: string | null;
+  selfcheckState?: string | null;
+  trialState?: string | null;
+  /** 最新一轮评审记录状态（待录入结论 / 已完成），不是课程主状态 */
+  reviewRecordState?: string | null;
   subState?: string | null;
   ownerNo?: string | null;
   qualityMark?: string | null;
@@ -105,8 +260,26 @@ export interface CourseMaterialVersion {
   remark: string | null;
   /** 绑定的评审轮次；手动快照为 null */
   boundReviewRound: number | null;
+  /** 台账别名，如 V1.0 初稿。官方 versionNo 仍按 V1／V2 自动递增 */
+  versionLabel: string | null;
+  /** 生效版本／历史归档／废弃版本。台账，不是状态机 */
+  versionStatus: string | null;
+  ownerNo: string | null;
+  updatedDate: string | null;
+  coursewareUrl: string | null;
+  recordingUrl: string | null;
   createdAt: string;
   createdBy: string;
+}
+
+export interface CourseVersionLedgerForm {
+  versionLabel?: string | null;
+  versionStatus?: string | null;
+  ownerNo?: string | null;
+  updatedDate?: string | null;
+  coursewareUrl?: string | null;
+  recordingUrl?: string | null;
+  remark?: string | null;
 }
 
 export interface CourseMaterialVersionFile {
@@ -266,6 +439,21 @@ export const courseApi = {
   update: (id: number, form: CourseForm, version: number) =>
     api.put<void>(`/api/courses/${id}${query({ version })}`, form),
 
+  saveInitiation: (id: number, form: CourseInitiationForm) =>
+    api.put<void>(`/api/courses/${id}/initiation`, form),
+
+  saveDevelopment: (id: number, form: CourseDevelopmentForm) =>
+    api.put<void>(`/api/courses/${id}/development`, form),
+
+  saveSelfcheckInfo: (id: number, form: CourseSelfcheckInfoForm) =>
+    api.put<void>(`/api/courses/${id}/selfcheck-info`, form),
+
+  saveReviewLedger: (id: number, form: CourseReviewLedgerForm) =>
+    api.put<void>(`/api/courses/${id}/review-ledger`, form),
+
+  saveTrialLedger: (id: number, form: CourseTrialLedgerForm) =>
+    api.put<void>(`/api/courses/${id}/trial-ledger`, form),
+
   close: (id: number, closeReason: string, version: number) =>
     api.post<void>(`/api/courses/${id}/close`, { closeReason, version }),
 
@@ -289,6 +477,9 @@ export const courseApi = {
 
   snapshot: (courseId: number, remark: string | null) =>
     api.post<CourseMaterialVersion>(`/api/courses/${courseId}/material-versions`, { remark }),
+
+  saveVersionLedger: (courseId: number, versionId: number, form: CourseVersionLedgerForm) =>
+    api.put<CourseMaterialVersion>(`/api/courses/${courseId}/material-versions/${versionId}/ledger`, form),
 
   reviews: (courseId: number) => api.get<CourseReview[]>(`/api/courses/${courseId}/reviews`),
 
@@ -325,7 +516,21 @@ export const courseApi = {
 
   calendar: (from: string, to: string) =>
     api.get<CourseCalendarItem[]>(`/api/course-schedules/calendar${query({ from, to })}`),
+
+  trialCalendar: (from: string, to: string) =>
+    api.get<CourseTrialCalendarItem[]>(`/api/course-trials/calendar${query({ from, to })}`),
 };
+
+export interface CourseTrialCalendarItem {
+  trialDate: string;
+  courseId: number;
+  courseName: string;
+  roundNo: number | null;
+  roundLabel: string | null;
+  lecturerId: number | null;
+  lecturerName: string | null;
+  audienceCount: string | null;
+}
 
 /** 课程的对象类型路径段，用于统一转换接口。不在各页面里各写一遍字符串。 */
 export const COURSE_OBJECT_TYPE = 'courses';

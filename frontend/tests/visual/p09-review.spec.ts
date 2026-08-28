@@ -65,9 +65,11 @@ test.describe('P09 评审记录中心', () => {
     );
   });
 
+  // 设计稿只画了 3 个页签，需求 13.3.1 要求 6 个（课程评审／试讲／需求评审／业务验收／
+  // 案例审核／待录入结论）。阶段 4 按需求落地六个，默认页签仍是试讲记录（V-61）
   test('L2 默认选中试讲记录，详情同步并显示红色风险提示', async ({ page }) => {
     const tabs = page.locator("[data-region='R3'] [data-testid='review-tab']");
-    await expect(tabs).toHaveCount(3);
+    await expect(tabs).toHaveCount(6);
     await expect(tabs.nth(1)).toHaveText('试讲记录');
     await expect(tabs.nth(1)).toHaveAttribute('data-active', 'true');
 

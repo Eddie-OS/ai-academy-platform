@@ -18,7 +18,8 @@ import {
   CockpitDetailPanel,
   CockpitLayout,
 } from '@/shared/ui/CockpitLayout';
-import { TRAINING_METRICS } from '@/shared/metrics/cockpitMetrics';
+import { TRAINING_METRICS, mergeMetricValues } from '@/shared/metrics/cockpitMetrics';
+import { metricsApi } from '@/shared/api/metrics';
 import { PageState } from '@/shared/ui/PageState';
 import { StateLogTab } from '@/shared/ui/StateLogTab';
 import { formatDateTime, formatTime } from '@/shared/format';
@@ -99,6 +100,11 @@ export function TrainingCockpitPage() {
     queryFn: () => trainingApi.plans({ keyword: planKeyword || null }, 1, 20),
   });
 
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'trainings'],
+    queryFn: () => metricsApi.quantity('trainings'),
+  });
+
   const plan = useQuery({
     queryKey: ['training-plans', selectedId, 'detail'],
     queryFn: () => trainingApi.plan(selectedId),
@@ -130,7 +136,7 @@ export function TrainingCockpitPage() {
             </Button>
           )
         }
-        metrics={TRAINING_METRICS}
+        metrics={mergeMetricValues(TRAINING_METRICS, quantity.data)}
         filters={
           <Space wrap size={space.xs}>
             <Input.Search

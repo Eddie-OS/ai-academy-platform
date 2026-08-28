@@ -151,6 +151,22 @@ export const OPERATION_PAGES: PageDef[] = [
 ];
 
 /**
+ * 总看板的下钻页，**不是需求口径的一级页面**。
+ *
+ * <p>需求第 7 章把这两处写成总看板内部的能力：7.5 的预警明细是三色灯卡的下钻目标，
+ * 7.8 的业务价值填报是 A 区价值卡的录入入口。它们需要各自的地址（下钻要能回退、
+ * 填报要能刷新），但把它们算进一级页面会让「24 个一级页面」变成 26 —— 那个数字是
+ * 需求 1.5 的范围边界，验收按它逐项回查。
+ *
+ * <p>因此只进 {@link ROUTE_PAGES}（生成路由），不进 {@link REQUIREMENT_PAGES}（内容清单），
+ * 也不进侧栏。
+ */
+export const DASHBOARD_SUBPAGES: PageDef[] = [
+  { code: 'S-3', path: '/value-reports', title: '业务价值填报', inSidebar: false },
+  { code: 'S-4', path: '/warnings', title: '预警明细', inSidebar: false },
+];
+
+/**
  * 需要生成路由的全部地址。
  *
  * <p>驾驶舱主路径 + 各自的详情深链 + 三中心 + 两个运营页 + 总看板。
@@ -170,6 +186,7 @@ export const ROUTE_PAGES: PageDef[] = [
   ]),
   ...CENTER_PAGES,
   ...OPERATION_PAGES,
+  ...DASHBOARD_SUBPAGES,
 ];
 
 /**

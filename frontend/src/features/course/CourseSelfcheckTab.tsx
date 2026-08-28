@@ -1,192 +1,312 @@
-import { useEffect, useState } from 'react';
-import { Alert, App, Button, Card, Checkbox, Input, Progress, Space, Tag, Tooltip, Typography } from 'antd';
+import { useEffect } from 'react';
+import { App, Col, DatePicker, Form, Radio, Row, Select, Space, Table, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CircleHelp } from 'lucide-react';
+import dayjs, { type Dayjs } from 'dayjs';
 import { ApiError } from '@/shared/api/client';
-import { courseApi, type CourseSelfcheckItem } from '@/shared/api/courses';
+import { COURSE_OBJECT_TYPE, courseApi, type Course } from '@/shared/api/courses';
+import { FIELD_ENUM_KEYS } from '@/shared/api/meta';
+import { transitionApi } from '@/shared/api/transitions';
+import { AttachmentField, ATTACHMENT_SCENE_GENERAL } from '@/shared/ui/AttachmentField';
 import { useIsOperator } from '@/shared/store/authStore';
-import { neutral, space } from '@/shared/theme/designTokens';
-import { useNoteRequirements } from './courseMeta';
+import { space } from '@/shared/theme/designTokens';
+import { invalidateCourseListAndMetrics } from './courseFilters';
+import { COURSE_STATE_FIELDS, DICT_KEYS, useDicts, useEmployees, useFieldEnums } from './courseMeta';
+import { CoursePhaseActions } from './CoursePhaseActions';
+import { CourseTabEditBar, useCourseTabEditing } from './CourseTabEditBar';
 
-const { Text, Title } = Typography;
+const COURSE_OWNER_TYPE = 'COURSE';
+const SELFCHECK_REF = 'selfcheck_files';
+const ATTACHMENT_ACCEPT = '.doc,.docx,.ppt,.pptx,.xls,.xlsx';
 
-/**
- * 详情页「CheckList 自检」页签（需求 9.4）。
- *
- * <p>三条容易被"补全"掉的规则，在这里都是有意为之：
- * <ul>
- *   <li><b>自检不设门禁</b>（CK3）：没做完照样能提交评审，界面只提示不阻断。加了阻断会拦住
- *       运营录入历史数据；
- *   <li><b>「必填说明」的条目勾了但没写说明，算未完成</b>（CK2）——否则自检会退化成一排勾；
- *   <li><b>停用的条目不计入分母，但历史勾选照常显示</b>（CK5）：把它从界面上抹掉，
- *       会让「当时检查过什么」这件事凭空消失。
- * </ul>
- */
+/** 规格 8 项。文案是表头，取值是／否来自元数据。 */
+const SPEC_ITEMS = [
+  {
+    code: 'GOAL_CLEAR',
+    label: '课程目标明确',
+    rule: '有清晰学习目标；明确学完后学员能做什么，且可衡量',
+  },
+  {
+    code: 'STRUCTURE',
+    label: '结构完整',
+    rule: '按五步法：痛点 → 工具介绍 → 演示 → 练习 → 课后任务',
+  },
+  {
+    code: 'KEY_INFO',
+    label: '关键信息齐全',
+    rule: '基本信息 + 课前准备清单 + 验收标准均已填写',
+  },
+  {
+    code: 'COURSEWARE_SET',
+    label: '课件四件套齐全',
+    rule: 'PPT + 演示材料／数据 + Prompt 模板 + 任务说明',
+  },
+  {
+    code: 'PPT_STANDARD',
+    label: 'PPT规范',
+    rule: '15–25 页，含封面／目录／结尾，字体统一、图片清晰',
+  },
+  {
+    code: 'DEMO_REPRO',
+    label: '实操演示可复现',
+    rule: '每个工具操作有分步截图或录屏，步骤编号，有预期结果',
+  },
+  {
+    code: 'PROMPT_USABLE',
+    label: 'Prompt模板可用',
+    rule: '核心操作有可复制 Prompt，并说明参数含义',
+  },
+  {
+    code: 'HOMEWORK',
+    label: '课后任务设计',
+    rule: '任务清晰（做什么／用什么／交什么），课内约 15–20 分钟可完成',
+  },
+] as const;
 
 interface CourseSelfcheckTabProps {
-  courseId: number;
+  course: Course;
 }
 
-type Draft = Record<number, { checked: boolean; note: string }>;
+interface FormValues {
+  selfcheckCheckerNo?: string;
+  selfcheckCompletedDate?: Dayjs | null;
+  selfcheckConclusion?: string;
+  selfcheckRecordStatus?: string;
+  submitExpertReview?: string;
+  specAnswers?: Record<string, string | undefined>;
+}
 
-export function CourseSelfcheckTab({ courseId }: CourseSelfcheckTabProps) {
+/**
+ * 课程详情「自检」页。基础信息按规格 6 项；清单 8 项是／否。
+ * 课程自检子状态仍走状态机。选「是」提交专家评审后，若当前能提交评审再走转换。
+ */
+export function CourseSelfcheckTab({ course }: CourseSelfcheckTabProps) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const isOperator = useIsOperator();
-  const [draft, setDraft] = useState<Draft>({});
+  const dicts = useDicts();
+  const employees = useEmployees();
+  const fieldEnums = useFieldEnums();
+  const [form] = Form.useForm<FormValues>();
+  const { editing, setEditing } = useCourseTabEditing(course.id);
 
-  const view = useQuery({
-    queryKey: ['courses', courseId, 'selfcheck'],
-    queryFn: () => courseApi.selfcheck(courseId),
+  const yesNo = fieldEnums.data?.[FIELD_ENUM_KEYS.meetsRequirement] ?? [];
+  const submitYesNo = fieldEnums.data?.[FIELD_ENUM_KEYS.submitExpertReview] ?? [];
+  const yes = submitYesNo[0];
+
+  const fill = () => {
+    form.setFieldsValue({
+      selfcheckCheckerNo: course.selfcheckCheckerNo ?? course.ownerNo ?? undefined,
+      selfcheckCompletedDate: course.selfcheckCompletedDate
+        ? dayjs(course.selfcheckCompletedDate)
+        : null,
+      selfcheckConclusion: course.selfcheckConclusion ?? undefined,
+      selfcheckRecordStatus: course.selfcheckRecordStatus ?? undefined,
+      submitExpertReview: course.submitExpertReview ?? undefined,
+      specAnswers: course.selfcheckSpecAnswers ?? {},
+    });
+  };
+
+  useEffect(fill, [course, form]);
+
+  const availability = useQuery({
+    queryKey: ['courses', course.id, 'available'],
+    queryFn: () => transitionApi.available(COURSE_OBJECT_TYPE, course.id),
   });
-
-  useEffect(() => {
-    if (!view.data) {
-      return;
-    }
-    const next: Draft = {};
-    for (const item of view.data.items) {
-      next[item.itemId] = { checked: item.checked, note: item.note ?? '' };
-    }
-    setDraft(next);
-  }, [view.data]);
+  const mainField = availability.data?.fields.find((item) => item.stateField === COURSE_STATE_FIELDS.main);
 
   const save = useMutation({
-    mutationFn: () =>
-      courseApi.saveSelfcheck(
-        courseId,
-        // 停用的条目不再提交：后端只接受启用中的条目，历史勾选靠快照与已存记录保留
-        (view.data?.items ?? [])
-          .filter((item) => item.enabled)
-          .map((item) => ({
-            itemId: item.itemId,
-            checked: draft[item.itemId]?.checked ?? false,
-            note: draft[item.itemId]?.note || null,
-          })),
-      ),
-    onSuccess: () => {
-      message.success('自检结果已保存');
-      void queryClient.invalidateQueries({ queryKey: ['courses', courseId, 'selfcheck'] });
-    },
+    mutationFn: (values: FormValues) =>
+      courseApi.saveSelfcheckInfo(course.id, {
+        selfcheckCheckerNo: values.selfcheckCheckerNo || null,
+        selfcheckCompletedDate: values.selfcheckCompletedDate
+          ? values.selfcheckCompletedDate.format('YYYY-MM-DD')
+          : null,
+        selfcheckConclusion: values.selfcheckConclusion || null,
+        selfcheckRecordStatus: values.selfcheckRecordStatus || null,
+        submitExpertReview: values.submitExpertReview || null,
+        // 下拉清空后 AntD 留下的是 undefined，而接口按「未作答」读 null：
+        // 直接透传会让被清空的那一项在 JSON 里整个消失，后端读到的是「没提交这一项」
+        specAnswers: Object.fromEntries(
+          Object.entries(values.specAnswers ?? {}).map(([code, answer]) => [code, answer ?? null]),
+        ),
+        version: course.version,
+      }),
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
   });
 
-  const items = view.data?.items ?? [];
-  const groups = [...new Set(items.map((item) => item.groupName))];
-  const total = view.data?.totalCount ?? 0;
-  const completed = view.data?.completedCount ?? 0;
+  const transit = useMutation({
+    mutationFn: (payload: { action: string; version: number }) =>
+      transitionApi.transit(COURSE_OBJECT_TYPE, course.id, {
+        stateField: COURSE_STATE_FIELDS.main,
+        action: payload.action,
+        version: payload.version,
+        remark: null,
+      }),
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '状态变更失败，请重试'),
+  });
+
+  const refresh = () => invalidateCourseListAndMetrics(queryClient);
+
+  const onFinish = async (values: FormValues) => {
+    await save.mutateAsync(values);
+    const submit = (mainField?.actions ?? []).find((option) => option.action === 'SUBMIT_REVIEW');
+    const canSubmit =
+      Boolean(yes) &&
+      values.submitExpertReview === yes &&
+      submit !== undefined &&
+      (mainField?.allowedActions ?? []).includes(submit.label);
+    if (canSubmit && submit) {
+      const result = await transit.mutateAsync({
+        action: submit.action,
+        version: course.version + 1,
+      });
+      message.success(`${result.stateField}已变更为「${result.toState}」`);
+      setEditing(false);
+      refresh();
+      return;
+    }
+    message.success('自检信息已保存');
+    setEditing(false);
+    refresh();
+  };
+
+  const statusOptions = (dicts.data?.[DICT_KEYS.courseSelfcheckRecordStatus] ?? []).map((item) => ({
+    value: item.code,
+    label: item.name,
+  }));
+  const conclusionOptions = (dicts.data?.[DICT_KEYS.courseSelfcheckConclusion] ?? []).map((item) => ({
+    value: item.code,
+    label: item.name,
+  }));
+  const yesNoOptions = yesNo.map((value) => ({ value, label: value }));
 
   return (
-    <Space direction="vertical" size={space.lg} style={{ width: '100%' }}>
-      <Alert
-        type="info"
-        showIcon
-        message="自检不是门禁"
-        description="自检没做完照样可以提交评审——是否具备评审条件由线下判断，平台只记录自检结果。完成度也不参与任何指标与灯色计算。"
+    <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
+      <CoursePhaseActions
+        course={course}
+        stateField={COURSE_STATE_FIELDS.selfcheck}
+        extraMainActions={['SUBMIT_REVIEW', 'RESUBMIT_REVIEW']}
       />
-
-      <Card size="small">
-        <Space size={space.lg} align="center">
-          <Progress
-            type="circle"
-            size={72}
-            percent={total === 0 ? 0 : Math.round((completed / total) * 100)}
-            format={() => `${completed}/${total}`}
+      {isOperator && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <CourseTabEditBar
+            editing={editing}
+            saving={save.isPending || transit.isPending}
+            onEdit={() => {
+              fill();
+              setEditing(true);
+            }}
+            onCancel={() => {
+              fill();
+              setEditing(false);
+            }}
+            onSave={() => form.submit()}
           />
-          <div>
-            <Title level={5} style={{ margin: 0 }}>
-              检查项完成度
-            </Title>
-            <Text type="secondary">
-              分母只算<b>启用中</b>的检查项。标「必填」的条目勾了但没写说明，不算完成。
-            </Text>
-          </div>
-          {isOperator && (
-            <Button type="primary" loading={save.isPending} onClick={() => save.mutate()}>
-              保存自检结果
-            </Button>
-          )}
-        </Space>
-      </Card>
+        </div>
+      )}
+      <Form
+        form={form}
+        layout="vertical"
+        disabled={!isOperator || !editing}
+        onFinish={(values) => void onFinish(values)}
+      >
+        <Typography.Title level={5} style={{ marginTop: 0 }}>
+          一、自检基础信息
+        </Typography.Title>
+        <Row gutter={[16, 0]}>
+          <Col span={12}>
+            <Form.Item
+              label="自检人"
+              name="selfcheckCheckerNo"
+              extra="须为课程负责人本人"
+            >
+              <Select
+                showSearch
+                allowClear
+                optionFilterProp="label"
+                placeholder="请选择自检人"
+                options={(employees.data?.records ?? []).map((item) => ({
+                  value: item.employeeNo,
+                  label: `${item.employeeName}（${item.employeeNo}）`,
+                }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="自检完成时间"
+              name="selfcheckCompletedDate"
+              extra="自检完成的日期"
+            >
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="自检总体结论" name="selfcheckConclusion">
+              <Select allowClear showSearch optionFilterProp="label" options={conclusionOptions} />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item label="附件" extra="支持 Word、PPT、Excel">
+              <AttachmentField
+                ownerType={COURSE_OWNER_TYPE}
+                ownerId={course.id}
+                refField={SELFCHECK_REF}
+                emptyHint="可上传 Word、PPT、Excel"
+                scene={ATTACHMENT_SCENE_GENERAL}
+                accept={ATTACHMENT_ACCEPT}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="自检状态"
+              name="selfcheckRecordStatus"
+              extra="手选记录，不驱动课程自检子状态"
+            >
+              <Select allowClear showSearch optionFilterProp="label" options={statusOptions} />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item
+              label="是否提交专家评审"
+              name="submitExpertReview"
+              extra="选「是」并保存后，若当前允许则走提交评审"
+            >
+              <Radio.Group>
+                {submitYesNo.map((value) => (
+                  <Radio key={value} value={value}>
+                    {value}
+                  </Radio>
+                ))}
+              </Radio.Group>
+            </Form.Item>
+          </Col>
+        </Row>
 
-      {groups.map((group) => (
-        <Card key={group} size="small" title={group}>
-          <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
-            {items
-              .filter((item) => item.groupName === group)
-              .map((item) => (
-                <SelfcheckRow
-                  key={item.itemId}
-                  item={item}
-                  editable={isOperator && item.enabled}
-                  value={draft[item.itemId] ?? { checked: item.checked, note: item.note ?? '' }}
-                  onChange={(value) => setDraft((current) => ({ ...current, [item.itemId]: value }))}
-                />
-              ))}
-          </Space>
-        </Card>
-      ))}
-    </Space>
-  );
-}
-
-function SelfcheckRow({
-  item,
-  editable,
-  value,
-  onChange,
-}: {
-  item: CourseSelfcheckItem;
-  editable: boolean;
-  value: { checked: boolean; note: string };
-  onChange: (value: { checked: boolean; note: string }) => void;
-}) {
-  const { none: NOTE_NONE, required: NOTE_REQUIRED } = useNoteRequirements();
-  const noteMissing = value.checked && item.noteRequirement === NOTE_REQUIRED && value.note.trim() === '';
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: space.xs }}>
-      <Space size={space.xs} align="start">
-        <Checkbox
-          checked={value.checked}
-          disabled={!editable}
-          onChange={(e) => onChange({ ...value, checked: e.target.checked })}
-        >
-          {item.itemText}
-        </Checkbox>
-        {item.noteRequirement !== NOTE_NONE && (
-          <Tag color={item.noteRequirement === NOTE_REQUIRED ? 'warning' : 'default'}>
-            说明{item.noteRequirement}
-          </Tag>
-        )}
-        {!item.enabled && (
-          <Tooltip title="该检查项已在配置中心停用：不再计入完成度分母，但这门课当时的勾选照常保留">
-            <Tag>已停用</Tag>
-          </Tooltip>
-        )}
-        {item.guideText && (
-          <Tooltip title={item.guideText}>
-            <CircleHelp size={14} color={neutral[500]} />
-          </Tooltip>
-        )}
-      </Space>
-      {item.noteRequirement !== NOTE_NONE && (
-        <Input.TextArea
-          rows={2}
-          maxLength={500}
-          disabled={!editable}
-          status={noteMissing ? 'warning' : undefined}
-          placeholder={item.noteRequirement === NOTE_REQUIRED ? '这一项必须写明依据，否则不算完成' : '可补充说明'}
-          style={{ marginLeft: 24 }}
-          value={value.note}
-          onChange={(e) => onChange({ ...value, note: e.target.value })}
+        <Typography.Title level={5}>二、自检清单</Typography.Title>
+        <Table
+          size="small"
+          pagination={false}
+          rowKey="code"
+          dataSource={[...SPEC_ITEMS]}
+          columns={[
+            { title: '字段', dataIndex: 'label', width: 160 },
+            { title: '规则说明', dataIndex: 'rule' },
+            {
+              title: '是否符合要求',
+              dataIndex: 'code',
+              width: 160,
+              render: (code: string) => (
+                <Form.Item name={['specAnswers', code]} style={{ marginBottom: 0 }}>
+                  <Select allowClear options={yesNoOptions} placeholder="请选择" />
+                </Form.Item>
+              ),
+            },
+          ]}
         />
-      )}
-      {noteMissing && (
-        <Text type="warning" style={{ marginLeft: 24 }}>
-          勾选了但没写说明，这一项不计入完成度。
-        </Text>
-      )}
-    </div>
+
+      </Form>
+    </Space>
   );
 }

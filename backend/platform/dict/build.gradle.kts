@@ -3,6 +3,7 @@
 //   spring-web —— 配置中心的四组接口（controller 包）。只要 spring-web，不要 starter-web
 dependencies {
     implementation(project(":platform:audit"))
+    implementation(project(":platform:escalation"))
     implementation(libs.spring.web)
     // 表单上的 @NotBlank / @Min 等注解。校验的执行者（Hibernate Validator）由 app 提供，
     // 平台模块只需要注解本身

@@ -34,11 +34,12 @@ public interface LecturerImportMapper {
      *
      * <p>{@code WHERE} 里的格式过滤不是多余的：没有它，库里只要出现一个不符合 JS+数字 的讲师ID
      * （测试夹具、人工订正、将来换号规则），{@code ::int} 就会直接报错，讲师导入整个功能不可用。
+     * 位数上限同理：JS 后跟 15 位数字是「合格式」的，但 {@code ::int} 照样溢出。
      */
     @Select("""
             SELECT COALESCE(MAX(SUBSTRING(lecturer_no FROM 3)::int), 0)
               FROM biz_lecturer
-             WHERE lecturer_no ~ '^JS[0-9]+$'
+             WHERE lecturer_no ~ '^JS[0-9]{1,9}$'
             """)
     int maxLecturerSeq();
 

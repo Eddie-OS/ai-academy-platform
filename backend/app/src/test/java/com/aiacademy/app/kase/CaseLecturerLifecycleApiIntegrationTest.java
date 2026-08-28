@@ -406,12 +406,12 @@ class CaseLecturerLifecycleApiIntegrationTest extends IntegrationTest {
         return jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        initiation_no, main_state, created_by)
                 VALUES (?, ?, '内部端到端课程', ?, ?, CURRENT_DATE, CURRENT_DATE + 30,
-                        '长期有效', ?, 'operator')
+                        '长期有效', ?, ?, 'operator')
                 RETURNING id
                 """, Long.class, "KC" + System.nanoTime(), courseName, 启用中的作战单元编码(),
-                ownerNo, CourseStateMachines.MAIN_PROMOTION);
+                ownerNo, "LI" + System.nanoTime(), CourseStateMachines.MAIN_PROMOTION);
     }
 
     /** 编辑表单照抄详情里的当前值，只为在主流程里真实调用一次编辑接口。 */

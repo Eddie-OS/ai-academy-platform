@@ -241,12 +241,12 @@ class TaskDeriveIntegrationTest extends IntegrationTest {
         long courseId = jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        initiation_no, main_state, created_by)
                 VALUES (?, '场次课', '内部端到端课程', ?, ?, CURRENT_DATE, CURRENT_DATE + 30,
-                        '长期有效', ?, 'operator')
+                        '长期有效', ?, ?, 'operator')
                 RETURNING id
                 """, Long.class, "KC" + System.nanoTime(), 作战单元(), ownerNo,
-                CourseStateMachines.MAIN_PUBLISHED);
+                "LI" + System.nanoTime(), CourseStateMachines.MAIN_PUBLISHED);
         long planId = training.createPlan(new TrainingPlanForm(
                 "派生计划" + System.nanoTime(), courseId, ownerNo, "全员",
                 LocalDate.now(), LocalDate.now().plusDays(10), 1, null));
@@ -264,12 +264,12 @@ class TaskDeriveIntegrationTest extends IntegrationTest {
         return jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        initiation_no, main_state, created_by)
                 VALUES (?, ?, '内部端到端课程', ?, ?, CURRENT_DATE, CURRENT_DATE + 30,
-                        '长期有效', ?, 'operator')
+                        '长期有效', ?, ?, 'operator')
                 RETURNING id
                 """, Long.class, "KC" + System.nanoTime(), name, 作战单元(), ownerNo,
-                CourseStateMachines.MAIN_PROMOTION);
+                "LI" + System.nanoTime(), CourseStateMachines.MAIN_PROMOTION);
     }
 
     private CourseReviewForm 评审结论(String result) {
@@ -280,13 +280,13 @@ class TaskDeriveIntegrationTest extends IntegrationTest {
     private DemandForm 需求表单(String name) {
         return new DemandForm(name, "COURSE", ownerNo, ownerNo,
                 LocalDate.now().minusDays(3), LocalDate.now().plusDays(20),
-                name + " 描述", "部门提出", "效率提升", "高");
+                name + " 描述", "部门提出", "效率提升", "P0（紧急重要）");
     }
 
     private CourseForm 课程表单(String name, LocalDate expectPublish) {
         return new CourseForm(name + System.nanoTime(), "内部端到端课程", "COURSE", ownerNo,
                 LocalDate.now().minusDays(10), expectPublish,
-                name + " 简介", "一线", new BigDecimal("2.0"), null,
+                name + " 简介", "一线", new BigDecimal("2.0"), null, null, null,
                 "12 个月", null, List.of());
     }
 

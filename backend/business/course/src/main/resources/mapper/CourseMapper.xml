@@ -41,8 +41,30 @@
         <if test="q.domainCode != null and q.domainCode != ''">
             AND c.domain_code = #{q.domainCode}
         </if>
+        <if test="q.categoryCode != null and q.categoryCode != ''">
+            AND c.category_code = #{q.categoryCode}
+        </if>
         <if test="q.mainState != null and q.mainState != ''">
             AND c.main_state = #{q.mainState}
+        </if>
+        <if test="q.devState != null and q.devState != ''">
+            AND c.dev_state = #{q.devState}
+        </if>
+        <if test="q.selfcheckState != null and q.selfcheckState != ''">
+            AND c.selfcheck_state = #{q.selfcheckState}
+        </if>
+        <if test="q.trialState != null and q.trialState != ''">
+            AND c.trial_state = #{q.trialState}
+        </if>
+        <!-- 最新一轮评审记录状态。没开过评审的课匹配不到任何取值，这是「未评审」不是「已完成」 -->
+        <if test="q.reviewRecordState != null and q.reviewRecordState != ''">
+            AND (
+                SELECT r.record_state
+                  FROM dtl_course_review r
+                 WHERE r.course_id = c.id AND r.deleted = FALSE
+                 ORDER BY r.round_no DESC
+                 LIMIT 1
+            ) = #{q.reviewRecordState}
         </if>
         <!-- 四组子状态的取值域两两不相交，一个入参匹配四列即可，见 CourseQuery.subState -->
         <if test="q.subState != null and q.subState != ''">
@@ -106,6 +128,11 @@
                e.employee_name AS owner_name,
                (SELECT COUNT(*) FROM dtl_course_review r
                  WHERE r.course_id = c.id AND r.deleted = FALSE) AS review_round,
+               (SELECT r.record_state
+                  FROM dtl_course_review r
+                 WHERE r.course_id = c.id AND r.deleted = FALSE
+                 ORDER BY r.round_no DESC
+                 LIMIT 1) AS review_record_state,
                EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.course_id = c.id) AS has_demand
           FROM biz_course c
           LEFT JOIN org_employee e ON e.employee_no = c.owner_no AND e.deleted = FALSE

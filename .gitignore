@@ -4,6 +4,11 @@ backend/.gradle/
 frontend/dist/
 frontend/node_modules/
 
+# 测试产物。Playwright 每跑一次都会重写这两个目录：report 是 HTML 报告，
+# test-results 里是失败时的 trace 与截图，都是几 MB 级的二进制，不属于源码
+frontend/playwright-report/
+frontend/test-results/
+
 # 敏感信息（规则 SEC4／CF：口令与凭据不进代码库）
 .env
 *.pem

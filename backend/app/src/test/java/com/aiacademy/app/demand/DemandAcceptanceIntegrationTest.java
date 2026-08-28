@@ -279,7 +279,7 @@ class DemandAcceptanceIntegrationTest extends IntegrationTest {
     private DemandForm 表单(String name) {
         return new DemandForm(name, "COURSE", employeeNo, employeeNo,
                 LocalDate.now().minusDays(10), LocalDate.now().plusDays(30),
-                name + " 的业务问题与场景", "部门提出", "效率提升", "中");
+                name + " 的业务问题与场景", "部门提出", "效率提升", "P1（重要）");
     }
 
     private String 造人员(String name) {

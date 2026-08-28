@@ -107,10 +107,39 @@ export async function expectContentWithinRegions(page: Page, regionIds: string[]
     const overflow = await page.locator(`[data-region='${id}']`).evaluate((region) => {
       const bounds = region.getBoundingClientRect();
       let worst = { tag: '', cls: '', bottom: bounds.bottom, right: bounds.right };
+
+      /**
+       * 取节点在区域内<b>可见</b>的外沿：若祖先开了 overflow 裁切，用裁切盒收口。
+       *
+       * <p>getBoundingClientRect 返回的是布局盒，不管有没有被 overflow:auto/hidden 裁掉。
+       * 待办清单（V-71）把多出来的行放进滚动容器后，table 的布局底沿会越过 R6，
+       * 但人眼看到的被裁在滚动区内 —— 那正是「可滚动」要的效果，不是内容跑出区域。
+       * 不按裁切盒收口的话，这条断言会把「清单可滚」误判成「内容溢出」。
+       */
+      const visibleBox = (node: Element) => {
+        let bottom = node.getBoundingClientRect().bottom;
+        let right = node.getBoundingClientRect().right;
+        let el: Element | null = node.parentElement;
+        while (el && region.contains(el)) {
+          const style = getComputedStyle(el);
+          const clipsY = style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflowY === 'hidden';
+          const clipsX = style.overflowX === 'auto' || style.overflowX === 'scroll' || style.overflowX === 'hidden';
+          if (clipsY || clipsX) {
+            const clip = el.getBoundingClientRect();
+            if (clipsY) bottom = Math.min(bottom, clip.bottom);
+            if (clipsX) right = Math.min(right, clip.right);
+          }
+          if (el === region) break;
+          el = el.parentElement;
+        }
+        return { bottom, right };
+      };
+
       for (const node of region.querySelectorAll('*')) {
-        const box = node.getBoundingClientRect();
+        const layout = node.getBoundingClientRect();
         // 跳过不可见元素：它们的矩形是 0×0，位置也没有意义
-        if (box.width === 0 && box.height === 0) continue;
+        if (layout.width === 0 && layout.height === 0) continue;
+        const box = visibleBox(node);
         if (box.bottom > worst.bottom || box.right > worst.right) {
           worst = {
             tag: node.tagName.toLowerCase(),

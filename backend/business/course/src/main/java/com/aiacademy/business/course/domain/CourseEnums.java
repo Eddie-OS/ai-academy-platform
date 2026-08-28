@@ -41,12 +41,26 @@ public final class CourseEnums {
     /** 需求 9.3.2 第 19 项。多选，由线下评审决定后标注（议题 26）。 */
     public static final List<String> QUALITY_MARKS = List.of("推荐", "重要", "精品");
 
+    /** 开发页「是否进入课程自检」。只留痕，不写开发状态。 */
+    public static final List<String> YES_NO = List.of("是", "否");
+
+    /** 评审页手选轮数。与自动建档的 {@code round_no} 分开。 */
+    public static final List<String> REVIEW_ROUND_LABELS =
+            List.of("第 1 轮", "第 2 轮", "第 3 轮", "第 4 轮", "第 5 轮");
+
     /** 需求 9.3.3。三类材料都支持多附件。 */
     public static final String MATERIAL_COURSEWARE = "课件";
     public static final String MATERIAL_LESSON_PLAN = "教案";
     public static final String MATERIAL_LAB = "实验材料";
     public static final List<String> MATERIAL_TYPES =
             List.of(MATERIAL_COURSEWARE, MATERIAL_LESSON_PLAN, MATERIAL_LAB);
+
+    /** 材料版本台账状态。不是状态机，不写流转日志。 */
+    public static final String VERSION_STATUS_CURRENT = "生效版本";
+    public static final String VERSION_STATUS_ARCHIVED = "历史归档";
+    public static final String VERSION_STATUS_DEPRECATED = "废弃版本";
+    public static final List<String> VERSION_STATUSES =
+            List.of(VERSION_STATUS_CURRENT, VERSION_STATUS_ARCHIVED, VERSION_STATUS_DEPRECATED);
 
     /**
      * 材料类型 → {@code sys_attachment_ref.ref_field}。
@@ -158,6 +172,15 @@ public final class CourseEnums {
         map.put("课程有效期状态", VALIDITY_STATUSES);
         map.put("课程精品标注", QUALITY_MARKS);
         map.put("课程材料类型", MATERIAL_TYPES);
+        map.put("课程版本状态", VERSION_STATUSES);
+        map.put("是否进入课程自检", YES_NO);
+        map.put("是否提交专家评审", YES_NO);
+        map.put("是否符合要求", YES_NO);
+        map.put("课程评审轮数", REVIEW_ROUND_LABELS);
+        map.put("是否进入试讲环节", YES_NO);
+        map.put("是否进入上会评审环节", YES_NO);
+        map.put("课程是否满足发布要求", YES_NO);
+        map.put("讲师试讲是否合格", YES_NO);
         map.put("课程评审形式", REVIEW_FORMS);
         map.put("课程评审结果", REVIEW_RESULTS);
         map.put("试讲结论", TRIAL_CONCLUSIONS);

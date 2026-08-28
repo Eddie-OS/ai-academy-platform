@@ -22,7 +22,8 @@ import { ApiError } from '@/shared/api/client';
 import { lecturerApi, type Lecturer, type LecturerFilter } from '@/shared/api/lecturers';
 import { DataTable, actionsWidth, type DataTableColumn } from '@/shared/ui/DataTable';
 import { AnalyticsRow, CockpitDetailPanel, CockpitLayout } from '@/shared/ui/CockpitLayout';
-import { LECTURER_METRICS } from '@/shared/metrics/cockpitMetrics';
+import { LECTURER_METRICS, mergeMetricValues } from '@/shared/metrics/cockpitMetrics';
+import { metricsApi } from '@/shared/api/metrics';
 import { PageState } from '@/shared/ui/PageState';
 import { StatusTag } from '@/shared/ui/StatusTag';
 import { EM_DASH, formatDateTime } from '@/shared/format';
@@ -84,6 +85,11 @@ export function LecturerCockpitPage() {
   const page = useQuery({
     queryKey: ['lecturers', filter, pageNum, pageSize],
     queryFn: () => lecturerApi.page(filter, pageNum, pageSize),
+  });
+
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'lecturers'],
+    queryFn: () => metricsApi.quantity('lecturers'),
   });
 
   const detail = useQuery({
@@ -194,7 +200,7 @@ export function LecturerCockpitPage() {
             </Button>
           )
         }
-        metrics={LECTURER_METRICS}
+        metrics={mergeMetricValues(LECTURER_METRICS, quantity.data)}
         filters={
           <Space wrap size={space.xs}>
             <Input.Search

@@ -89,7 +89,7 @@ ON CONFLICT (demand_no) DO NOTHING;
 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                         initiated_date, expect_publish_date, validity_period,
                         main_state, publish_state, created_by, created_at, updated_at)
-VALUES ('KC2026070001', '示例课程（供培训场次挂载）', '内部端到端课程', 'AI_DEMAND', 'E0001',
+VALUES ('KC2026070001', '示例课程（供培训场次挂载）', '内部端到端课程', 'GTM', 'E0001',
         CURRENT_DATE - 60, CURRENT_DATE - 20, '12 个月',
         '发布', '已发布', 'operator', NOW() - INTERVAL '60 days', NOW() - INTERVAL '20 days')
 ON CONFLICT (course_no) DO NOTHING;
@@ -101,7 +101,7 @@ INSERT INTO biz_lecturer (lecturer_no, lecturer_name, employee_no, source_dept,
                           training_state, trial_qualified, pool_state,
                           created_by, created_at, updated_at)
 SELECT 'JS2026070001', e.employee_name, e.employee_no, e.dept_name,
-       '["AI需求"]'::jsonb, '内部端到端课程', '运营手动添加', CURRENT_DATE - 90,
+       '["GTM"]'::jsonb, '内部端到端课程', '运营手动添加', CURRENT_DATE - 90,
        '可上岗', TRUE, '在池',
        'operator', NOW() - INTERVAL '90 days', NOW() - INTERVAL '90 days'
 FROM org_employee e

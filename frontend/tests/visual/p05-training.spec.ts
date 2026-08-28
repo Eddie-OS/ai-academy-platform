@@ -116,7 +116,7 @@ test.describe('P05 培训运营地图', () => {
     await expect(page.locator('[data-state="待开始"]')).toHaveCount(0);
   });
 
-  test('L2 默认选中 5 月 9 日与默认场次，详情标题与签到圆环', async ({ page }) => {
+  test('L2 默认选中 9 日与默认场次，详情标题与签到圆环', async ({ page }) => {
     await expect(page.locator("[data-testid='calendar-day'][data-selected='true']")).toHaveAttribute(
       'data-day',
       '9',
@@ -151,7 +151,7 @@ test.describe('P05 培训运营地图', () => {
     const reminders = page.getByTestId('today-reminders').locator('li');
     await expect(reminders).toHaveCount(3);
     await expect(reminders.nth(0)).toContainText('09:00');
-    await expect(reminders.nth(1)).toContainText('AI工具实战应用');
+    await expect(reminders.nth(1)).toContainText('AI工具实战');
     await expect(page.getByTestId('training-cta')).toContainText('新建培训计划');
   });
 

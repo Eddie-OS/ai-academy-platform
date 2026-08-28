@@ -16,7 +16,7 @@ const REGIONS: Region[] = [
 ];
 
 const KPIS = [
-  { id: 'pending', label: '待发送清单', value: '8' },
+  { id: 'pending', label: '待催办清单', value: '8' },
   { id: 'recordedToday', label: '今日已记台账', value: '128' },
   { id: 'objects', label: '涉及对象', value: '3' },
   { id: 'blocked', label: '防重复拦截', value: '1' },
@@ -73,7 +73,7 @@ test.describe('P08 消息中心（催办记录台账）', () => {
   test('L2 页签按台账来源筛选', async ({ page }) => {
     await page.getByTestId('escalation-tab').filter({ hasText: '手动催办' }).click();
     await expect(page.getByTestId('escalation-row')).toHaveCount(2);
-    await page.getByTestId('escalation-tab').filter({ hasText: '待发送清单' }).click();
+    await page.getByTestId('escalation-tab').filter({ hasText: '待催办清单' }).click();
     await expect(page.getByTestId('escalation-row')).toHaveCount(2);
   });
 

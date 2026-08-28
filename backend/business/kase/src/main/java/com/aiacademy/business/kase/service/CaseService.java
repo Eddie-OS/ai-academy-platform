@@ -13,6 +13,7 @@ import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.common.json.JsonArrays;
+import com.aiacademy.platform.dict.domain.BusinessDomains;
 import com.aiacademy.platform.dict.service.DictQuery;
 import com.aiacademy.platform.people.service.EmployeeService;
 import com.aiacademy.platform.statemachine.domain.machines.CaseStateMachines;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * 案例主表的读写（需求 12.3、12.7）。
@@ -203,16 +203,13 @@ public class CaseService {
      * 三处，案例上架不在其中。硬校验会拦住运营补录历史案例——那些案例的正文可能在别处，
      * 平台上只登记它存在过。
      *
-     * <p>应用领域查字典而不是写枚举（需求 13.9.3）：运营在配置中心新增一个作战单元后，
-     * 案例表单必须立刻能选到它。
+     * <p>应用领域与需求同一套现场口径。历史行仍可能是作战单元编码，那些编码继续合法。
      */
     private void validate(CaseForm form) {
-        Set<String> combatUnits = dicts.enabledCodeSet(DictQuery.TYPE_COMBAT_UNIT);
         for (String domainCode : form.domainCodes()) {
-            if (!combatUnits.contains(domainCode)) {
+            if (!isAllowedDomain(domainCode)) {
                 throw new BizException(ErrorCode.PARAM_INVALID,
-                        "应用领域「%s」不在作战单元字典中，当前可选：%s"
-                                .formatted(domainCode, String.join("、", combatUnits)));
+                        "应用领域只能是：%s".formatted(String.join(" / ", BusinessDomains.NAMES)));
             }
         }
 
@@ -231,6 +228,12 @@ public class CaseService {
                 }
             }
         }
+    }
+
+    private boolean isAllowedDomain(String value) {
+        return BusinessDomains.contains(value)
+                || dicts.enabledCodeSet(DictQuery.TYPE_COMBAT_UNIT).contains(value)
+                || dicts.enabledNameSet(DictQuery.TYPE_COMBAT_UNIT).contains(value);
     }
 
     private void requireEmployee(String employeeNo, String label) {

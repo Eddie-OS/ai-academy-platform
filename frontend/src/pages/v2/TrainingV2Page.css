@@ -58,17 +58,17 @@
 .trn-kpi-label {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .trn-kpi-value {
   color: var(--text-primary);
-  font-size: 22px;
+  font-size: var(--fs-22);
   font-weight: var(--type-kpi-weight);
-  line-height: 28px;
+  line-height: var(--lh-28);
   font-variant-numeric: tabular-nums;
 }
 
@@ -77,8 +77,8 @@
   align-items: baseline;
   gap: var(--space-v2-1);
   color: var(--success);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   font-variant-numeric: tabular-nums;
 }
 
@@ -258,6 +258,32 @@
   cursor: pointer;
 }
 
+.trn-fullscreen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.trn-fullscreen:hover {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.trn-fullscreen[data-active='true'] {
+  background: var(--brand-50);
+  border-color: var(--brand-action);
+  color: var(--brand-action);
+}
+
 .trn-create {
   border: 0;
   background: var(--brand-action);
@@ -315,15 +341,15 @@
 
 .trn-weekday {
   color: var(--text-tertiary);
-  font-size: var(--type-caption-size);
-  line-height: 28px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-28);
   text-align: center;
 }
 
+/* 行数由 JSX 的 gridTemplateRows 给：4～6 行都可能，写死会少掉一整行 */
 .trn-month-body {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(5, 1fr);
   flex: 1;
   min-height: 0;
   gap: 1px;
@@ -341,12 +367,13 @@
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
-  padding: 4px;
+  padding: 3px 4px 2px;
   border: 0;
   background: var(--bg-page);
   text-align: left;
   cursor: pointer;
   font-family: inherit;
+  overflow: hidden;
 }
 
 .trn-cell-muted {
@@ -355,25 +382,46 @@
   cursor: default;
 }
 
+/* 选中用描边、今天用实心圆点：两者会同时出现在一个格子上，不能都靠底色 */
 .trn-cell[data-selected='true'] {
-  background: var(--brand-50);
-  box-shadow: inset 0 0 0 1px var(--brand-primary);
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1.5px var(--brand-action);
+}
+
+.trn-cell-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+}
+
+/* 回归模式去掉「今」徽标，让日号回到原先的直接子级，格子几何不变 */
+html[data-regression] .trn-cell-head {
+  display: contents;
+}
+
+html[data-regression] .trn-cell-badge {
+  display: none;
 }
 
 .trn-cell-day {
-  flex: 0 0 16px;
+  flex: 0 0 18px;
+  width: 18px;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-18);
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
-.trn-cell[data-selected='true'] .trn-cell-day {
+.trn-cell-badge {
+  display: none;
+}
+
+.trn-cell[data-today='true'] .trn-cell-day {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
   border-radius: 50%;
   background: var(--brand-action);
   color: #ffffff;
@@ -382,29 +430,66 @@
 
 .trn-cell-more {
   color: var(--brand-action);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
+  margin-top: auto;
 }
 
 .trn-chip {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 4px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
   box-sizing: border-box;
   max-width: 100%;
-  padding: 2px 4px;
+  min-height: 0;
+  padding: 3px 5px 2px;
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: var(--bg-muted);
+  border-left-width: 3px;
+  border-left-style: solid;
+  background: #f5f7fb;
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 13);
   cursor: pointer;
+  overflow: hidden;
+}
+
+/* 左侧竖条按场次状态着色（11.8）。徽章仍在，色条只是让一屏扫读更快 */
+.trn-chip[data-state='已开课'] {
+  border-color: #bbf7d0;
+  border-left-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.trn-chip[data-state='待开课'] {
+  border-color: #fde68a;
+  border-left-color: #d97706;
+  background: #fffbeb;
+}
+
+.trn-chip[data-state='已结束'] {
+  border-color: #bfdbfe;
+  border-left-color: var(--brand-action);
+  background: #eff4ff;
+}
+
+.trn-chip[data-state='已归档'] {
+  border-color: #e2e8f0;
+  border-left-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .trn-chip[data-selected='true'] {
-  background: var(--brand-100);
   box-shadow: inset 0 0 0 1px var(--brand-action);
+}
+
+.trn-chip-head {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
 }
 
 .trn-chip-time {
@@ -418,23 +503,36 @@
   min-width: 0;
   overflow: hidden;
   color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .trn-chip-meta {
-  flex: 1 1 100%;
   overflow: hidden;
   color: var(--text-tertiary);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.trn-chip .trn-state {
+  align-self: flex-start;
+  margin-top: 1px;
+  height: calc(var(--type-unit) * 14);
+  padding: 0 4px;
+  font-size: var(--fs-9);
+  line-height: calc(var(--type-unit) * 14);
+}
+
 .trn-chip[data-expanded='true'] {
-  flex-direction: column;
-  align-items: flex-start;
   padding: 6px;
   margin-bottom: 4px;
+}
+
+.trn-chip[data-expanded='true'] .trn-state {
+  height: calc(var(--type-unit) * 16);
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 16);
 }
 
 /* 场次状态四色。色点语义由徽章承担，文字用同色相深色过对比度 */
@@ -442,12 +540,12 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  height: 16px;
+  height: calc(var(--type-unit) * 16);
   padding: 0 4px;
   border-radius: var(--radius-tag);
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: var(--type-body-medium-weight);
-  line-height: 16px;
+  line-height: calc(var(--type-unit) * 16);
   white-space: nowrap;
 }
 
@@ -514,7 +612,7 @@
 }
 
 .trn-week-day {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: var(--type-body-medium-weight);
   font-variant-numeric: tabular-nums;
 }
@@ -611,7 +709,7 @@
   border-collapse: collapse;
   table-layout: fixed;
   font-size: var(--type-table-size);
-  line-height: 20px;
+  line-height: var(--lh-20);
 }
 
 .trn-table th,
@@ -655,10 +753,17 @@
   color: var(--text-secondary);
 }
 
+.trn-plan-name {
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
 .trn-attend {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  font-size: var(--fs-11);
   font-variant-numeric: tabular-nums;
 }
 
@@ -667,11 +772,25 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--warning);
+  background: #d97706;
 }
 
 .trn-attend-dot[data-level='full'] {
-  background: var(--success);
+  background: #16a34a;
+}
+
+.trn-attend-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.trn-feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .trn-link {
@@ -681,6 +800,19 @@
   font-family: inherit;
   font-size: var(--type-caption-size);
   cursor: pointer;
+  padding: 0;
+}
+
+.trn-link-more {
+  margin-left: 2px;
+  color: var(--text-tertiary);
+  letter-spacing: -1px;
+}
+
+/* 操作列只有 49px，两个按钮排不下时切掉而不是撑破列宽 */
+.trn-table td[data-col='action'] {
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .trn-pager {
@@ -708,7 +840,7 @@
   background: var(--bg-page);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-11);
   cursor: pointer;
 }
 
@@ -723,12 +855,15 @@
  * =========================================================================== */
 
 .panel.trn-detail {
+  position: relative;
   flex: 0 0 450px;
   width: 450px;
   height: 669px;
   padding: var(--space-v2-3);
   /* 详情比左栏短 44px，靠自身高度而不是 stretch */
   align-self: flex-start;
+  /* CTA 插画故意画出 CTA 卡外沿，由面板兜住，不许溢出 R7 区域 */
+  overflow: hidden;
 }
 
 .trn-detail-head {
@@ -787,7 +922,7 @@
   background: none;
   color: var(--text-tertiary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-12);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -801,32 +936,33 @@
 .trn-detail-body {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  margin-top: var(--space-v2-3);
-  overflow: auto;
+  margin-top: 10px;
+  overflow: hidden;
 }
 
 .trn-detail-grid {
   display: grid;
-  grid-template-columns: 1fr 132px;
-  gap: var(--space-v2-2);
+  grid-template-columns: 1fr 148px;
+  gap: 10px;
   flex: 0 0 auto;
+  align-items: start;
 }
 
 .trn-fields {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 
 .trn-field {
   display: grid;
   grid-template-columns: 64px 1fr;
-  gap: var(--space-v2-2);
-  font-size: var(--type-caption-size);
-  line-height: 18px;
+  gap: 6px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .trn-field dt {
@@ -845,12 +981,16 @@
   flex-direction: column;
   align-items: center;
   min-width: 0;
+  padding: 10px 8px 8px;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  background: #fafbfc;
 }
 
 .trn-ring-chart {
   position: relative;
-  width: 132px;
-  height: 132px;
+  width: 112px;
+  height: 112px;
 }
 
 .trn-ring-center {
@@ -865,44 +1005,90 @@
 
 .trn-ring-value {
   color: var(--text-primary);
-  font-size: 22px;
+  font-size: var(--fs-22);
   font-weight: 600;
-  line-height: 28px;
+  line-height: var(--lh-26);
   font-variant-numeric: tabular-nums;
 }
 
 .trn-ring-label {
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-14);
 }
 
-.trn-ring-caption {
-  margin-top: 2px;
+.trn-ring-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
-  text-align: center;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+}
+
+.trn-ring-stats b {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
   font-variant-numeric: tabular-nums;
+}
+
+.trn-ring-link,
+.trn-module-link {
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  cursor: pointer;
+  padding: 0;
+}
+
+.trn-detail-modules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-top: 12px;
 }
 
 .trn-import-result,
 .trn-reminders {
-  flex: 0 0 auto;
-  margin-top: var(--space-v2-3);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e8ecf2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .trn-block-title {
-  margin-bottom: var(--space-v2-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
   color: var(--text-primary);
-  font-size: var(--type-table-size);
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
+}
+
+.trn-import-time {
+  margin: 0 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
 }
 
 .trn-import-result ul {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-v2-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -910,37 +1096,86 @@
 
 .trn-import-result li {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-  border-radius: var(--radius-control);
-  background: var(--bg-muted);
-  color: var(--text-tertiary);
-  font-size: 11px;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+}
+
+.trn-import-dot {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-action);
+}
+
+.trn-import-dot[data-label='覆盖更新'] {
+  background: #f59e0b;
+}
+
+.trn-import-dot[data-label='自动补入'] {
+  background: #ef4444;
+}
+
+.trn-import-label {
+  flex: 1;
+  min-width: 0;
 }
 
 .trn-import-result strong {
   color: var(--text-primary);
-  font-size: 16px;
-  font-weight: var(--type-body-medium-weight);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.trn-import-result strong em {
+  margin-left: 1px;
+  font-style: normal;
+  font-size: var(--fs-11);
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.trn-import-result .trn-module-link {
+  margin-top: 10px;
+  align-self: flex-start;
+}
+
+.trn-reminder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 22px;
+  height: calc(var(--type-unit) * 18);
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 18);
   font-variant-numeric: tabular-nums;
 }
 
 .trn-reminders ol {
   display: flex;
   flex-direction: column;
-  gap: var(--space-v2-2);
-  margin: 0;
+  gap: 10px;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .trn-reminders li {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-v2-2);
-  font-size: var(--type-caption-size);
+  gap: 6px;
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
 }
 
 .trn-reminder-time {
@@ -955,56 +1190,94 @@
   text-overflow: ellipsis;
 }
 
+/* CTA 卡高度锁死 200：插画比卡高，靠 z-index 压在卡上、由面板裁边 */
 .trn-cta {
+  position: relative;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: var(--space-v2-3);
-  flex: 0 0 auto;
+  gap: 12px;
+  flex: 0 0 200px;
+  width: 100%;
+  height: 200px;
+  max-height: 200px;
   margin-top: auto;
-  padding: var(--space-v2-3);
-  border-radius: var(--radius-control);
-  background: var(--brand-50);
-}
-
-.trn-cta-art {
-  flex: 0 0 64px;
-  width: 64px;
-  height: auto;
-  object-fit: contain;
+  padding: 12px 12px 12px 20px;
+  border: 1px solid #e8ecf2;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: visible;
+  z-index: 2;
 }
 
 .trn-cta-text {
-  flex: 1;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 1 50%;
+  max-width: 50%;
   min-width: 0;
+  padding: 0;
 }
 
 .trn-cta-title {
   color: var(--text-primary);
-  font-size: var(--type-table-size);
+  font-size: var(--fs-15);
   font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-22);
 }
 
 .trn-cta-body {
-  margin-top: 2px;
+  margin-top: 8px;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .trn-cta-action {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
+  flex-shrink: 0;
   gap: 4px;
-  height: 28px;
-  margin-top: var(--space-v2-2);
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--brand-action);
-  color: #ffffff;
+  height: 32px;
+  margin-top: 14px;
+  padding: 0 14px;
+  border: 1px solid var(--brand-action);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--brand-action);
   font-family: inherit;
-  font-size: var(--type-caption-size);
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  white-space: nowrap;
   cursor: pointer;
+}
+
+.trn-cta-art-wrap {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  width: 220px;
+  height: 280px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.trn-cta-art {
+  display: block;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 280px;
+  width: auto;
+  max-width: none;
 }
 
 /* ===========================================================================
@@ -1063,4 +1336,152 @@ html:not([data-regression]) .panel.trn-detail {
 
 html:not([data-regression]) .trn-table {
   width: 100%;
+}
+
+/* ===========================================================================
+ * 产品模式月历：学总裁日程看板——单行场次条、周末底、全屏吃满正文
+ * =========================================================================== */
+
+html:not([data-regression]) .trn-nav-label[data-view='周'],
+html:not([data-regression]) .trn-nav-label[data-view='日'] {
+  min-width: 132px;
+}
+
+html:not([data-regression]) .trn-weekday[data-weekend='true'] {
+  color: var(--danger);
+}
+
+html:not([data-regression]) .trn-cell[data-weekend='true']:not([data-selected='true']) {
+  background: #fff6f6;
+}
+
+html:not([data-regression]) .trn-cell[data-weekend='true'] .trn-cell-day {
+  color: var(--danger);
+}
+
+html:not([data-regression]) .trn-cell-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand-action);
+  color: #ffffff;
+  font-size: var(--fs-10);
+  font-weight: var(--type-body-medium-weight);
+  line-height: 16px;
+}
+
+html:not([data-regression]) .trn-cell[data-today='true'] .trn-cell-day {
+  width: auto;
+  border-radius: 0;
+  background: transparent;
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+html:not([data-regression]) .trn-cell[data-today='true']:not([data-selected='true']) {
+  background: var(--brand-50);
+  box-shadow: inset 0 0 0 1.5px rgba(57, 116, 250, 0.35);
+}
+
+html:not([data-regression]) .trn-chip:not([data-expanded='true']) {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0 5px;
+}
+
+html:not([data-regression]) .trn-chip:not([data-expanded='true']) .trn-chip-meta,
+html:not([data-regression]) .trn-chip:not([data-expanded='true']) .trn-state {
+  display: none;
+}
+
+html:not([data-regression]) .trn-week {
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+}
+
+html:not([data-regression]) .trn-week-col {
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+html:not([data-regression]) .trn-week-col[data-weekend='true'] {
+  background: #fff6f6;
+}
+
+html:not([data-regression]) .trn-week-col[data-today='true'],
+html:not([data-regression]) .trn-week-col[data-selected='true'] {
+  border-color: var(--brand-action);
+  box-shadow: inset 0 0 0 1px var(--brand-action);
+  background: var(--brand-50);
+}
+
+html:not([data-regression]) .trn-week-empty {
+  margin: auto;
+  color: var(--text-placeholder);
+  font-size: var(--fs-11);
+  text-align: center;
+}
+
+html:not([data-regression]) .trn-week-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+/* 全屏：锁壳层高度，日历吃掉 KPI／列表／详情腾出的空间 */
+html:not([data-regression]) .shell[data-page='training']:has(.trn[data-fullscreen='true']) {
+  height: 100vh;
+  overflow: hidden;
+}
+
+html:not([data-regression]) .shell[data-page='training']:has(.trn[data-fullscreen='true']) .shell-main {
+  min-height: 0;
+}
+
+html:not([data-regression]) .shell[data-page='training']:has(.trn[data-fullscreen='true']) .shell-content {
+  overflow: hidden;
+}
+
+html:not([data-regression]) .trn[data-fullscreen='true'] {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+html:not([data-regression]) .trn[data-fullscreen='true'] .trn-toolbar {
+  flex: 0 0 48px;
+  width: auto;
+}
+
+html:not([data-regression]) .trn[data-fullscreen='true'] .trn-main {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+html:not([data-regression]) .trn[data-fullscreen='true'] .trn-left {
+  flex: 1 1 auto;
+  width: auto;
+  min-height: 0;
+}
+
+html:not([data-regression]) .trn[data-fullscreen='true'] .panel.trn-calendar {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+html:not([data-regression]) .trn[data-fullscreen='true'] .trn-month-body {
+  grid-auto-rows: minmax(160px, 1fr);
 }

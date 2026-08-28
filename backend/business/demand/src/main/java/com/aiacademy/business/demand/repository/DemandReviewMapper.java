@@ -33,9 +33,9 @@ public interface DemandReviewMapper {
 
     @Select("""
             INSERT INTO dtl_demand_review (demand_id, round_no, review_date, review_conclusion,
-                                           review_opinion, created_by, updated_by)
+                                           review_opinion, remark, created_by, updated_by)
             VALUES (#{demandId}, #{roundNo}, #{reviewDate}, #{reviewConclusion},
-                    #{reviewOpinion}, #{operator}, #{operator})
+                    #{reviewOpinion}, #{remark}, #{operator}, #{operator})
             RETURNING id
             """)
     long insert(@Param("demandId") long demandId,
@@ -43,12 +43,13 @@ public interface DemandReviewMapper {
                 @Param("reviewDate") LocalDate reviewDate,
                 @Param("reviewConclusion") String reviewConclusion,
                 @Param("reviewOpinion") String reviewOpinion,
+                @Param("remark") String remark,
                 @Param("operator") String operator);
 
     /** 详情页「评审信息」页签，最新一轮在前。 */
     @Select("""
             SELECT id, demand_id, round_no, review_date, review_conclusion, review_opinion,
-                   created_at, created_by
+                   remark, created_at, created_by
               FROM dtl_demand_review
              WHERE demand_id = #{demandId} AND deleted = FALSE
              ORDER BY round_no DESC

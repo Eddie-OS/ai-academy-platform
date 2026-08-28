@@ -3,9 +3,12 @@ package com.aiacademy.business.course.service;
 import com.aiacademy.business.course.domain.CourseEnums;
 import com.aiacademy.business.course.domain.CourseMaterialVersion;
 import com.aiacademy.business.course.domain.CourseMaterialVersionFile;
+import com.aiacademy.business.course.domain.CourseVersionLedgerForm;
 import com.aiacademy.business.course.repository.CourseMapper;
 import com.aiacademy.business.course.repository.CourseVersionMapper;
+import com.aiacademy.common.api.ErrorCode;
 import com.aiacademy.common.audit.OperatorContext;
+import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.platform.storage.domain.AttachmentOwnerType;
 import com.aiacademy.platform.storage.service.AttachmentService;
@@ -96,6 +99,40 @@ public class CourseVersionService {
     @Transactional(readOnly = true)
     public CourseMaterialVersion latest(long courseId) {
         return versions.findLatest(courseId);
+    }
+
+    /**
+     * 保存版本台账。不改 {@code version_no}、不删文件、不写流转日志、不动课程五个状态列。
+     */
+    @Transactional
+    public CourseMaterialVersion saveLedger(long courseId, long versionId, CourseVersionLedgerForm form) {
+        if (versions.findByCourseAndId(courseId, versionId) == null) {
+            throw new NotFoundException("材料版本不存在或已删除：" + versionId);
+        }
+        String status = blankToNull(form.versionStatus());
+        if (status != null && !CourseEnums.VERSION_STATUSES.contains(status)) {
+            throw new BizException(ErrorCode.PARAM_INVALID,
+                    "版本状态只能是：%s".formatted(String.join(" / ", CourseEnums.VERSION_STATUSES)));
+        }
+        String operator = OperatorContext.current().account().name();
+        versions.updateLedger(courseId, versionId,
+                blankToNull(form.versionLabel()),
+                status,
+                blankToNull(form.ownerNo()),
+                form.updatedDate(),
+                blankToNull(form.coursewareUrl()),
+                blankToNull(form.recordingUrl()),
+                blankToNull(form.remark()),
+                operator);
+        CourseMaterialVersion saved = versions.findByCourseAndId(courseId, versionId);
+        if (saved == null) {
+            throw new NotFoundException("材料版本不存在或已删除：" + versionId);
+        }
+        return saved;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

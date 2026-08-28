@@ -56,6 +56,16 @@ public final class CourseStateMachines {
     public static final Set<String> MAIN_STATES_SCHEDULABLE =
             Set.of(MAIN_PUBLISHED, MAIN_PROMOTION, MAIN_QUALIFIED_CASE);
 
+    /**
+     * 待办类查询要用到的三个在办状态（待催办清单的课程维度：待评审、待试讲、待优化）。
+     *
+     * <p>与 {@link #MAIN_STATES_SCHEDULABLE} 同理：状态值留在本模块，调用方引用常量并作为参数
+     * 传给 SQL，不在 Mapper 里写死。一致性由 {@code StateLiteralGuardTest} 断言。
+     */
+    public static final String MAIN_REVIEW_DECISION = "评审决策";
+    public static final String MAIN_OPTIMIZE = "优化";
+    public static final String TRIAL_PENDING = "待试讲";
+
     private CourseStateMachines() {
     }
 

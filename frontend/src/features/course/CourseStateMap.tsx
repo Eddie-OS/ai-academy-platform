@@ -7,6 +7,7 @@ import { COURSE_OBJECT_TYPE, courseApi, type Course, type CourseFilter } from '@
 import { actionTo, fieldOf, transitionApi, type ActionOption, type ObjectStateView } from '@/shared/api/transitions';
 import { useIsOperator } from '@/shared/store/authStore';
 import { brand, elevation, fontSize, neutral, radius, space } from '@/shared/theme/designTokens';
+import { invalidateCourseListAndMetrics } from '@/features/course/courseFilters';
 import { COURSE_OBJECT_TYPE_CODE, COURSE_STATE_FIELDS, useMachines } from '@/features/course/courseMeta';
 import { DELEGATED_ACTIONS } from '@/features/course/CourseTransitionPanel';
 
@@ -86,7 +87,7 @@ export function CourseStateMap({ filter, onSelect, activeId }: CourseStateMapPro
     onSuccess: (result) => {
       message.success(`${pending?.course.courseName} 已变更为「${result.toState}」`);
       setPending(null);
-      void queryClient.invalidateQueries({ queryKey: ['courses'] });
+      invalidateCourseListAndMetrics(queryClient);
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '状态变更失败，请重试'),
   });

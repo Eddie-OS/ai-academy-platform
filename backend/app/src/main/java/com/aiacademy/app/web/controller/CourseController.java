@@ -1,10 +1,20 @@
 package com.aiacademy.app.web.controller;
 
+import com.aiacademy.aggregate.warning.domain.WarningLightView;
 import com.aiacademy.app.application.CourseApplicationService;
 import com.aiacademy.app.application.DemandCourseLinkService;
+import com.aiacademy.app.export.ExportPaging;
+import com.aiacademy.app.export.ListExportService;
 import com.aiacademy.app.repository.DemandCourseLinkMapper;
+import com.aiacademy.app.web.WarningLightAssembler;
 import com.aiacademy.app.web.dto.CourseVO;
+import com.aiacademy.platform.statemachine.domain.machines.CourseStateMachines;
 import com.aiacademy.business.course.domain.CourseForm;
+import com.aiacademy.business.course.domain.CourseDevelopmentForm;
+import com.aiacademy.business.course.domain.CourseInitiationForm;
+import com.aiacademy.business.course.domain.CourseReviewLedgerForm;
+import com.aiacademy.business.course.domain.CourseSelfcheckInfoForm;
+import com.aiacademy.business.course.domain.CourseTrialLedgerForm;
 import com.aiacademy.business.course.domain.CourseListItem;
 import com.aiacademy.business.course.domain.CourseQuery;
 import com.aiacademy.business.course.service.CourseService;
@@ -26,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 课程列表与详情（需求 9.3、9.10，页面 P2-1／P2-2）。
@@ -45,12 +56,18 @@ public class CourseController {
     private final CourseService courses;
     private final CourseApplicationService application;
     private final DemandCourseLinkService links;
+    private final WarningLightAssembler warningLights;
+    private final ListExportService exports;
 
     public CourseController(CourseService courses, CourseApplicationService application,
-                            DemandCourseLinkService links) {
+                            DemandCourseLinkService links,
+                            WarningLightAssembler warningLights,
+                            ListExportService exports) {
         this.courses = courses;
         this.application = application;
         this.links = links;
+        this.warningLights = warningLights;
+        this.exports = exports;
     }
 
     /** 课程立项（需求 9.4）。返回新课程的主键，前端据此跳详情页。 */
@@ -72,6 +89,51 @@ public class CourseController {
                           @RequestParam(required = false) Integer version,
                           @Valid @RequestBody CourseForm form) {
         application.update(id, form, version);
+        return R.ok(null);
+    }
+
+    /** 详情「立项」页整页保存。不改课程主状态。 */
+    @WriteApi
+    @PutMapping("/{id}/initiation")
+    public R<Void> saveInitiation(@PathVariable long id,
+                                  @Valid @RequestBody CourseInitiationForm form) {
+        courses.saveInitiation(id, form);
+        return R.ok(null);
+    }
+
+    /** 详情「开发」页整页保存。不改课程开发状态。 */
+    @WriteApi
+    @PutMapping("/{id}/development")
+    public R<Void> saveDevelopment(@PathVariable long id,
+                                   @Valid @RequestBody CourseDevelopmentForm form) {
+        courses.saveDevelopment(id, form);
+        return R.ok(null);
+    }
+
+    /** 详情「自检」页台账保存。不改课程自检子状态。 */
+    @WriteApi
+    @PutMapping("/{id}/selfcheck-info")
+    public R<Void> saveSelfcheckInfo(@PathVariable long id,
+                                     @Valid @RequestBody CourseSelfcheckInfoForm form) {
+        courses.saveSelfcheckInfo(id, form);
+        return R.ok(null);
+    }
+
+    /** 详情「评审」页台账保存。不改课程主状态与评审记录状态。 */
+    @WriteApi
+    @PutMapping("/{id}/review-ledger")
+    public R<Void> saveReviewLedger(@PathVariable long id,
+                                    @Valid @RequestBody CourseReviewLedgerForm form) {
+        courses.saveReviewLedger(id, form);
+        return R.ok(null);
+    }
+
+    /** 详情「试讲」页台账保存。不改五个状态列。 */
+    @WriteApi
+    @PutMapping("/{id}/trial-ledger")
+    public R<Void> saveTrialLedger(@PathVariable long id,
+                                   @Valid @RequestBody CourseTrialLedgerForm form) {
+        courses.saveTrialLedger(id, form);
         return R.ok(null);
     }
 
@@ -107,13 +169,42 @@ public class CourseController {
     @GetMapping
     public R<PageResult<CourseVO>> list(CourseQuery query) {
         PageResult<CourseListItem> page = courses.page(query);
-        return R.ok(new PageResult<>(page.records().stream().map(CourseVO::of).toList(),
+        Map<Long, WarningLightView> lights = warningLights.index(
+                CourseStateMachines.OBJECT_TYPE,
+                page.records().stream().map(CourseListItem::getId).toList());
+        return R.ok(new PageResult<>(page.records().stream()
+                .map(c -> CourseVO.of(c, lights.getOrDefault(c.getId(),
+                        WarningLightView.none(CourseStateMachines.OBJECT_TYPE, c.getId()))))
+                .toList(),
                 page.total(), page.pageNum(), page.pageSize()));
+    }
+
+    @GetMapping("/export")
+    public Object export(CourseQuery query) {
+        query.setPageNum(1);
+        query.setPageSize(1);
+        long total = courses.page(query).total();
+        query.setPageSize(200);
+        List<String> headers = List.of("课程ID", "课程名称", "主状态", "负责人", "预计发布");
+        var result = exports.exportAll("courses", query, total,
+                () -> ExportPaging.loadAll(query::setPageNum, 200, ignored -> courses.page(query)),
+                headers,
+                c -> ListExportService.row(
+                        "课程ID", c.getId(),
+                        "课程名称", c.getCourseName(),
+                        "主状态", c.getMainState(),
+                        "负责人", c.getOwnerName(),
+                        "预计发布", c.getExpectPublishDate()));
+        if (result.async()) {
+            return R.ok(Map.of("async", true, "taskId", result.taskId()));
+        }
+        return result.syncBody();
     }
 
     @GetMapping("/{id}")
     public R<CourseVO> detail(@PathVariable long id) {
-        return R.ok(CourseVO.of(courses.get(id)));
+        return R.ok(CourseVO.of(courses.get(id),
+                warningLights.one(CourseStateMachines.OBJECT_TYPE, id)));
     }
 
     // -------------------------------------------------------------------------

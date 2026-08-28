@@ -594,30 +594,33 @@ function DetailPanel({ selectedId }: { selectedId: string }) {
         ))}
       </nav>
 
+      {/* 正文三块单独包一层滚动区，总结报告留在滚动区外，见 CSS 里 .cse-detail-scroll 的说明 */}
       <div className="cse-detail-body">
-        <div className="cse-body-block" data-testid="case-body-block">
-          <h3>背景与目标</h3>
-          <p>{CASE_DETAIL.summary}</p>
-        </div>
+        <div className="cse-detail-scroll">
+          <div className="cse-body-block" data-testid="case-body-block">
+            <h3>背景与目标</h3>
+            <p>{CASE_DETAIL.summary}</p>
+          </div>
 
-        <div className="cse-body-block" data-testid="case-body-block">
-          <h3>关键成果</h3>
-          <ul className="cse-outcome-list">
-            {CASE_DETAIL.outcomes.map((item) => (
-              <li key={item}>
-                <Check size={12} strokeWidth={2.2} aria-hidden />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+          <div className="cse-body-block" data-testid="case-body-block">
+            <h3>关键成果</h3>
+            <ul className="cse-outcome-list">
+              {CASE_DETAIL.outcomes.map((item) => (
+                <li key={item}>
+                  <Check size={12} strokeWidth={2.2} aria-hidden />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        <div className="cse-body-block" data-testid="case-body-block">
-          <h3>适用人群</h3>
-          <div className="cse-audience">
-            {CASE_DETAIL.audiences.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
+          <div className="cse-body-block" data-testid="case-body-block">
+            <h3>适用人群</h3>
+            <div className="cse-audience">
+              {CASE_DETAIL.audiences.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -627,7 +630,6 @@ function DetailPanel({ selectedId }: { selectedId: string }) {
             <span>AI 生成于 {CASE_DETAIL.reportGeneratedAt}</span>
           </div>
           <div className="cse-report-body">
-            <img className="cse-report-art" src={ASSETS.A08} alt="" aria-hidden />
             <div className="cse-report-text">
               <p className="cse-report-label">核心亮点</p>
               <ul>
@@ -642,6 +644,7 @@ function DetailPanel({ selectedId }: { selectedId: string }) {
                 ))}
               </ul>
             </div>
+            <img className="cse-report-art" src={ASSETS.A08} alt="" aria-hidden />
           </div>
         </div>
       </div>

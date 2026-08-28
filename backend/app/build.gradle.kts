@@ -33,6 +33,8 @@ dependencies {
     implementation(libs.mybatis.plus)
     implementation(libs.flyway.core)
     implementation(libs.springdoc.webmvc)
+    // 列表导出（开发 5.11.2）：与导入共用 EasyExcel，必须流式写
+    implementation(libs.easyexcel)
 
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.flyway.postgresql)

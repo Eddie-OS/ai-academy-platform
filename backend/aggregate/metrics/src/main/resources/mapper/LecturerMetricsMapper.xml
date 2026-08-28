@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  需求 15.3。授课从场次派生（M-1）；R10：正式评分 ≠ 试讲反馈。
+-->
+<mapper namespace="com.aiacademy.aggregate.metrics.repository.LecturerMetricsMapper">
+
+    <select id="teachingCountByLecturer" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session
+         WHERE deleted = FALSE
+           AND lecturer_id = #{lecturerId}
+           AND session_state IN
+           <foreach collection="finishedStates" item="s" open="(" separator="," close=")">#{s}</foreach>
+    </select>
+
+    <select id="attendeeSumByLecturer" resultType="long">
+        SELECT COALESCE(SUM(attendee_count), 0) FROM (
+            SELECT (SELECT COUNT(*)
+                      FROM dtl_attendance a
+                     WHERE a.session_id = s.id
+                       AND a.deleted = FALSE
+                       AND a.attend_status = #{attendPresent}) AS attendee_count
+              FROM biz_training_session s
+             WHERE s.deleted = FALSE
+               AND s.lecturer_id = #{lecturerId}
+               AND s.session_state IN
+               <foreach collection="finishedStates" item="s" open="(" separator="," close=")">#{s}</foreach>
+        ) t
+    </select>
+
+    <select id="avgScoreByLecturer" resultType="java.math.BigDecimal">
+        SELECT ROUND(AVG(f.score)::NUMERIC, 1)
+          FROM dtl_training_feedback f
+          JOIN biz_training_session s ON s.id = f.session_id AND s.deleted = FALSE
+         WHERE f.deleted = FALSE
+           AND s.lecturer_id = #{lecturerId}
+    </select>
+
+    <select id="avgScoreByLecturerSession" resultType="java.math.BigDecimal">
+        SELECT ROUND(AVG(f.score)::NUMERIC, 1)
+          FROM dtl_training_feedback f
+          JOIN biz_training_session s ON s.id = f.session_id AND s.deleted = FALSE
+         WHERE f.deleted = FALSE
+           AND s.lecturer_id = #{lecturerId}
+           AND f.session_id = #{sessionId}
+    </select>
+
+    <select id="avgGlobalLecturerScore" resultType="java.math.BigDecimal">
+        SELECT ROUND(AVG(score)::NUMERIC, 1)
+          FROM dtl_training_feedback
+         WHERE deleted = FALSE
+    </select>
+
+    <select id="avgTrialFeedbackScore" resultType="java.math.BigDecimal">
+        SELECT ROUND(AVG(score)::NUMERIC, 1)
+          FROM dtl_trial_feedback
+         WHERE deleted = FALSE
+           AND trial_id = #{trialId}
+    </select>
+
+</mapper>

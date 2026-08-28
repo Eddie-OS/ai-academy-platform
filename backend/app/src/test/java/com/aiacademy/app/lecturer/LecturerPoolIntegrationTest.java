@@ -100,7 +100,7 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
         assertThatThrownBy(() -> lecturers.createManually(
                 表单("领域讲师", employeeNo).领域("凭空捏造的领域").build()))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("不在作战单元字典中");
+                .hasMessageContaining("擅长领域只能是");
 
         long id = lecturers.createManually(表单("领域讲师", employeeNo).领域(启用中的作战单元()).build());
         assertThat(lecturers.detail(id).getExpertiseDomains())
@@ -303,7 +303,7 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
 
     private CourseForm 课程表单(String name, String ownerNo) {
         return new CourseForm(name, "内部端到端课程", 启用中的作战单元编码(), ownerNo,
-                LocalDate.now(), LocalDate.now().plusDays(30), null, null, null, null,
+                LocalDate.now(), LocalDate.now().plusDays(30), null, null, null, null, null, null,
                 "长期有效", null, List.of());
     }
 
@@ -338,11 +338,12 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
         long courseId = jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        initiation_no, main_state, created_by)
                 VALUES (?, '统计用课程', '内部端到端课程', 'COURSE', ?, CURRENT_DATE,
-                        CURRENT_DATE + 30, '长期有效', '发布', 'operator')
+                        CURRENT_DATE + 30, '长期有效', ?, '发布', 'operator')
                 RETURNING id
-                """, Long.class, "KC" + System.nanoTime(), 造人员("统计课负责人", "客服中心"));
+                """, Long.class, "KC" + System.nanoTime(), 造人员("统计课负责人", "客服中心"),
+                "LI" + System.nanoTime());
         long planId = jdbc.queryForObject("""
                 INSERT INTO biz_training_plan (plan_no, plan_name, course_id, owner_no, target_scope,
                                                plan_start_date, plan_end_date, plan_state, created_by)

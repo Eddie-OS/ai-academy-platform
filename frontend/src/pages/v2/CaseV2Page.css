@@ -61,17 +61,17 @@
 .cse-kpi-label {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .cse-kpi-value {
   color: var(--text-primary);
-  font-size: 22px;
+  font-size: var(--fs-22);
   font-weight: var(--type-kpi-weight);
-  line-height: 28px;
+  line-height: var(--lh-28);
   font-variant-numeric: tabular-nums;
 }
 
@@ -79,8 +79,8 @@
   display: flex;
   gap: var(--space-v2-1);
   color: var(--success);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   font-variant-numeric: tabular-nums;
 }
 
@@ -239,14 +239,18 @@
  * R5 案例库：215,243,985,265
  * =========================================================================== */
 
+/*
+ * 竖向内边距收到 10px：案例库净高只有 265px，标题行 + 五张卡要在里面排完。
+ * 用满 12px 时卡片高度不够，封面会被压到 88px 以下，卡面读成「小条图」。
+ */
 .panel.cse-library {
   flex: 0 0 265px;
   height: 265px;
-  padding: var(--space-v2-3);
+  padding: 10px 12px;
 }
 
 .cse-library-head {
-  margin-bottom: var(--space-v2-2);
+  margin-bottom: 6px;
 }
 
 .cse-view-switch {
@@ -283,14 +287,21 @@
   overflow: hidden;
 }
 
+/*
+ * 五张卡等分案例库净宽，两种模式都一样。
+ * 锁死 177px 的话回归模式下 5×177 + 4×12 = 933，比案例库净宽 959 短 26px，
+ * 右边留一条白边；产品模式左栏更宽，白边会变成半屏。设计稿标的 177 是
+ * 1440 基准下的换算值，铺满才是它想表达的版式。
+ */
 .cse-card {
   display: flex;
   flex-direction: column;
-  flex: 0 0 177px;
+  flex: 1 1 0;
   box-sizing: border-box;
-  width: 177px;
+  width: auto;
+  min-width: 0;
   height: 100%;
-  max-height: 210px;
+  max-height: none;
   border: var(--border-v2);
   border-radius: var(--radius-control);
   background: var(--bg-page);
@@ -306,11 +317,14 @@
 /*
  * 封面约占卡高一半以上（设计稿卡片是「上图下文」）。
  * 原先 88px 只到 42%，卡面读成「小条图 + 大段字」，和截图比例差一截。
+ * 正文行数固定，封面吃掉剩下的高度：卡片被拉高时长的是图而不是行距。
+ * min-height 88px 是「还看得出是张图」的下限。
  */
 .cse-card-cover {
   position: relative;
-  flex: 0 0 112px;
-  height: 112px;
+  flex: 1 1 112px;
+  min-height: 88px;
+  height: auto;
   background: var(--bg-muted);
   overflow: hidden;
 }
@@ -329,16 +343,16 @@
   border-radius: var(--radius-tag);
   background: var(--warning);
   color: #ffffff;
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: var(--type-body-medium-weight);
-  line-height: 16px;
+  line-height: var(--lh-16);
 }
 
 .cse-card-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   padding: 6px 8px 8px;
 }
@@ -346,9 +360,9 @@
 .cse-card-title {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
-  line-height: 18px;
+  line-height: var(--lh-18);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -356,8 +370,8 @@
 .cse-card-domain {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -375,8 +389,8 @@
   border-radius: var(--radius-tag);
   background: var(--brand-50);
   color: var(--brand-action);
-  font-size: 10px;
-  line-height: 16px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-16);
   white-space: nowrap;
 }
 
@@ -385,8 +399,8 @@
   gap: 8px;
   margin-top: 2px;
   color: var(--text-tertiary);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
   font-variant-numeric: tabular-nums;
 }
 
@@ -402,8 +416,8 @@
   gap: 4px;
   margin-top: auto;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .cse-state::before {
@@ -434,7 +448,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--type-table-size);
-  line-height: 20px;
+  line-height: var(--lh-20);
 }
 
 .cse-list-table th,
@@ -475,21 +489,22 @@
 .cse-analytics-col {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
 }
 
+/* 圆环列不再收窄：图例「点赞 84.7%」在 0.9 倍宽下会被挤到折行 */
 .cse-donut-col {
-  flex: 0.9;
+  flex: 1 1 0;
 }
 
 .cse-inset-title {
   flex: 0 0 auto;
   margin-bottom: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
-  line-height: 18px;
+  line-height: var(--lh-18);
   white-space: nowrap;
 }
 
@@ -520,14 +535,14 @@
 
 .cse-donut-center span {
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .cse-donut-center small {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--fs-10);
 }
 
 .cse-donut-legend {
@@ -545,7 +560,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 .cse-legend-dot {
@@ -564,10 +579,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * 五行排行的行距由 space-evenly 分，不用固定 gap：
+ * 面板高度在产品模式下会变，固定 gap 时多出来的高度全堆在列表下方，
+ * 排行看起来贴着标题、下面空一块。
+ */
 .cse-rank {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-evenly;
+  gap: 0;
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -581,8 +602,8 @@
   grid-template-columns: 18px 1fr auto;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-18);
 }
 
 .cse-rank-no {
@@ -636,12 +657,17 @@
 .cse-coverage-col {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
 }
 
+/* 表列自己不伸缩（表宽钉 480），列容器负责把「共 N 个部门」压到底 */
 .cse-coverage-table-col {
+  display: flex;
+  flex-direction: column;
   flex: 0 0 480px;
+  width: 480px;
+  min-width: 0;
 }
 
 .cse-coverage-delta {
@@ -650,10 +676,12 @@
   font-weight: var(--type-body-weight);
 }
 
+/* 两组八行同样靠 space-evenly 撑开，理由同 .cse-rank */
 .cse-heat {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  justify-content: space-evenly;
+  gap: 6px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -666,23 +694,25 @@
   gap: 4px;
 }
 
+/* 部门名列与百分比列按 --type-unit 计价：字号跟着窗口长大而列宽锁在 64px 时，
+   「客户服务」「人才发展」全部被截成「客户服…」，而部门名是这张图唯一的坐标轴 */
 .cse-heat-row {
   display: grid;
-  grid-template-columns: 64px 1fr 36px;
+  grid-template-columns: calc(var(--type-unit) * 64) 1fr calc(var(--type-unit) * 36);
   align-items: center;
   gap: 6px;
 }
 
 .cse-heat-row-child {
   padding-left: 8px;
-  grid-template-columns: 56px 1fr 36px;
+  grid-template-columns: calc(var(--type-unit) * 56) 1fr calc(var(--type-unit) * 36);
 }
 
 .cse-heat-name {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -715,8 +745,8 @@
 
 .cse-heat-rate {
   color: var(--text-tertiary);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -728,15 +758,16 @@
 
 .cse-coverage-table {
   width: 480px;
+  flex: 0 0 auto;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-18);
 }
 
 .cse-coverage-table th,
 .cse-coverage-table td {
-  height: 26px;
+  height: 28px;
   padding: 0 6px;
   border-bottom: 1px solid var(--border-light);
   text-align: left;
@@ -759,7 +790,7 @@
 .cse-coverage-pager {
   margin-top: auto;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 /* ===========================================================================
@@ -778,10 +809,10 @@
   align-items: center;
   justify-content: space-between;
   flex: 0 0 auto;
-  margin-bottom: var(--space-v2-2);
+  margin-bottom: 6px;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .cse-detail-caption strong {
@@ -794,7 +825,7 @@
   background: none;
   color: var(--brand-action);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-11);
   cursor: pointer;
 }
 
@@ -822,13 +853,13 @@
   color: var(--text-primary);
   font-size: var(--type-table-size);
   font-weight: var(--type-panel-title-weight);
-  line-height: 20px;
+  line-height: var(--lh-20);
 }
 
 .cse-detail-domain {
   margin-top: 2px;
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 .cse-detail-tags {
@@ -846,19 +877,19 @@
   display: flex;
   flex: 0 0 auto;
   gap: 2px;
-  margin-top: var(--space-v2-3);
+  margin-top: 8px;
   border-bottom: var(--border-v2);
 }
 
 .cse-tab {
-  height: 30px;
+  height: 28px;
   padding: 0 8px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: none;
   color: var(--text-tertiary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-12);
   cursor: pointer;
 }
 
@@ -868,12 +899,24 @@
   border-bottom-color: var(--brand-action);
 }
 
+/*
+ * 正文与总结报告分成两层：只有正文那段滚动，报告永远贴在详情底部。
+ * 整个 body 一起 overflow:auto 时，报告会被推到滚动区外——R8 高度是钉死的
+ * 711px，运营看不到报告，也不知道下面还有东西（滚动条在窄面板里几乎不可见）。
+ */
 .cse-detail-body {
   display: flex;
   flex-direction: column;
+  gap: var(--space-v2-2);
   flex: 1;
   min-height: 0;
   margin-top: var(--space-v2-2);
+  overflow: hidden;
+}
+
+.cse-detail-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -881,18 +924,23 @@
   margin-bottom: var(--space-v2-2);
 }
 
+/* 最后一块的下边距由 .cse-detail-body 的 gap 承担，否则报告上方是 16px */
+.cse-detail-scroll .cse-body-block:last-child {
+  margin-bottom: 0;
+}
+
 .cse-body-block h3 {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
-  line-height: 18px;
+  line-height: var(--lh-18);
 }
 
 .cse-body-block p {
   margin-top: 2px;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-17);
 }
 
 .cse-outcome-list {
@@ -909,8 +957,8 @@
   align-items: flex-start;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .cse-outcome-list svg {
@@ -931,53 +979,69 @@
   border-radius: 999px;
   background: var(--bg-muted);
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 18px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-18);
 }
 
+/*
+ * margin-top:auto 把报告压到详情底部；min-height 保证插画与两段要点不被压扁——
+ * 正文长的案例下，报告一旦低于 168px，「下一步」那组就只剩一行半。
+ */
 .cse-report {
-  margin-top: var(--space-v2-2);
-  padding: var(--space-v2-2);
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 168px;
+  margin-top: auto;
+  padding: 10px;
   border-radius: var(--radius-control);
   background: var(--brand-50);
+  overflow: hidden;
 }
 
 .cse-report-head {
   display: flex;
   justify-content: space-between;
   gap: var(--space-v2-2);
+  flex: 0 0 auto;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--fs-10);
 }
 
 .cse-report-head h3 {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
 }
 
 .cse-report-body {
   display: flex;
-  gap: var(--space-v2-2);
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 8px;
 }
 
+/* 插画贴报告底边：64×48 时它悬在两段要点中间，读成一个图标而不是配图 */
 .cse-report-art {
-  flex: 0 0 64px;
-  width: 64px;
-  height: 48px;
+  flex: 0 0 96px;
+  width: 96px;
+  height: 88px;
+  align-self: flex-end;
   object-fit: contain;
 }
 
 .cse-report-text {
   flex: 1;
   min-width: 0;
+  align-self: stretch;
 }
 
 .cse-report-label {
   margin-top: 4px;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-weight: var(--type-body-medium-weight);
 }
 
@@ -989,8 +1053,8 @@
   margin: 2px 0 0;
   padding-left: 16px;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .cse-comments {
@@ -1007,7 +1071,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--space-v2-2);
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 .cse-comment-head strong {
@@ -1022,15 +1086,15 @@
 .cse-comment p {
   margin-top: 2px;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .cse-detail-actions {
   display: flex;
   gap: var(--space-v2-2);
   flex: 0 0 auto;
-  margin-top: var(--space-v2-2);
+  margin-top: 10px;
 }
 
 .cse-action-secondary,
@@ -1117,25 +1181,16 @@ html:not([data-regression]) .panel.cse-library {
 }
 
 /*
- * 左栏被拉宽后，若卡宽仍锁 177px，五张卡只占左栏一半，右边空出一大块白板
- * （用户反馈的「大量留白」就是这里）。产品模式五张卡均分铺满案例库，
- * 封面／正文按设计高比例一起长高；回归模式仍钉 177×112。
+ * 卡片等分已经在基础规则里（两种模式同款），产品模式只放开封面高度的下限：
+ * 案例库按 265 的比例长高，多出来的高度全给封面，正文行数不变。
  */
-html:not([data-regression]) .cse-card {
-  flex: 1 1 0;
-  width: auto;
-  max-height: none;
-  min-width: 0;
-}
-
 html:not([data-regression]) .cse-card-cover {
   flex: 112 1 0;
-  height: auto;
   min-height: 0;
 }
 
 html:not([data-regression]) .cse-card-body {
-  flex: 98 1 0;
+  flex: 0 0 auto;
   min-height: 0;
 }
 
@@ -1151,12 +1206,46 @@ html:not([data-regression]) .panel.cse-coverage {
   min-height: 251px;
 }
 
+/*
+ * 部门详情列按 1.15 倍权重分宽，不再照 480/985 的原始权重。
+ * 左边两列是图，宽一点只是留白变多；这一列是四列表格，窄了就开始截断部门名。
+ */
 html:not([data-regression]) .cse-coverage-table-col {
-  flex: 480 1 0;
-  min-width: 0;
+  flex: 1.15 1 0;
   width: auto;
 }
 
 html:not([data-regression]) .cse-coverage-table {
   width: 100%;
+}
+
+/*
+ * 详情面板跟着窗口长高（min-height 711 起）之后，多出来的高度要给正文滚动区。
+ * 报告块吃掉时，两段要点停在报告顶上、插画钉在底边，中间空出半屏蓝白 ——
+ * 看着像报告没生成完，而不是「报告很短」。
+ */
+html:not([data-regression]) .cse-detail-scroll {
+  flex: 0 1 auto;
+}
+
+/*
+ * 报告紧跟正文，不再 margin-top:auto 顶到面板底部。案例正文短、面板又跟着窗口长高时，
+ * 顶到底部会在「适用人群」和报告之间空出半屏白，看着像报告没生成完；
+ * 挨着正文排则余量落在动作条上方，读起来是「内容到这里为止」。
+ */
+html:not([data-regression]) .cse-report {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+/*
+ * 插画按报告宽度取三成，不再锁 96px。面板宽度是按比例分的（336/1321），
+ * 锁死像素时面板越宽插画占比越小，最后读成一个角标而不是配图。
+ * 高度交给固有比例，居中对齐两段要点。
+ */
+html:not([data-regression]) .cse-report-art {
+  flex: 0 0 30%;
+  width: 30%;
+  height: auto;
+  align-self: center;
 }

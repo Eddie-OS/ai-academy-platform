@@ -16,12 +16,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus } from 'lucide-react';
 import dayjs from 'dayjs';
 import { fontSize, neutral, space } from '@/shared/theme/designTokens';
-import { DEMAND_OBJECT_TYPE, demandApi, type Demand, type DemandFilter } from '@/shared/api/demands';
+import { demandApi, type Demand, type DemandFilter } from '@/shared/api/demands';
 import { DataTable, actionsWidth, type DataTableColumn } from '@/shared/ui/DataTable';
 import { AnalyticsRow, CockpitDetailPanel, CockpitLayout } from '@/shared/ui/CockpitLayout';
-import { DEMAND_METRICS } from '@/shared/metrics/cockpitMetrics';
+import { WarningLightCell } from '@/shared/ui/WarningLight';
+import { DEMAND_METRICS, mergeCycleMetric, mergeMetricValues } from '@/shared/metrics/cockpitMetrics';
+import { metricsApi } from '@/shared/api/metrics';
+import { invalidateDemandGraph } from '@/shared/query/invalidateGraph';
 import { PageState } from '@/shared/ui/PageState';
-import { StateLogTab } from '@/shared/ui/StateLogTab';
+import { DemandEscalationsTab } from '@/features/demand/DemandEscalationsTab';
+import { DemandStateLogTab } from '@/features/demand/DemandStateLogTab';
+import { DemandAttachments, DEMAND_REF_FIELDS } from '@/features/demand/DemandAttachments';
 import { DemandFormModal } from '@/features/demand/DemandFormModal';
 import { DemandTransitionPanel } from '@/features/demand/DemandTransitionPanel';
 import { DemandReviewsTab } from '@/features/demand/DemandReviewsTab';
@@ -29,13 +34,13 @@ import { DemandOutletTab } from '@/features/demand/DemandOutletTab';
 import { DemandAcceptanceTab } from '@/features/demand/DemandAcceptanceTab';
 import { DemandCoursesTab } from '@/features/demand/DemandCoursesTab';
 import { DemandDistribution } from '@/features/demand/DemandDistribution';
+import { useDemandCloseLoop } from '@/features/demand/useDemandCloseLoop';
 import {
   DEMAND_OBJECT_TYPE_CODE,
   DEMAND_STATE_FIELDS,
-  DICT_KEYS,
   FIELD_ENUM_KEYS,
   selectOptions,
-  useDicts,
+  useDemandDomains,
   useEmployees,
   useFieldEnums,
   useMachines,
@@ -67,6 +72,7 @@ export function DemandCockpitPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [detailTab, setDetailTab] = useState('basic');
 
   const selectedId = Number(id);
   const hasSelection = Number.isFinite(selectedId) && selectedId > 0;
@@ -75,13 +81,23 @@ export function DemandCockpitPage() {
   useEffect(() => setExpanded(false), [id]);
 
   const fieldEnums = useFieldEnums();
-  const dicts = useDicts();
+  const demandDomains = useDemandDomains();
   const machines = useMachines();
   const employees = useEmployees();
 
   const page = useQuery({
     queryKey: ['demands', filter, pageNum, pageSize],
     queryFn: () => demandApi.page(filter, pageNum, pageSize),
+  });
+
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'demands'],
+    queryFn: () => metricsApi.quantity('demands'),
+  });
+
+  const efficiency = useQuery({
+    queryKey: ['metrics', 'efficiency', 'summary'],
+    queryFn: () => metricsApi.efficiencySummary(),
   });
 
   const detail = useQuery({
@@ -108,6 +124,13 @@ export function DemandCockpitPage() {
 
   const select = (demandId: number) => navigate(`/demands/${demandId}`);
 
+  const closeLoop = useDemandCloseLoop({
+    onNeedAcceptance: (demand) => {
+      select(demand.id);
+      setDetailTab('acceptance');
+    },
+  });
+
   const columns: DataTableColumn<Demand>[] = [
     { key: 'demandNo', title: '需求ID', kind: 'code', dataIndex: 'demandNo', sortable: true },
     {
@@ -121,9 +144,14 @@ export function DemandCockpitPage() {
       ),
     },
     { key: 'domainCode', title: '所属领域', kind: 'combatUnit', dataIndex: 'domainCode' },
-    { key: 'ownerName', title: '负责人', kind: 'person', dataIndex: 'ownerName' },
+    {
+      key: 'ownerName',
+      title: '负责人',
+      kind: 'person',
+      render: (row) => row.ownerNames ?? row.ownerName ?? row.ownerNo,
+    },
     { key: 'reviewState', title: '评审状态', kind: 'statusMain', dataIndex: 'reviewState' },
-    { key: 'outlet', title: '分流出口', kind: 'tags', dataIndex: 'outlet' },
+    { key: 'outlet', title: '评审流转去向', kind: 'tags', dataIndex: 'outlet' },
     {
       key: 'currentProcessState',
       title: '当前处理状态',
@@ -140,11 +168,9 @@ export function DemandCockpitPage() {
     },
     {
       key: 'warningLight',
-      title: '灯色',
+      title: '预警',
       kind: 'light',
-      // 留位不填值：阶段 3 的 aggregate/warning 落地后换成后端给的灯色与天数。
-      // 此刻渲染成「健康」是在替后端下结论——一条逾期两个月的需求会被标成健康
-      render: () => null,
+      render: (row) => <WarningLightCell light={row.light} lightDays={row.lightDays} />,
     },
     {
       key: 'courseCount',
@@ -156,11 +182,27 @@ export function DemandCockpitPage() {
       key: 'actions',
       title: '操作',
       kind: 'actions',
-      width: actionsWidth(1),
+      width: actionsWidth(2),
       render: (row) => (
-        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => select(row.id)}>
-          查看
-        </Button>
+        <Space size={space.xs}>
+          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => select(row.id)}>
+            查看
+          </Button>
+          {isOperator && (
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0 }}
+              loading={closeLoop.pendingId === row.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                void closeLoop.run(row);
+              }}
+            >
+              闭环
+            </Button>
+          )}
+        </Space>
       ),
     },
   ];
@@ -179,7 +221,10 @@ export function DemandCockpitPage() {
             </Button>
           )
         }
-        metrics={DEMAND_METRICS}
+        metrics={mergeCycleMetric(
+          mergeMetricValues(DEMAND_METRICS, quantity.data),
+          efficiency.data?.demandReviewCycle,
+        )}
         filters={
           <Space wrap size={space.xs}>
             <Input.Search
@@ -193,11 +238,18 @@ export function DemandCockpitPage() {
               showSearch
               placeholder="所属领域"
               style={{ width: 150 }}
-              options={(dicts.data?.[DICT_KEYS.combatUnit] ?? []).map((item) => ({
-                value: item.code,
-                label: item.name,
+              options={demandDomains.map((item) => ({
+                value: item,
+                label: item,
               }))}
               onChange={(value) => patch({ domainCode: value ?? null })}
+            />
+            <Select
+              allowClear
+              placeholder="预警"
+              style={{ width: 120 }}
+              options={selectOptions(fieldEnums.data?.[FIELD_ENUM_KEYS.light])}
+              onChange={(value) => patch({ light: value ?? null })}
             />
             <Select
               allowClear
@@ -208,7 +260,7 @@ export function DemandCockpitPage() {
             />
             <Select
               allowClear
-              placeholder="分流出口"
+              placeholder="评审流转去向"
               style={{ width: 180 }}
               options={selectOptions(fieldEnums.data?.[FIELD_ENUM_KEYS.demandOutlet])}
               onChange={(value) => patch({ outlet: value ?? null })}
@@ -351,29 +403,23 @@ export function DemandCockpitPage() {
             ) : (
               <Tabs
                 size="small"
+                activeKey={detailTab}
+                onChange={setDetailTab}
                 items={[
                   { key: 'basic', label: '基本信息', children: data ? <BasicInfo demand={data} /> : null },
                   { key: 'review', label: '评审信息', children: data ? <DemandReviewsTab demand={data} /> : null },
                   { key: 'outlet', label: '分流与处理', children: data ? <DemandOutletTab demand={data} /> : null },
                   { key: 'acceptance', label: '业务验收', children: data ? <DemandAcceptanceTab demand={data} /> : null },
-                  { key: 'courses', label: '关联课程', children: hasSelection ? <DemandCoursesTab demandId={selectedId} /> : null },
+                  { key: 'courses', label: '关联课程', children: data ? <DemandCoursesTab demand={data} /> : null },
                   {
                     key: 'escalations',
                     label: '催办记录',
-                    children: (
-                      <PageState
-                        variant="empty"
-                        objectName="催办记录"
-                        description="催办台账属于阶段 4，尚未上线。一期系统不发送任何消息，催办是线下动作，平台只记录催了谁、催的什么、什么时候催的。"
-                      />
-                    ),
+                    children: data ? <DemandEscalationsTab demand={data} /> : null,
                   },
                   {
                     key: 'logs',
                     label: '状态流转日志',
-                    children: hasSelection ? (
-                      <StateLogTab objectType={DEMAND_OBJECT_TYPE} objectId={selectedId} />
-                    ) : null,
+                    children: data ? <DemandStateLogTab demandId={data.id} /> : null,
                   },
                 ]}
               />
@@ -404,7 +450,7 @@ export function DemandCockpitPage() {
           onClose={() => setEditing(false)}
           onUpdated={() => {
             setEditing(false);
-            void queryClient.invalidateQueries({ queryKey: ['demands'] });
+            invalidateDemandGraph(queryClient);
           }}
         />
       )}
@@ -425,7 +471,7 @@ function BasicInfo({ demand }: { demand: Demand }) {
         styles={{ label: { color: neutral[600], width: 116, fontSize: fontSize.bodySm } }}
         items={[
           { key: 'no', label: '需求ID', children: demand.demandNo },
-          { key: 'domain', label: '所属领域', children: demand.domainCode },
+          { key: 'domain', label: '需求所属领域', children: demand.domainCode },
           { key: 'proposer', label: '需求提出人', children: demand.proposerName ?? demand.proposerNo },
           {
             key: 'dept',
@@ -433,12 +479,15 @@ function BasicInfo({ demand }: { demand: Demand }) {
             // 随提出人带出的快照：人员调岗后这条需求仍显示当初的部门
             children: demand.proposerDept ?? '—',
           },
-          { key: 'owner', label: '负责人', children: demand.ownerName ?? demand.ownerNo },
-          { key: 'proposed', label: '提出时间', children: demand.proposedDate },
+          { key: 'owner', label: '需求负责人', children: demand.ownerNames ?? demand.ownerName ?? demand.ownerNo },
+          { key: 'proposed', label: '需求提出时间', children: demand.proposedDate },
           { key: 'expect', label: '预计开发完成时间', children: demand.expectFinishDate },
           { key: 'source', label: '需求来源', children: demand.demandSource ?? '—' },
           { key: 'type', label: '需求类型', children: demand.demandType ?? '—' },
-          { key: 'priority', label: '优先级', children: demand.priority ?? '—' },
+          { key: 'priority', label: '需求优先级', children: demand.priority ?? '—' },
+          { key: 'background', label: '业务背景', children: demand.businessBackground ?? '—' },
+          { key: 'roi', label: 'ROI分析', children: demand.roiAnalysis ?? '—' },
+          { key: 'remark', label: '备注', children: demand.remark ?? '—' },
           { key: 'courses', label: '关联课程数', children: demand.courseCount ?? 0 },
           {
             key: 'lastState',
@@ -449,6 +498,18 @@ function BasicInfo({ demand }: { demand: Demand }) {
             key: 'description',
             label: '需求描述',
             children: <Text style={{ whiteSpace: 'pre-wrap' }}>{demand.description}</Text>,
+          },
+          {
+            key: 'files',
+            label: '附件',
+            children: (
+              <DemandAttachments
+                demandId={demand.id}
+                refField={DEMAND_REF_FIELDS.extras}
+                emptyHint="可上传图片、文档、视频等补充材料"
+                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+              />
+            ),
           },
         ]}
       />

@@ -22,7 +22,24 @@ public class CourseQuery extends PageQuery {
 
     private String domainCode;
 
+    /** 课程分类（列表「课程类型」筛选项）。 */
+    private String categoryCode;
+
     private String mainState;
+
+    private String devState;
+
+    private String selfcheckState;
+
+    private String trialState;
+
+    /**
+     * 最新一轮评审记录的状态（待录入结论 / 已完成）。
+     *
+     * <p>课程没有「评审子状态」列：评审轮次挂在 {@code dtl_course_review} 上。
+     * 列表「评审状态」筛的是最新一轮，不是主状态「评审决策」。
+     */
+    private String reviewRecordState;
 
     /**
      * 子状态。四组子状态共用这一个入参，因为它们的取值域两两不相交
@@ -85,6 +102,46 @@ public class CourseQuery extends PageQuery {
 
     public void setDomainCode(String domainCode) {
         this.domainCode = domainCode;
+    }
+
+    public String getCategoryCode() {
+        return categoryCode;
+    }
+
+    public void setCategoryCode(String categoryCode) {
+        this.categoryCode = categoryCode;
+    }
+
+    public String getDevState() {
+        return devState;
+    }
+
+    public void setDevState(String devState) {
+        this.devState = devState;
+    }
+
+    public String getSelfcheckState() {
+        return selfcheckState;
+    }
+
+    public void setSelfcheckState(String selfcheckState) {
+        this.selfcheckState = selfcheckState;
+    }
+
+    public String getTrialState() {
+        return trialState;
+    }
+
+    public void setTrialState(String trialState) {
+        this.trialState = trialState;
+    }
+
+    public String getReviewRecordState() {
+        return reviewRecordState;
+    }
+
+    public void setReviewRecordState(String reviewRecordState) {
+        this.reviewRecordState = reviewRecordState;
     }
 
     public String getMainState() {

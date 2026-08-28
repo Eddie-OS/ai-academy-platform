@@ -32,18 +32,17 @@ test.describe('产品模式按比例伸缩', () => {
 
   test('P03 课程工作台主体填满窗口', async ({ page }) => {
     await openFluid(page, '/courses');
-    // P03 只有一条通栏横带（主体两栏），左栏内部的四个区域宽度与它对齐
     await expectFluidFill(page, ['.crs-main']);
   });
 
-  test('P03 左栏四条横带右沿对齐', async ({ page }) => {
+  test('P03 四条横带右沿对齐', async ({ page }) => {
     await openFluid(page, '/courses');
-    // 左栏内部是四条宽度独立声明的横带（R6/R7 并排组成最后一条），
+    // 详情改弹窗后主体是四条通栏横带（R6/R7 并排组成最后一条），
     // 任一处写死像素都会在这里露出来
     await expectFluidFill(
       page,
       ["[data-region='R3']", "[data-region='R4']", "[data-region='R5']", '.crs-bottom'],
-      // 左栏最后一条横带不负责顶到视口底部，主体两栏才是
+      // 最后一条横带不负责顶到视口底部，主体那一栏才是
       { bottomSlack: 1080 },
     );
   });

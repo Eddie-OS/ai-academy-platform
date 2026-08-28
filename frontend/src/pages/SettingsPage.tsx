@@ -4,19 +4,13 @@ import { ThresholdTab } from '@/features/settings/ThresholdTab';
 import { DictTab } from '@/features/settings/DictTab';
 import { SelfcheckTab } from '@/features/settings/SelfcheckTab';
 import { DeriveRuleTab } from '@/features/settings/DeriveRuleTab';
+import { EscalationConfigTab } from '@/features/settings/EscalationConfigTab';
 
 const { Title, Text } = Typography;
 
 /**
- * 配置中心 S-2（需求 13.9）：单页面 + 四个 Tab，不拆成多个一级页面。
- *
- * <p><b>这四个 Tab 与需求 13.9 列的四个不完全相同</b>，差异是阶段划分而不是范围变更：
- * 需求列的是阈值、字典、负责人、催办；本期按《开发实施文档》8.5 阶段 1 交付表实现的是
- * 阈值、字典、自检题库、任务派生规则。负责人配置要等阶段 2 有业务对象才有内容可列，
- * 催办配置属于阶段 4；而自检题库与派生规则的配置表现在就必须能配——否则阶段 2、3 的代码
- * 只能硬编码一份默认值。该差异已记入待修文档清单。
- *
- * <p>页面级的运营限制在路由层（{@code OperatorOnly}），全部配置项的修改都写操作审计日志。
+ * 配置中心 S-2（需求 13.9）：单页面多 Tab。
+ * 阶段 4 已补催办配置；负责人配置仍见待修清单 D-5。
  */
 export function SettingsPage() {
   return (
@@ -36,6 +30,7 @@ export function SettingsPage() {
           { key: 'dicts', label: '字典配置', children: <DictTab /> },
           { key: 'selfcheck', label: '自检 CheckList 题库', children: <SelfcheckTab /> },
           { key: 'derive-rules', label: '任务派生规则', children: <DeriveRuleTab /> },
+          { key: 'escalation', label: '催办配置', children: <EscalationConfigTab /> },
         ]}
       />
     </Space>

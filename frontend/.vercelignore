@@ -1,0 +1,12 @@
+# Vercel CLI 是把本地目录整包上传的，不是从 Git 拉。这里排掉的都是本地产物：
+# 不排的话每次部署要传几百 MB，而且构建机上还会用本地的 node_modules 覆盖它自己装的那份。
+node_modules
+dist
+
+# 视觉回归的基线 PNG 与失败现场（trace、截图）。基线有几十 MB，
+# 且它们只服务于本地与 CI 的截图比对，演示站构建完全用不到。
+playwright-report
+test-results
+tests
+shots
+*.log

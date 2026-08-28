@@ -80,6 +80,23 @@ export interface DictTypeOption {
   hierarchical: boolean;
 }
 
+export interface EscalationConfigRow {
+  id: number;
+  cycleWeekday: number;
+  cycleTime: string;
+  listEnabled: boolean;
+  appendBlue: boolean;
+  appendYellow: boolean;
+  appendRed: boolean;
+  templateText: string;
+  minIntervalHours: number;
+  preSessionDays: number;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export type EscalationConfigForm = Omit<EscalationConfigRow, 'id' | 'updatedAt' | 'updatedBy'>;
+
 export const configApi = {
   thresholds: () => api.get<ThresholdRow[]>('/api/config/thresholds'),
   updateThreshold: (id: number, blueDays: number, redDays: number) =>
@@ -105,4 +122,8 @@ export const configApi = {
     id: number,
     form: { titleTemplate: string; dueOffsetDays: number | null; enabled: boolean },
   ) => api.put<void>(`/api/config/task-derive-rules/${id}`, form),
+
+  escalation: () => api.get<EscalationConfigRow>('/api/config/escalation'),
+  updateEscalation: (id: number, form: EscalationConfigForm) =>
+    api.put<void>(`/api/config/escalation/${id}`, form),
 };

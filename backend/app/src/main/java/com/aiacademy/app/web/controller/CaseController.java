@@ -1,8 +1,11 @@
 package com.aiacademy.app.web.controller;
 
 import com.aiacademy.app.application.CaseApplicationService;
+import com.aiacademy.app.export.ExportPaging;
+import com.aiacademy.app.export.ListExportService;
 import com.aiacademy.app.repository.CourseRefMapper;
 import com.aiacademy.app.web.dto.CaseVO;
+import com.aiacademy.platform.statemachine.domain.machines.CaseStateMachines;
 import com.aiacademy.business.kase.domain.CaseAuditForm;
 import com.aiacademy.business.kase.domain.CaseForm;
 import com.aiacademy.business.kase.domain.CaseListItem;
@@ -55,13 +58,16 @@ public class CaseController {
     private final CaseApplicationService application;
     private final CaseInteractionService interactions;
     private final CourseRefMapper courses;
+    private final ListExportService exports;
 
     public CaseController(CaseService cases, CaseApplicationService application,
-                          CaseInteractionService interactions, CourseRefMapper courses) {
+                          CaseInteractionService interactions, CourseRefMapper courses,
+                          ListExportService exports) {
         this.cases = cases;
         this.application = application;
         this.interactions = interactions;
         this.courses = courses;
+        this.exports = exports;
     }
 
     /**
@@ -73,11 +79,36 @@ public class CaseController {
     public R<PageResult<CaseVO>> list(CaseQuery query) {
         PageResult<CaseListItem> page = cases.page(query);
         Map<Long, String> courseNames = courseNamesOf(page.records());
+        /* 不装配灯色：案例已退出三色灯范围（业务改版 V-70，见 WarningObjectKind）。
+           这里曾按 CASE 调 WarningLightAssembler，枚举里去掉案例后那一调用会抛
+           「对象类型 CASE 不参与三色灯计算」，整个案例列表接口 500 */
         return R.ok(new PageResult<>(
                 page.records().stream()
                         .map(item -> CaseVO.of(item, courseNames.get(item.getCourseId())))
                         .toList(),
                 page.total(), page.pageNum(), page.pageSize()));
+    }
+
+    @GetMapping("/export")
+    public Object export(CaseQuery query) {
+        query.setPageNum(1);
+        query.setPageSize(1);
+        long total = cases.page(query).total();
+        query.setPageSize(200);
+        List<String> headers = List.of("案例ID", "案例名称", "状态", "负责人", "预计上架");
+        var result = exports.exportAll("cases", query, total,
+                () -> ExportPaging.loadAll(query::setPageNum, 200, ignored -> cases.page(query)),
+                headers,
+                c -> ListExportService.row(
+                        "案例ID", c.getId(),
+                        "案例名称", c.getCaseName(),
+                        "状态", c.getCaseState(),
+                        "负责人", c.getOwnerName(),
+                        "预计上架", c.getExpectPublishDate()));
+        if (result.async()) {
+            return R.ok(Map.of("async", true, "taskId", result.taskId()));
+        }
+        return result.syncBody();
     }
 
     /**

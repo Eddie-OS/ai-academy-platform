@@ -73,6 +73,14 @@
                           WHERE m.case_id = c.id AND m.deleted = FALSE
                             AND m.commented_at &gt;= NOW() - INTERVAL '30 days'))
         </if>
+        <!--
+          没有灯色筛选：案例已退出三色灯范围（业务改版 V-70）。
+
+          原先这里调 calc_light 并从 cfg_warning_threshold 取「案例」那行阈值，
+          而 V5_002 已把那行逻辑删除 —— 两个子查询会各回一个 NULL，calc_light 拿到
+          NULL 阈值后对每一行都算出 'NONE'，于是「筛蓝灯」得到空列表、「筛无灯」得到全部。
+          两种结果都不报错，看着都像「这批案例恰好没有灯」。
+        -->
     </sql>
 
     <!--

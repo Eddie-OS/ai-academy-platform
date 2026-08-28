@@ -13,6 +13,9 @@ import com.aiacademy.platform.dict.service.DictQuery;
 import com.aiacademy.platform.dict.service.SelfcheckConfigService;
 import com.aiacademy.platform.dict.service.TaskDeriveRuleService;
 import com.aiacademy.platform.dict.service.WarningThresholdService;
+import com.aiacademy.platform.escalation.domain.EscalationConfig;
+import com.aiacademy.platform.escalation.domain.EscalationConfigForm;
+import com.aiacademy.platform.escalation.service.EscalationConfigService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -31,26 +34,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 配置中心（需求 13.9）。<b>单页面 + 四个 Tab</b>（13.9.1），因此接口也收在一个 Controller 里，
- * 按 Tab 分段。
+ * 配置中心（需求 13.9）。单页面多 Tab，接口收在一个 Controller 里按 Tab 分段。
  *
- * <p><b>四个 Tab 是哪四个：</b>需求 13.9 列的是阈值、字典、负责人、催办；本期实现的是
- * 《开发实施文档》8.5 阶段 1 交付表列出的四个——<b>阈值、字典、任务派生规则、自检 CheckList 题库</b>。
- * 差异是阶段划分而不是范围变更：
- * <ul>
- *   <li>负责人配置（13.9.4）要按对象类型列出全部业务对象并批量转移负责人，而一期到阶段 2 才有
- *       业务对象与它们的页面，此刻这个 Tab 只能是一张空表；
- *   <li>催办配置（13.9.5）的 6 个配置项服务于催办台账与待发送清单，那是阶段 4；
- *       它们也还没有配置表（6.2 的 43 张表里没有对应的一张）；
- *   <li>任务派生规则与自检题库反过来<b>现在就必须落地</b>：两张配置表已经存在，且需求明确要求
- *       「默认截止天数须支持后台配置」「清单项须支持后台配置」，不装载初始值就只能在阶段 2、3
- *       的代码里硬编码一份。
- * </ul>
- * 这一差异已记入待修文档清单，需求 13.9 应补一句 Tab 的阶段归属。
+ * <p>阶段 4 已补催办配置 Tab（13.9.5）。负责人配置（13.9.4）仍未做（见待修清单 D-5）。
  *
  * <p>读接口对两个账号都开放（纪律 PMI-2）。13.9.1 的「仅运营角色可见可用」由前端不渲染入口
- * （纪律 PMI-5）与写接口的 {@link WriteApi} 共同保证——不给读接口加限制，是因为一期读权限
- * 完全无差异这条纪律不该在这里破例。
+ * （纪律 PMI-5）与写接口的 {@link WriteApi} 共同保证。
  */
 @RestController
 @RequestMapping("/api/config")
@@ -61,15 +50,18 @@ public class ConfigController {
     private final DictConfigService dicts;
     private final SelfcheckConfigService selfchecks;
     private final TaskDeriveRuleService deriveRules;
+    private final EscalationConfigService escalationConfig;
 
     public ConfigController(WarningThresholdService thresholds,
                             DictConfigService dicts,
                             SelfcheckConfigService selfchecks,
-                            TaskDeriveRuleService deriveRules) {
+                            TaskDeriveRuleService deriveRules,
+                            EscalationConfigService escalationConfig) {
         this.thresholds = thresholds;
         this.dicts = dicts;
         this.selfchecks = selfchecks;
         this.deriveRules = deriveRules;
+        this.escalationConfig = escalationConfig;
     }
 
     // -------------------------------------------------------------------------
@@ -235,6 +227,39 @@ public class ConfigController {
     @PutMapping("/task-derive-rules/{id}")
     public R<Void> updateTaskDeriveRule(@PathVariable long id, @Valid @RequestBody DeriveRuleForm form) {
         deriveRules.update(id, form.titleTemplate(), form.dueOffsetDays(), form.enabled());
+        return R.ok();
+    }
+
+    // -------------------------------------------------------------------------
+    // Tab · 催办配置（需求 13.9.5，阶段 4）
+    // -------------------------------------------------------------------------
+
+    public record EscalationConfigRow(
+            Long id, Integer cycleWeekday, String cycleTime, Boolean listEnabled,
+            Boolean appendBlue, Boolean appendYellow, Boolean appendRed,
+            String templateText, Integer minIntervalHours, Integer preSessionDays,
+            String updatedAt, String updatedBy) {
+
+        static EscalationConfigRow of(EscalationConfig cfg) {
+            return new EscalationConfigRow(
+                    cfg.id(), cfg.cycleWeekday(), cfg.cycleTime().toString(),
+                    cfg.listEnabled(), cfg.appendBlue(), cfg.appendYellow(), cfg.appendRed(),
+                    cfg.templateText(), cfg.minIntervalHours(), cfg.preSessionDays(),
+                    cfg.updatedAt() == null ? null : cfg.updatedAt().toString(),
+                    cfg.updatedBy());
+        }
+    }
+
+    @GetMapping("/escalation")
+    public R<EscalationConfigRow> escalationConfig() {
+        return R.ok(EscalationConfigRow.of(escalationConfig.get()));
+    }
+
+    @WriteApi
+    @PutMapping("/escalation/{id}")
+    public R<Void> updateEscalationConfig(@PathVariable long id,
+                                          @Valid @RequestBody EscalationConfigForm form) {
+        escalationConfig.update(id, form);
         return R.ok();
     }
 }

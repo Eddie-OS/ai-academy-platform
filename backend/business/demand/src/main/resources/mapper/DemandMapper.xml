@@ -64,7 +64,7 @@
         </if>
         <!--
           灯色筛选（开发 5.4.1）。用 calc_light 而不是在 Java 里滤——分页总数必须与筛选一致。
-          阈值子查询读配置表，运营改天数后下一查即生效；终态用交付标记「已归档」（退出预警范围）。
+          阈值子查询读配置表，运营改天数后下一查即生效；终态用交付标记「已归档」或分流出口「需求驳回」。
         -->
         <if test="q.light != null and q.light != ''">
             AND calc_light(
@@ -74,7 +74,7 @@
                     WHERE t.object_type = 'AI需求' AND t.deleted = FALSE),
                   (SELECT t.red_days FROM cfg_warning_threshold t
                     WHERE t.object_type = 'AI需求' AND t.deleted = FALSE),
-                  d.delivery_mark = '已归档'
+                  d.delivery_mark = '已归档' OR d.outlet = '需求驳回'
                 ) = #{q.light}
         </if>
     </sql>

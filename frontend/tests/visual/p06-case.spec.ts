@@ -11,7 +11,7 @@ import {
  * P06 案例与组织覆盖视觉回归（《设计文档 V2.0》第 10 章）。
  *
  * <p>几何之外钉住：浏览次数改名、待审核合法态、圆环无分享扇区、
- * 新建／分享按钮 disabled、六 KPI + R7 两种模式都在（V-65）、卡片 177px、部门表 480px。
+ * 新建／分享按钮 disabled、六 KPI + R7 两种模式都在（V-65）、卡片等宽铺满、部门表 480px。
  */
 
 const REGIONS: Region[] = [
@@ -59,7 +59,12 @@ test.describe('P06 案例与组织覆盖', () => {
     );
   });
 
-  test('L1 五张案例卡宽 177、间距 12', async ({ page }) => {
+  /*
+   * 卡宽不再钉 177：5×177 + 4×12 = 933，比案例库净宽 959 短 26px，右边留一条白边。
+   * 设计稿标的 177 是 1440 基准下的换算值，铺满才是它想表达的版式，
+   * 所以这里改钉「等宽 + 间距 12 + 左右沿贴住案例库」——间距 12 仍是照抄值。
+   */
+  test('L1 五张案例卡等宽铺满案例库、间距 12', async ({ page }) => {
     const cards = page.getByTestId('case-card');
     await expect(cards).toHaveCount(5);
     const boxes = await cards.evaluateAll((nodes) =>
@@ -69,12 +74,18 @@ test.describe('P06 案例与组织覆盖', () => {
       }),
     );
     for (const box of boxes) {
-      expect(Math.abs(box.w - 177)).toBeLessThanOrEqual(2);
+      expect(Math.abs(box.w - boxes[0]!.w), '五张卡等宽').toBeLessThanOrEqual(1);
     }
     for (let i = 1; i < boxes.length; i += 1) {
       const gap = boxes[i]!.x - (boxes[i - 1]!.x + boxes[i - 1]!.w);
       expect(Math.abs(gap - 12), `卡 ${i - 1}→${i} 间距`).toBeLessThanOrEqual(2);
     }
+
+    const strip = await page.getByTestId('case-cards').boundingBox();
+    expect(strip).toBeTruthy();
+    expect(Math.abs(boxes[0]!.x - strip!.x), '首卡左沿').toBeLessThanOrEqual(2);
+    const lastRight = boxes[4]!.x + boxes[4]!.w;
+    expect(Math.abs(lastRight - (strip!.x + strip!.width)), '末卡右沿').toBeLessThanOrEqual(2);
   });
 
   test('L1 部门详情四列合计 480', async ({ page }) => {

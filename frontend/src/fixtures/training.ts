@@ -11,7 +11,7 @@
  * | 详情五个页签 | 五个都渲染 | 需求 P4-4 把参训与签到合并，设计稿拆开——几何照抄，默认停在基本信息 |
  * | 导入结果「成功／重复／未匹配」 | 「写入／覆盖更新／自动补入」 | 14.4：同工号覆盖更新、不在名单则自动补入；「未匹配」不是合法结果分类 |
  * | 月／周／日切换 | 三视图都重排 | 设计稿验收句要求；11.8 只有月／周，日视图是设计稿多出来的一钮 |
- * | 详情底部 A12 运营引导 | 两种模式都渲染 | 新建培训计划是一期合法动作，不是 N6 禁区 |
+ * | 详情底部运营引导 | 两种模式都渲染 | 新建培训计划是一期合法动作，不是 N6 禁区 |
  * | 「线上直播」 | 「线上」 | 培训形式枚举只有 线下／线上／混合（11.4 字段 9） |
  *
  * <h3>签到圆环 57% = 32 ÷ 56</h3>
@@ -19,6 +19,8 @@
  * 设计稿冻结了完成率、已签到、应签到三个数，三者自洽。
  * 未签到 = 56 − 32 = 24，不需要设计稿另给。
  */
+
+import { withCurrentDates } from './fixtureClock';
 
 /** R3 六张 KPI。前四张在需求 7.4／15.1 能查到；后两张是任务派生计数 */
 export const TRAINING_KPIS = [
@@ -55,51 +57,74 @@ export interface CalendarSession {
   /** 形式 + 讲师，如「线上 · 李明」 */
   meta: string;
   state: SessionState;
-  /** 所属日，1～31（2024-05） */
+  /** 所属日，1～31 */
   day: number;
+  /** 相对当前月的偏移：0 本月（缺省）、-1 上月尾巴 */
+  monthOffset?: number;
+  /** 上月尾巴挂在第几个补白格（0 起）。上月天数逐月不同，用格位定位比用日号稳 */
+  prevWeekday?: number;
 }
 
 /**
- * 2024 年 5 月月历上的场次。
+ * 月历上的场次，按「当月第几天」记，不写死年月。
+ *
+ * <p>日号是相对的：回归模式下当月是 2026-08，产品模式下就是真实当月，
+ * 同一批数据两种模式都能铺满格子，不会出现「打开是空月历」。
  *
  * <p>文档只冻结了默认场次与「今日提醒」三条；其余是为版式补的占位。
  * <b>状态值一个都没编</b>——只用四值合法枚举。
  */
 export const CALENDAR_SESSIONS: CalendarSession[] = [
-  { id: 'JH2024050001-01', title: '项目管理进阶', time: '09:00', meta: '线上 · 李明', state: '已开课', day: 6 },
-  { id: 'JH2024050002-01', title: '数据分析实战', time: '14:00', meta: '线下 · 王芳', state: '待开课', day: 6 },
-  { id: 'JH2024050003-01', title: '领导力修炼', time: '10:00', meta: '线下 · 赵强', state: '已结束', day: 7 },
-  { id: 'JH2024050004-01', title: 'Prompt 工程入门', time: '15:00', meta: '线上 · 陈晨', state: '待开课', day: 8 },
-  {
-    id: 'JH2024050005-02',
-    title: 'AI工具实战应用',
-    time: '14:00',
-    meta: '线上 · 李玥',
-    state: '已开课',
-    day: 9,
-  },
-  { id: 'JH2024050006-01', title: '商务谈判技巧', time: '09:00', meta: '线下 · 周建', state: '已开课', day: 9 },
-  { id: 'JH2024050007-01', title: '数据分析实战', time: '16:30', meta: '混合 · 黄悦', state: '待开课', day: 9 },
-  { id: 'JH2024050008-01', title: '信息安全意识', time: '10:00', meta: '线上 · 吴迪', state: '已归档', day: 10 },
-  { id: 'JH2024050009-01', title: '大模型应用开发', time: '13:30', meta: '线下 · 张伟', state: '待开课', day: 13 },
-  { id: 'JH2024050010-01', title: '时间管理与效率', time: '09:30', meta: '线上 · 刘洋', state: '已结束', day: 14 },
-  { id: 'JH2024050011-01', title: 'RAG 实战工作坊', time: '14:00', meta: '线上 · 陈晨', state: '待开课', day: 15 },
-  { id: 'JH2024050012-01', title: 'Python 数据处理', time: '10:00', meta: '线下 · 王宇', state: '已开课', day: 16 },
-  { id: 'JH2024050013-01', title: 'Agent 构建实践', time: '15:00', meta: '线上 · 周建', state: '待开课', day: 20 },
-  { id: 'JH2024050014-01', title: '学员画像分析', time: '09:00', meta: '混合 · 李玥', state: '待开课', day: 22 },
-  { id: 'JH2024050015-01', title: '课程设计工作坊', time: '14:00', meta: '线下 · 赵强', state: '已结束', day: 27 },
+  { id: 'JH-PREV-01', title: '项目管理进阶', time: '09:00', meta: '线上 · 李明', state: '已开课', day: 0, monthOffset: -1, prevWeekday: 0 },
+  { id: 'JH-PREV-02', title: '数据分析实战', time: '13:30', meta: '线下 · 王芳', state: '已结束', day: 0, monthOffset: -1, prevWeekday: 0 },
+  { id: 'JH-D01-01', title: 'AI基础入门', time: '09:30', meta: '线上 · 张伟', state: '待开课', day: 1 },
+  { id: 'JH-D02-01', title: '沟通表达技巧', time: '14:00', meta: '线下 · 刘洋', state: '已开课', day: 2 },
+  { id: 'JH-D03-01', title: '领导力提升', time: '09:00', meta: '线下 · 陈晨', state: '待开课', day: 3 },
+  { id: 'JH-D03-02', title: '跨部门协作', time: '13:00', meta: '线上 · 李明', state: '待开课', day: 3 },
+  { id: 'JH-D03-03', title: '演讲与表达', time: '15:30', meta: '线下 · 王芳', state: '已开课', day: 3 },
+  { id: 'JH-D06-01', title: '产品思维训练营', time: '09:00', meta: '线上 · 王芳', state: '待开课', day: 6 },
+  { id: 'JH-D07-01', title: 'Excel高效应用', time: '14:00', meta: '线上 · 李明', state: '已开课', day: 7 },
+  { id: 'JH-D08-01', title: '数据可视化', time: '09:30', meta: '线下 · 张伟', state: '已结束', day: 8 },
+  { id: 'JH-D09-01', title: '商务谈判技巧', time: '09:00', meta: '线下 · 刘洋', state: '已开课', day: 9 },
+  { id: 'JH2026080005-02', title: 'AI工具实战', time: '14:00', meta: '线上 · 陈晨', state: '待开课', day: 9 },
+  { id: 'JH-D09-03', title: '数据分析实战', time: '16:30', meta: '混合 · 黄悦', state: '待开课', day: 9 },
+  { id: 'JH-D10-01', title: 'OKR目标管理', time: '09:30', meta: '线上 · 王芳', state: '待开课', day: 10 },
+  { id: 'JH-D13-01', title: '用户体验设计', time: '09:00', meta: '线下 · 张伟', state: '待开课', day: 13 },
+  { id: 'JH-D14-01', title: '时间管理', time: '14:00', meta: '线上 · 李明', state: '待开课', day: 14 },
+  { id: 'JH-D15-01', title: '团队协作工作坊', time: '09:30', meta: '线下 · 刘洋', state: '待开课', day: 15 },
+  { id: 'JH-D16-01', title: 'AI应用高级班', time: '09:00', meta: '线上 · 陈晨', state: '已开课', day: 16 },
+  { id: 'JH-D16-02', title: 'Prompt 进阶', time: '14:00', meta: '线上 · 周建', state: '待开课', day: 16 },
+  { id: 'JH-D17-01', title: '数据治理实践', time: '14:00', meta: '线下 · 王芳', state: '已开课', day: 17 },
 ];
 
-export const TRAINING_CALENDAR = {
-  year: 2024,
-  month: 5,
-  /** 默认选中 5 月 9 日（文档 9「冻结数据」） */
-  selectedDay: 9,
-  /** 上月尾巴：4 月有 30 天，5 月 1 日是周三 → 表头周一开始时前两格是 29、30 */
-  prevMonthTail: [29, 30] as const,
-} as const;
+export interface TrainingCalendarAnchor {
+  year: number;
+  month: number;
+  /** 今天是几号；不在当月时由调用方置 null */
+  today: number;
+  selectedDay: number;
+}
 
-export const TRAINING_SELECTED_SESSION_ID = 'JH2024050005-02';
+/**
+ * 月历锚点。
+ *
+ * <p>回归模式冻结在 2026-08，选中 9 日——文档 0.3 禁止把快照钉在「今天」。
+ * 产品模式反过来必须落在真实当月，否则运营打开就是一张过期月历。
+ * 两条分支共用同一批场次数据（日号是相对的），只有年月与今天不同。
+ */
+export function resolveTrainingCalendar(now: Date = new Date()): TrainingCalendarAnchor {
+  if (typeof document !== 'undefined' && document.documentElement.hasAttribute('data-regression')) {
+    return { year: 2026, month: 8, today: 4, selectedDay: 9 };
+  }
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    today: now.getDate(),
+    selectedDay: now.getDate(),
+  };
+}
+
+export const TRAINING_SELECTED_SESSION_ID = 'JH2026080005-02';
 
 /** R6 计划列表（行按场次）。列宽标注「必须照抄」，合计 814 */
 export const PLAN_LIST_COLUMNS = [
@@ -112,6 +137,12 @@ export const PLAN_LIST_COLUMNS = [
   { id: 'feedback', label: '反馈', width: 75 },
   { id: 'action', label: '操作', width: 49 },
 ] as const;
+
+/** 签到列前缀。只说导入进度，不改「签到」这个列名的口径 */
+export const ATTENDANCE_LABELS = {
+  done: '已完成',
+  pending: '待导入',
+} as const;
 
 export interface PlanListRow {
   id: string;
@@ -127,52 +158,52 @@ export interface PlanListRow {
   feedback: string | null;
 }
 
-export const PLAN_LIST_ROWS: PlanListRow[] = [
+export const PLAN_LIST_ROWS: PlanListRow[] = withCurrentDates([
   {
-    id: 'JH2024050005-02',
+    id: 'JH2026080005-02',
     planName: 'AI工具实战营 第5期',
     sessionLabel: '第5期-第2场',
-    course: 'AI工具实战应用',
-    lecturer: '李玥',
-    date: '2024-05-09',
+    course: 'AI工具实战',
+    lecturer: '陈晨',
+    date: '2026-08-09',
     signed: 32,
     expected: 56,
     feedback: '4.6',
   },
   {
-    id: 'JH2024050006-01',
+    id: 'JH-D09-01',
     planName: '商务谈判技巧特训',
     sessionLabel: '第1期-第1场',
     course: '商务谈判技巧',
-    lecturer: '周建',
-    date: '2024-05-09',
+    lecturer: '刘洋',
+    date: '2026-08-09',
     signed: 28,
     expected: 40,
     feedback: '4.4',
   },
   {
-    id: 'JH2024050001-01',
-    planName: '项目管理进阶班',
+    id: 'JH-D06-01',
+    planName: '产品思维训练营',
     sessionLabel: '第3期-第1场',
-    course: '项目管理进阶',
-    lecturer: '李明',
-    date: '2024-05-06',
+    course: '产品思维训练营',
+    lecturer: '王芳',
+    date: '2026-08-06',
     signed: 45,
     expected: 48,
     feedback: '4.8',
   },
   {
-    id: 'JH2024050003-01',
-    planName: '领导力修炼营',
+    id: 'JH-D07-01',
+    planName: 'Excel高效应用班',
     sessionLabel: '第2期-第3场',
-    course: '领导力修炼',
-    lecturer: '赵强',
-    date: '2024-05-07',
+    course: 'Excel高效应用',
+    lecturer: '李明',
+    date: '2026-08-07',
     signed: 36,
     expected: 36,
     feedback: '4.7',
   },
-];
+]);
 
 export const PLAN_LIST_TOTAL = 42;
 
@@ -187,15 +218,14 @@ export const TRAINING_DETAIL_TABS = [
 export const TRAINING_DETAIL_ACTIVE_TAB = 0;
 
 /** 默认场次详情（文档 9「冻结数据与默认详情」） */
-export const TRAINING_DETAIL = {
-  id: 'JH2024050005-02',
+export const TRAINING_DETAIL = withCurrentDates({
   title: 'AI工具实战营 第5期-第2场',
-  state: '已开课' as SessionState,
+  state: '待开课' as SessionState,
   fields: [
     { label: '所属计划', value: 'AI工具实战营 第5期' },
-    { label: '关联课程', value: 'AI工具实战应用' },
-    { label: '授课讲师', value: '李玥' },
-    { label: '培训日期', value: '2024-05-09（周四）' },
+    { label: '关联课程', value: 'AI工具实战' },
+    { label: '授课讲师', value: '陈晨' },
+    { label: '培训日期', value: '2026-08-09（周日）' },
     { label: '时间', value: '14:00～17:00' },
     { label: '培训形式', value: '线上' },
     { label: '线上链接', value: 'https://live.example.com/ai-tools-05' },
@@ -216,18 +246,18 @@ export const TRAINING_DETAIL = {
     { label: '覆盖更新', value: 2 },
     { label: '自动补入', value: 4 },
   ],
-} as const;
+} as const);
 
 /** 今日提醒三条（文档 9）。状态已换成合法值 */
 export const TODAY_REMINDERS = [
   { time: '09:00', title: '商务谈判技巧', state: '已开课' as SessionState },
-  { time: '14:00', title: 'AI工具实战应用', state: '已开课' as SessionState },
+  { time: '14:00', title: 'AI工具实战', state: '待开课' as SessionState },
   { time: '16:30', title: '数据分析实战', state: '待开课' as SessionState },
 ] as const;
 
-/** 详情底部 A12 运营引导。两种模式都渲染（裁决 bottom_cta=a） */
+/** 详情底部运营引导。两种模式都渲染（裁决 bottom_cta=a） */
 export const TRAINING_CTA = {
-  title: '还没有合适的培训计划？',
-  body: '按课程与面向人群新建一期，下属场次可随后拆排。',
+  title: '高效运营，从每一次培训开始',
+  body: '合理规划培训计划，实时跟踪执行进度，让每一份投入都产生价值。',
   action: '新建培训计划',
 } as const;

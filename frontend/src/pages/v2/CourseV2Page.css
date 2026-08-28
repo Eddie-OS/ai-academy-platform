@@ -16,87 +16,313 @@
 }
 
 /*
- * 产品模式：主体两栏吃满窗口高度，左栏四个区域按设计稿行高比例分配。
- *
- * <p><b>回归模式下左栏底部那 80px 空白是设计稿本来的样子</b>（左栏六个区域合计 850，
- * 这一行高 930），所以那里保持 align-items:flex-start。但产品模式不能照搬 ——
- * 窗口越高空白越大，最后会变成大半屏的空底。改为 stretch 并把高度按 98/80/438/194 分配。
+ * 产品模式：主体一栏吃满窗口高度，四个区域按行高比例分配。
  *
  * 详见 DashboardV2Page.css 同一节关于 flex-basis 必须写 0 的说明。
  */
 html:not([data-regression]) .crs {
   flex: 1;
   min-height: 0;
-}
-
-html:not([data-regression]) .crs-main {
-  align-items: stretch;
-  height: auto;
-  flex: 1;
-  min-height: 930px;
-  margin-bottom: var(--space-v2-6);
-}
-
-html:not([data-regression]) .panel.crs-detail {
-  height: auto;
-}
-
-html:not([data-regression]) .crs-kpis {
-  height: auto;
-  flex: 98 1 0;
-  min-height: 98px;
-}
-
-/* 筛选行不参与伸展：两行控件长高只会让下拉框浮在空白里 */
-html:not([data-regression]) .crs-filters {
-  flex: 0 0 80px;
-}
-
-html:not([data-regression]) .crs-board {
-  height: auto;
-  flex: 438 1 0;
-  min-height: 438px;
-}
-
-html:not([data-regression]) .crs-bottom {
-  height: auto;
-  flex: 194 1 0;
-  min-height: 194px;
+  height: 100%;
 }
 
 /*
- * 主体两栏。
+ * 壳层在本页要有<b>确定</b>的高度，否则下面那套「谁先被压缩」的规则一条都不生效。
  *
- * 两栏间距 14px 而不是坐标表算出来的 13px：正文宽 1364，左栏 875 + 右栏 474 = 1349，
- * 剩 15px。取 13px 的话右栏变成 476（差 2，正好顶容差）；取 15px 的话右栏 x 变成 1088
- * （也差 2）。14px 让 x 与 w 各差 1px，都留有余量。
+ * `.shell` 平时只有 min-height:100vh —— 内容比视口高时它跟着长高，
+ * flex 容器的可用高度永远等于内容高度，于是<b>没有任何一块需要收缩</b>：
+ * 看板保持 429px，底部两块被顶到 y=918，1440×900 与 1366×768 下实测都掉出视口
+ * （且 `.shell-content` 的 overflow-y:auto 也因此永不触发，滚都滚不到）。
  *
- * align-items:flex-start 是关键：左栏六个区域合计 850，而这一行高 930。
- * <b>左下角那 80px 空白是设计稿本来的样子</b>，默认的 stretch 会把左栏拉到 930，
- * 底部两个面板跟着变高 80px，L1 断言会在 R6/R7 上失败。
+ * 锁成 height:100vh 后，可用高度变成确定值，`.shell-content` 恢复成滚动容器，
+ * `.crs-main` 的 flex 分配才有意义。只挂在 [data-page='course'] 上：
+ * 另外八页的纵向策略与横带数量各不相同，不在这次缺陷的范围里。
+ */
+html:not([data-regression]) .shell[data-page='course'] {
+  height: 100vh;
+  overflow: hidden;
+}
+
+html:not([data-regression]) .shell[data-page='course'] .shell-main {
+  min-height: 0;
+}
+
+html:not([data-regression]) .shell[data-page='course'] .shell-content {
+  overflow: hidden;
+}
+
+/*
+ * 产品模式不锁总高。回归模式那 930px 是 992 视口下量出来的，产品模式再锁一遍
+ * 会让四个区域合计（930 + 底部外边距）超过可用高度，底部的日历与数据概览被挤出视口 ——
+ * 看板「最大化」不该以另外两块滚出屏幕为代价。
+ */
+html:not([data-regression]) .crs-main {
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+  margin-bottom: 0;
+  padding-bottom: var(--space-v2-4);
+}
+
+/*
+ * 高度分配的三条规则（这一节整体是为「底部两块被视口裁掉」修的）：
+ *
+ * 1. KPI 与筛选行 `flex: 0 0 auto` —— 既不长也不缩。
+ * 2. 底部日历／数据概览 `flex: 1 0 194px` —— <b>shrink 必须是 0</b>。窗口不够高时
+ *    它一起被压，就会把「评审通过率」那一行挤出视口，而 `.crs-session-list` 与
+ *    `.panel` 都是 overflow:hidden，被挤掉的行既看不见也滚不到。
+ * 3. 产品模式课程列表 `flex: 1 1 auto` —— 吃掉 KPI／筛选／底栏之外的剩余高度，
+ *    表体内部滚动。回归模式仍是七列看板，几何由 P03 钉死，不走这块。
+ */
+html:not([data-regression]) .crs-kpis {
+  height: auto;
+  flex: 0 0 auto;
+  min-height: 108px;
+}
+
+/*
+ * 筛选行不参与伸展。回归模式锁 80px（两行 8+28+8+28+8）；产品模式一行控件，
+ * --type-unit 会把 --control-compact-h 放大到超过 28px，再锁 80px 会多出一截空白。
+ */
+html:not([data-regression]) .crs-filters {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: calc(var(--space-v2-2) * 2 + var(--control-compact-h));
+  margin-top: 18px;
+}
+
+html:not([data-regression]) .crs-filter-row {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+html:not([data-regression]) .crs-filter {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 0;
+  background: none;
+  gap: var(--space-v2-1);
+}
+
+html:not([data-regression]) .crs-filter-select select {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+  min-width: unset;
+  padding: 0 22px 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background-color: var(--bg-page);
+  background-position: right 6px center;
+}
+
+html:not([data-regression]) .crs-search {
+  flex: 1 1 auto;
+  min-width: 108px;
+}
+
+html:not([data-regression]) .crs-create,
+html:not([data-regression]) .crs-filter-reset {
+  flex: 0 0 auto;
+}
+
+/*
+ * 看板按最高那一列的卡片收高度，不参与分剩余空间。
+ * 列少的时候再锁 518／flex-grow，灰底会空出一大块，底部两块却还是 194px ——
+ * 运营看到的就是「看板下面一截空白，日历和概览挤在最底下」。
+ */
+html:not([data-regression]) .crs-board {
+  height: auto;
+  flex: 0 1 auto;
+  min-height: 170px;
+  overflow: hidden;
+}
+
+html:not([data-regression]) .panel.crs-table-panel {
+  position: relative;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 200px;
+  margin-top: 18px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* 被压缩时卡片列改为可滚：少露一行卡是可接受的代价，看不到那张卡不是 */
+html:not([data-regression]) .crs-col-cards {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/*
+ * 产品模式按内容撑开，不再锁 194px。
+ *
+ * 194 是回归画布上 --type-unit=1px 时刚好装下的数。产品模式字号会放大
+ * （clamp 到 1.5px），再锁 194 就会把月历最后两周和概览后两行裁掉，
+ * 看起来像「只剩标题」。overflow 也必须放开，.panel 默认 hidden 会继续切。
+ *
+ * 钉底仍靠 margin-top:auto；高度随内容走，flex 不伸缩。
+ */
+html:not([data-regression]) .crs-bottom {
+  height: auto;
+  flex: 0 0 auto;
+  min-height: 0;
+  margin-top: 18px;
+  align-items: stretch;
+}
+
+html:not([data-regression]) .panel.crs-calendar,
+html:not([data-regression]) .panel.crs-overview {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+html:not([data-regression]) .panel.crs-overview {
+  padding-right: 24px;
+}
+
+/*
+ * 父级改成 auto 之后，flex:1 + min-height:0 的子块会塌成 0 高
+ * （没有确定高度可以分）。改成按内容长，月历、场次、三行数才能露出来。
+ */
+html:not([data-regression]) .crs-sessions,
+html:not([data-regression]) .crs-session-list,
+html:not([data-regression]) .crs-overview-body,
+html:not([data-regression]) .crs-overview-art-wrap {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+}
+
+html:not([data-regression]) .crs-overview-list {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+}
+
+html:not([data-regression]) .crs-overview-item dd {
+  margin-left: auto;
+  text-align: right;
+}
+
+html:not([data-regression]) .crs-trial-line {
+  margin: 0;
+  padding: 6px 0;
+  color: var(--text-primary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+  border-bottom: 1px solid #f0f2f5;
+}
+
+html:not([data-regression]) .crs-trial-line:last-child {
+  border-bottom: 0;
+}
+
+html:not([data-regression]) .crs-overview-table {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  border-collapse: collapse;
+}
+
+html:not([data-regression]) .crs-overview-table th,
+html:not([data-regression]) .crs-overview-table td {
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+  text-align: left;
+  vertical-align: middle;
+}
+
+html:not([data-regression]) .crs-overview-table th {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+html:not([data-regression]) .crs-overview-table td:last-child,
+html:not([data-regression]) .crs-overview-table th:last-child {
+  text-align: right;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+html:not([data-regression]) .crs-overview-table tbody tr + tr td {
+  border-top: 1px solid #f0f2f5;
+}
+
+/*
+ * 白框高度不变。月历吃满左侧剩余高度，六个日期行用 1fr 均分，
+ * 行高随框走，底下不再空一截。数字仍是圆点，居中在格子里。
+ */
+html:not([data-regression]) .crs-calendar-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-self: stretch;
+}
+
+html:not([data-regression]) .crs-cal-side {
+  align-self: stretch;
+  min-height: 0;
+}
+
+html:not([data-regression]) .crs-month-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  align-content: stretch;
+  grid-template-rows: auto;
+  grid-auto-rows: 1fr;
+  row-gap: 0;
+  column-gap: 0;
+}
+
+html:not([data-regression]) .crs-weekday {
+  height: calc(var(--type-unit) * 16);
+  line-height: calc(var(--type-unit) * 16);
+}
+
+html:not([data-regression]) .crs-day,
+html:not([data-regression]) .crs-day-empty {
+  width: calc(var(--type-unit) * 24);
+  height: calc(var(--type-unit) * 24);
+  min-height: calc(var(--type-unit) * 24);
+  line-height: calc(var(--type-unit) * 24);
+  justify-self: center;
+  align-self: center;
+}
+
+html:not([data-regression]) .crs-session-list {
+  overflow-y: auto;
+}
+
+html:not([data-regression]) .crs-overview-art {
+  max-height: none;
+}
+
+/*
+ * 主体单栏，四个区域自上而下：KPI 98 + 13 + 筛选 80 + 12 + 看板 518 + 15 + 底部 194 = 930。
+ *
+ * 详情栏撤成弹窗后不再有第二栏，四个区域一律通栏 1364px。看板拿走的是原先左栏底部
+ * 那 80px 空白（438 → 518），不是把日历或数据概览压矮 —— 那两块本来就只有 194px。
  */
 .crs-main {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  flex-direction: column;
   height: 930px;
   margin-top: 1px;
 }
 
-/*
- * 两栏宽度写成正文宽度的比例，做法与理由见 DashboardV2Page.css 的 .dash-warning。
- * 减去的 14px 是两栏间距，1350 是 875 + 475 两个设计宽度之和 ——
- * 正文 1364px 时算回 875.0 与 475.0。
- */
-.crs-left {
-  display: flex;
-  flex-direction: column;
-  flex: 0 1 calc((100% - 14px) * 875 / 1350);
-  min-width: 0;
-}
-
 /* ===========================================================================
- * R3 五张 KPI：198,62,875,98
+ * R3 五张 KPI：198,62,1364,98
  * =========================================================================== */
 
 .crs-kpis {
@@ -140,8 +366,68 @@ html:not([data-regression]) .crs-bottom {
   line-height: var(--type-caption-line);
 }
 
+html:not([data-regression]) .crs-kpi {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: 108px;
+  padding: var(--card-pad-compact);
+  cursor: pointer;
+}
+
+html:not([data-regression]) .crs-kpi[data-selected='true'] {
+  border-color: var(--brand-action);
+  box-shadow: var(--shadow-card);
+}
+
+html:not([data-regression]) .crs-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+}
+
+html:not([data-regression]) .crs-kpi-label {
+  color: var(--text-secondary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+html:not([data-regression]) .crs-kpi-plate {
+  display: flex;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+}
+
+html:not([data-regression]) .crs-kpi-value {
+  font-size: var(--type-kpi-size);
+  font-weight: var(--type-kpi-weight);
+  line-height: var(--type-kpi-line);
+}
+
+html:not([data-regression]) .crs-kpi-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-v2-2);
+}
+
+html:not([data-regression]) .crs-kpi-delta[data-down='true'] {
+  color: var(--danger);
+}
+
+html:not([data-regression]) .crs-kpi-baseline {
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
+}
+
 /* ===========================================================================
- * R4 筛选器：198,173,875,80 —— 两行控件，8+28+8+28+8 = 80
+ * R4 筛选器：198,173,1364,80 —— 两行控件，8+28+8+28+8 = 80
  * =========================================================================== */
 
 .crs-filters {
@@ -203,6 +489,54 @@ html:not([data-regression]) .crs-bottom {
   color: var(--text-placeholder);
 }
 
+.crs-filter-select {
+  gap: 6px;
+  cursor: default;
+}
+
+.crs-filter-label {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.crs-filter-select select {
+  appearance: none;
+  min-width: 88px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  background-size: 14px;
+  padding-right: 18px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  cursor: pointer;
+}
+
+.crs-filter-select select[data-empty='true'] {
+  color: var(--text-placeholder);
+}
+
+.crs-filter-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+  padding: 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .crs-create {
   display: inline-flex;
   align-items: center;
@@ -213,7 +547,7 @@ html:not([data-regression]) .crs-bottom {
   border: 0;
   border-radius: var(--radius-control);
   background: var(--brand-action);
-  color: #ffffff;
+  color: #fff;
   font-family: inherit;
   font-size: var(--type-table-size);
   font-weight: var(--type-body-medium-weight);
@@ -222,24 +556,22 @@ html:not([data-regression]) .crs-bottom {
 }
 
 /* ===========================================================================
- * R5 七列课程看板：198,265,875,438
+ * R5 七列课程看板：198,265,1364,518（通栏最大化）
  * =========================================================================== */
 
 /*
- * 外框内边距 3px，不是文档写的 8px。
+ * 外框内边距 3px，不是文档写的 8px。理由与详情改弹窗前一样：文档 7「内部几何」那
+ * 四个数（看板 875、列宽 119、列间距 6、内边距 8）互相矛盾，合计 885 比区域宽多 10px，
+ * 让步的一直是内边距。
  *
- * 文档 7「内部几何」给了四个数：看板区 875、列宽 119、列间距 6、外框内边距 8。
- * 这四个数<b>互相矛盾</b>：8 + 7×119 + 6×6 + 8 = 885，比 875 多 10px。
- *
- * 让步的是内边距：3 + 833 + 36 + 3 = 875，正好。
- * 选它而不是压列宽，是因为 119px 是文档首要点明的数，也是我在 spec 里逐列断言的数；
- * 压成 117.6px 之后七列都对不上，而少 5px 内边距没人看得出来。
+ * 通栏后列宽由比例算出来（内宽 1356 − 36 = 1320，七等分 188.57），119 这个数随右侧
+ * 详情栏一起作废；spec 里逐列断言的也换成了新列宽。
  */
 .crs-board {
   display: flex;
   gap: 6px;
   box-sizing: border-box;
-  height: 438px;
+  height: 518px;
   margin-top: 12px;
   padding: 3px;
   border: var(--border-v2);
@@ -249,18 +581,17 @@ html:not([data-regression]) .crs-bottom {
 
 /*
  * 列宽写成看板内宽的比例。减去的 36px 是六个 6px 列间距 ——
- * 看板内宽 869px（875 减去两侧各 3px 内边距）时算回 119.0，逐列断言照样通过。
+ * 看板内宽 1356px（1364 减去两侧各 3px 内边距与 1px 边框）时算回 188.57。
  *
- * 不写 `flex: 1`：那样均分的是<b>剩余空间</b>而不是总宽，875 下七等分得 119.86，
- * 浏览器逐列四舍五入后累积误差让最后一列差 3~4px，而 119 是文档标注「必须照抄」的数。
+ * 不写 `flex: 1`：那样均分的是<b>剩余空间</b>而不是总宽，浏览器逐列四舍五入后
+ * 累积误差让最后一列差 3~4px，逐列等宽的断言会在末列上失败。
  */
 .crs-col {
   display: flex;
   flex-direction: column;
   flex: 0 1 calc((100% - 36px) / 7);
-  min-width: 0;
   box-sizing: border-box;
-  /* 5px 横向内边距让 109px 的卡片正好居中：5 + 109 + 5 = 119 */
+  /* 5px 横向内边距，卡片宽度 = 列宽 − 10 */
   padding: 0 5px;
   min-width: 0;
 }
@@ -299,7 +630,7 @@ html:not([data-regression]) .crs-bottom {
   overflow: hidden;
 }
 
-/* 课程卡 109×126、卡间距 6px（「必须照抄」） */
+/* 课程卡 188.6×126、卡间距 6px。宽度随列宽走，高度仍锁 126 */
 .crs-card {
   display: flex;
   flex-direction: column;
@@ -311,6 +642,14 @@ html:not([data-regression]) .crs-bottom {
   border-radius: var(--radius-control);
   background: var(--bg-page);
   box-shadow: var(--shadow-card);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 卡片现在是可聚焦的按钮（双击／回车打开详情），焦点环不能省 */
+.crs-card:focus-visible {
+  outline: 2px solid var(--brand-action);
+  outline-offset: 1px;
 }
 
 /* 15 组件矩阵：Card selected = 1px #5B82FF + selected shadow。
@@ -327,7 +666,7 @@ html:not([data-regression]) .crs-bottom {
   font-variant-numeric: tabular-nums;
 }
 
-/* 课程名最多两行。93px 的内容宽在 12px 下一行约 7 个汉字，两行 14 个够用；
+/* 课程名最多两行。通栏后内容宽约 163px，一行放得下 13 个汉字，两行足够；
    第三行会把卡片顶破 126px */
 .crs-card-name {
   display: -webkit-box;
@@ -368,7 +707,260 @@ html:not([data-regression]) .crs-bottom {
 }
 
 /* ===========================================================================
- * R6 + R7：y=718 h=194。R6 533 + 12 + R7 330 = 875，这一对间距正好整数
+ * 产品模式课程列表：对齐需求列表（.dmd-table）的面板、表头、选中行与分页条
+ * =========================================================================== */
+
+.crs-table-panel .panel-head {
+  margin-bottom: var(--space-v2-2);
+  padding: 0 var(--card-pad);
+}
+
+.crs-list-count {
+  flex: 0 0 auto;
+  margin-right: auto;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.crs-table-scroll .crs-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-page);
+}
+
+.crs-table {
+  width: calc(100% + 2px);
+  margin: 0 -1px;
+  border-collapse: collapse;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
+}
+
+.crs-table th {
+  padding: 0 var(--space-v2-1) var(--space-v2-1);
+  border-bottom: var(--border-v2);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.crs-table td {
+  padding: var(--space-v2-1);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crs-table th:first-child,
+.crs-table td:first-child {
+  padding-left: 12px;
+}
+
+.crs-table tbody tr {
+  cursor: pointer;
+  /* Esc 关详情后焦点回到这一行。默认黑框会像选中描边，用行底色表示当前行即可 */
+  outline: none;
+}
+
+.crs-table tbody tr:focus,
+.crs-table tbody tr:focus-visible {
+  outline: none;
+}
+
+.crs-table tbody tr:hover td {
+  background: var(--brand-50);
+}
+
+.crs-table tbody tr[data-selected='true'] td {
+  background: var(--brand-100);
+}
+
+.crs-table tbody tr[data-selected='true']:hover td {
+  background: var(--brand-100);
+}
+
+.crs-cell-id {
+  color: var(--text-tertiary);
+}
+
+.crs-cell-name {
+  padding-left: 0;
+  padding-right: 0;
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.crs-cell-days {
+  color: var(--text-secondary);
+}
+
+.crs-state-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  padding: 0 var(--space-v2-1);
+  border-radius: var(--radius-tag);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  line-height: var(--lh-20);
+  white-space: nowrap;
+}
+
+.crs-state-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.crs-back-top {
+  position: absolute;
+  right: 16px;
+  bottom: 52px;
+  z-index: 2;
+  height: 28px;
+  padding: 0 10px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.crs-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-v2-3);
+  margin-top: auto;
+  padding: var(--space-v2-2) var(--card-pad) 0;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-pager-total {
+  white-space: nowrap;
+}
+
+.crs-pager-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  height: 24px;
+  padding: 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crs-pager-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+}
+
+.crs-pager-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.crs-pager-page[data-current='true'] {
+  border-color: var(--brand-action);
+  background: var(--brand-action);
+  color: #ffffff;
+}
+
+.crs-pager-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.crs-pager-step:disabled {
+  color: var(--text-placeholder);
+  cursor: not-allowed;
+}
+
+.crs-pager-gap {
+  padding: 0 2px;
+  color: var(--text-placeholder);
+}
+
+.crs-pager-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  white-space: nowrap;
+}
+
+.crs-pager-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 32px;
+  height: 24px;
+  margin: 0;
+  padding: 0 4px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+}
+
+/* ===========================================================================
+ * R6 + R7：y=798 h=194。两块按原设计的 533 : 330 比例摊到通栏，得 835 + 12 + 517 = 1364
  * =========================================================================== */
 
 .crs-bottom {
@@ -378,59 +970,101 @@ html:not([data-regression]) .crs-bottom {
   margin-top: 15px;
 }
 
-/* 减去的 12px 是两个面板的间距，863 是 533 + 330 两个设计宽度之和 */
+/*
+ * 减去的 12px 是两个面板的间距，863 是 533 + 330 两个设计宽度之和。
+ *
+ * 内边距压到 10/12：194px 的面板里要塞下月历（14 表头 + 6 行 × 18 = 122）与右侧场次列表，
+ * 默认的 --card-pad 上下各吃掉 16px，最后一行日期会被 overflow:hidden 切掉半格。
+ */
 .panel.crs-calendar {
   flex: 0 1 calc((100% - 12px) * 533 / 863);
   min-width: 0;
-  padding: var(--card-pad-compact) var(--card-pad);
+  padding: 10px 12px;
+  border-color: #d7e3ff;
 }
 
 .panel.crs-overview {
   flex: 0 1 calc((100% - 12px) * 330 / 863);
   min-width: 0;
-  padding: var(--card-pad-compact) var(--card-pad);
+  padding: 8px 12px;
+  overflow: hidden;
 }
 
-/* 底部两个面板只有 194px，标题降到正文档，否则 18px 标题吃掉太多高度 */
+/* 底部两个面板只有 194px，标题降到 13/18，否则 18px 标题吃掉太多高度。
+   写在 @import './panel.css' 之后才能盖住同特异性的 .panel-title */
 .crs-sub-title {
-  font-size: var(--type-body-size);
-  line-height: var(--type-body-line);
+  flex: 0 0 auto;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: var(--type-body-medium-weight);
+  line-height: 18px;
 }
 
-.crs-calendar-head {
-  margin-bottom: var(--space-v2-2);
+.crs-calendar-body {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.crs-cal-side {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 40%;
+  width: 40%;
+  min-width: 0;
+  gap: 4px;
 }
 
 .crs-month {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-v2-2);
+  gap: 4px;
   color: var(--text-secondary);
-  font-size: var(--type-caption-size);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   font-variant-numeric: tabular-nums;
+}
+
+/* 年月占满中间，把「今天」推到最右 */
+.crs-month > span {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--type-body-medium-weight);
+  color: var(--text-primary);
 }
 
 .crs-month button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   border: 0;
   background: none;
   cursor: pointer;
+  padding: 0;
 }
 
-.crs-calendar-body {
-  display: flex;
-  gap: var(--space-v2-3);
-  flex: 1;
-  min-height: 0;
+/* !important 是必要的：上一条 `.crs-month button` 是「类 + 元素」，特异性比这里的单类高，
+   不加的话边框与底色会被上一条的 border:0 / background:none 吃掉 */
+.crs-today-btn {
+  height: calc(var(--type-unit) * 18);
+  padding: 0 6px !important;
+  border: 1px solid #d7e3ff !important;
+  border-radius: 4px;
+  background: #f5f8ff !important;
+  color: var(--brand-action);
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 16);
+  white-space: nowrap;
 }
 
 .crs-month-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  flex: 0 0 280px;
-  width: 280px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
   align-content: start;
 }
 
@@ -438,10 +1072,10 @@ html:not([data-regression]) .crs-bottom {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 16px;
+  height: calc(var(--type-unit) * 14);
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 14);
 }
 
 .crs-day {
@@ -449,12 +1083,28 @@ html:not([data-regression]) .crs-bottom {
   align-items: center;
   justify-content: center;
   position: relative;
-  height: 20px;
-  border-radius: var(--radius-tag);
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(var(--type-unit) * 18);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 20px;
+  font: inherit;
+  font-size: var(--fs-11);
+  line-height: calc(var(--type-unit) * 18);
   font-variant-numeric: tabular-nums;
+}
+
+button.crs-day {
+  cursor: pointer;
+}
+
+button.crs-day:focus-visible {
+  outline: 2px solid var(--brand-action);
+  outline-offset: 1px;
 }
 
 /* 有排期的日子打一个点。点<b>不是唯一标识</b>——右侧列出了选中日的全部场次，
@@ -463,59 +1113,157 @@ html:not([data-regression]) .crs-bottom {
   content: '';
   position: absolute;
   bottom: 1px;
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: var(--brand-action);
+  background: var(--danger);
 }
 
 .crs-day[data-selected='true'] {
   background: var(--brand-action);
-  color: #ffffff;
+  color: #fff;
   font-weight: var(--type-body-medium-weight);
 }
 
 .crs-day[data-selected='true']::after {
-  background: #ffffff;
+  background: #fff;
 }
 
 .crs-sessions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-v2-1);
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  padding-left: 12px;
+  border-left: 1px solid #eef0f4;
+}
+
+.crs-sessions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-bottom: 4px;
 }
 
 .crs-sessions-date {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  color: var(--text-primary);
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
   font-variant-numeric: tabular-nums;
+}
+
+.crs-sessions-link {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font: inherit;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button.crs-sessions-link:hover {
+  text-decoration: underline;
+}
+
+.crs-session-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.crs-session-empty {
+  padding: 8px 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
 }
 
 .crs-session {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-v2-2);
+  align-items: flex-start;
+  gap: 8px;
   min-width: 0;
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.crs-session:last-child {
+  border-bottom: 0;
 }
 
 .crs-session-time {
-  flex: 0 0 auto;
+  flex: 0 0 34px;
   color: var(--brand-action);
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
   font-variant-numeric: tabular-nums;
 }
 
-.crs-session-course {
+.crs-session-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
+}
+
+.crs-session-course {
   overflow: hidden;
   color: var(--text-primary);
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.crs-session-course em {
+  margin-left: 4px;
+  color: var(--text-secondary);
+  font-style: normal;
+  font-weight: 400;
+  font-size: var(--fs-11);
+}
+
+.crs-session-meta {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 场次类型徽章。两种色调的差别不是唯一载体 —— 徽章里写的就是「试讲」「评审」 */
+.crs-session-tag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--type-unit) * 18);
+  margin-top: 1px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: var(--brand-action);
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 18);
+}
+
+.crs-session-tag[data-tone='review'] {
+  background: #fff1e8;
+  color: #d97706;
 }
 
 /* ===========================================================================
@@ -524,94 +1272,381 @@ html:not([data-regression]) .crs-bottom {
 
 .crs-overview-body {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-v2-2);
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+}
+
+.crs-overview-art-wrap {
+  flex: 0 0 46%;
+  width: 46%;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* P03_OVERVIEW 插画。aria-hidden + 空 alt：它不承载信息，三个数字都以文本给出了 */
+.crs-overview-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 148px;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 .crs-overview-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-v2-2);
-  flex: 1;
+  justify-content: space-evenly;
+  gap: 0;
+  flex: 1 1 0;
   min-width: 0;
+  height: 100%;
+  padding-left: 4px;
 }
 
 .crs-overview-item {
   display: flex;
-  align-items: baseline;
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-v2-2);
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.crs-overview-item + .crs-overview-item {
+  border-top: 1px solid #f0f2f5;
 }
 
 .crs-overview-item dt {
-  color: var(--text-tertiary);
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
 }
 
 .crs-overview-item dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: 0 0 auto;
+  margin: 0;
+  gap: 0;
+}
+
+.crs-overview-value {
   color: var(--text-primary);
-  font-weight: var(--type-body-medium-weight);
+  font-size: var(--fs-22);
+  font-weight: 600;
+  line-height: var(--lh-26);
   font-variant-numeric: tabular-nums;
 }
 
-/* A07 协作插画。aria-hidden + 空 alt：它不承载信息，三个数字都以文本给出了 */
-.crs-overview-art {
-  flex: 0 0 96px;
-  width: 96px;
-  height: auto;
-  object-fit: contain;
+.crs-overview-delta {
+  color: #16a34a;
+  font-size: var(--fs-11);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-14);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ===========================================================================
- * R8 课程详情：1086,62,474,930
- * =========================================================================== */
+/* 详情弹窗外框见 panel.css（.crs-modal），与需求驾驶舱共用 1100×1200 */
 
-.panel.crs-detail {
-  flex: 0 1 calc((100% - 14px) * 475 / 1350);
+.crs-cal-full {
+  flex-direction: column;
+  width: min(1240px, calc(100vw - 48px));
+  height: min(840px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  padding: 24px 28px 20px;
+  overflow: hidden;
+}
+
+.crs-cal-full-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-right: 28px;
+  flex: 0 0 auto;
+}
+
+.crs-cal-full-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-16);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--lh-24);
+}
+
+.crs-cal-full-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  gap: 20px;
+  min-height: 0;
+  flex: 1 1 auto;
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.crs-cal-full-cal {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  height: 930px;
+  min-height: 0;
+  padding-right: 8px;
+  border-right: 1px solid #eef0f4;
 }
 
+.crs-cal-full-agenda {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding-left: 4px;
+}
+
+html:not([data-regression]) .crs-cal-full-body .crs-month-grid {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  align-content: stretch;
+  grid-auto-rows: 1fr;
+  row-gap: 4px;
+}
+
+html:not([data-regression]) .crs-cal-full-body .crs-day,
+html:not([data-regression]) .crs-cal-full-body .crs-day-empty {
+  width: calc(var(--type-unit) * 44);
+  height: calc(var(--type-unit) * 44);
+  min-height: calc(var(--type-unit) * 44);
+  line-height: calc(var(--type-unit) * 44);
+}
+
+.crs-cal-full-sub {
+  margin: 16px 0 8px;
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
+}
+
+.crs-cal-full-month {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crs-cal-full-month > li + li {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eef0f4;
+}
+
+.crs-cal-full-day-btn {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
+  text-align: left;
+  cursor: pointer;
+}
+
+.crs-cal-full-day-btn[data-active='true'] {
+  color: var(--brand-action);
+}
+
+/*
+ * gap:0 覆盖 .panel 的默认列间距：这一栏里六块内容各自带 margin-top，
+ * 再叠一层 gap 会把材料区往下推。
+ *
+ * 高度交给弹窗：内容比窗口高时这里滚动，而不是被 .panel 的 overflow:hidden 裁掉 ——
+ * 被裁掉的内容既看不见也滚不到，表现和「这块没做」一样。
+ */
+.panel.crs-detail {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 14px 10px;
+  gap: 0;
+  overflow-y: auto;
+}
+
+/* 右边 30px 让给弹窗的关闭按钮，否则「内部讲师课程」那颗标签正好压在它下面 */
 .crs-detail-head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-v2-1);
+  gap: 2px;
+  flex: 0 0 auto;
+  padding-right: 30px;
 }
 
-.crs-detail-id {
-  color: var(--text-tertiary);
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
-  font-variant-numeric: tabular-nums;
+.crs-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .crs-detail-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-primary);
-  font-size: var(--type-panel-title-size);
+  font-size: var(--fs-16);
   font-weight: var(--type-panel-title-weight);
-  line-height: var(--type-panel-title-line);
+  line-height: var(--lh-24);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
+.crs-detail-type {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--type-unit) * 20);
+  padding: 0 8px;
+  border-radius: var(--radius-tag);
+  background: #f3f4f6;
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  line-height: calc(var(--type-unit) * 20);
+}
+
+.crs-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 主状态药丸。圆点只是装饰 —— 状态名就写在它右边，且这里用的是中性绿而不是三色灯的四个语义色
+ * （WV4：品牌色与灯色互不串用，状态徽章也不得借灯色表意）。
+ */
+.crs-detail-status {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  height: calc(var(--type-unit) * 22);
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: calc(var(--type-unit) * 22);
+}
+
+.crs-detail-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+/* 状态摘要四格。四个字段等宽，值溢出时截断而不换行 —— 换行会把这张卡顶高，
+   底下的材料区跟着被压掉一行 */
+.crs-status-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  background: #f7f8fb;
+  flex: 0 0 auto;
+}
+
+.crs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crs-field dt {
+  color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
+}
+
+.crs-field dd {
+  color: var(--text-primary);
+  font-size: var(--fs-12);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-18);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 五个动作按钮里有两个是长名（「录入结论=不通过·修改后重新评审」），
+   474px 一行放不下，允许换行；按钮间距由 ActionGuard 的 gap 给 */
+.crs-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  flex: 0 0 auto;
+}
+
+/* AntD 默认 32px 高的按钮，五个换成两行后要吃掉 80px；压到 28px 才留得下材料区 */
+.crs-detail-actions .ant-btn {
+  height: calc(var(--type-unit) * 28);
+  padding: 0 10px;
+  font-size: var(--fs-12);
+  line-height: calc(var(--type-unit) * 26);
+  border-radius: 6px;
+}
+
+/* 五个页签在 446px 的内容宽里排不满一行时不换行、改横向滚动 ——
+   换行会把页签条撑成两行，底下所有区块整体下移 */
 .crs-tabs {
   display: flex;
-  gap: var(--space-v2-3);
-  margin-top: var(--space-v2-4);
-  border-bottom: var(--border-v2);
+  gap: 12px;
+  margin-top: 8px;
+  border-bottom: 1px solid #eef0f4;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.crs-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .crs-tab {
-  padding: 0 0 var(--space-v2-2);
+  padding: 0 0 8px;
   border: 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   background: none;
   color: var(--text-tertiary);
   font-family: inherit;
-  font-size: var(--type-table-size);
-  line-height: var(--type-table-line);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -622,64 +1657,72 @@ html:not([data-regression]) .crs-bottom {
   font-weight: var(--type-body-medium-weight);
 }
 
-.crs-fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-v2-3);
-  margin-top: var(--space-v2-4);
+.crs-detail-body {
+  min-height: 0;
+  margin-top: 12px;
 }
 
-.crs-field {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-v2-3);
-  font-size: var(--type-table-size);
-  line-height: var(--type-table-line);
+/*
+ * 八页签正文叠在原来的同屏材料区上：看不见的撑高块决定外框，
+ * 这样切页签不会改弹窗尺寸，也不把框体拉成整屏高。
+ */
+.crs-detail-body-tabs {
+  position: relative;
 }
 
-.crs-field dt {
-  flex: 0 0 104px;
+.crs-detail-sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.crs-detail-tab-pane {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+}
+
+.crs-detail-empty {
+  margin: 0;
   color: var(--text-tertiary);
-}
-
-.crs-field dd {
-  flex: 1;
-  min-width: 0;
-  color: var(--text-primary);
-}
-
-.crs-block {
-  margin-top: var(--space-v2-5);
-  padding-top: var(--space-v2-4);
-  border-top: var(--border-v2);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
 }
 
 .crs-block-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-v2-2);
-  margin-bottom: var(--space-v2-2);
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .crs-block-title {
   color: var(--text-primary);
-  font-size: var(--type-table-size);
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
-  line-height: var(--type-table-line);
+  line-height: var(--lh-18);
+}
+
+.crs-block-subtitle {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-16);
 }
 
 .crs-percent {
   color: var(--brand-action);
-  font-size: var(--type-table-size);
+  font-size: var(--fs-11);
   font-weight: var(--type-body-medium-weight);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .crs-progress {
   height: 6px;
   border-radius: 3px;
-  background: var(--bg-muted);
+  background: #e8ecf4;
   overflow: hidden;
 }
 
@@ -690,62 +1733,339 @@ html:not([data-regression]) .crs-bottom {
   background: var(--brand-action);
 }
 
-.crs-version-list {
+/* 每个分栏底部的「查看全部…」。是入口文字而不是按钮：阶段 2 还没有可跳的目标页 */
+.crs-col-foot {
+  padding-top: 6px;
+  color: var(--brand-action);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+}
+
+/* ---------------------------------------------------------------------------
+ * 课程材料与版本（页签 3 的正文，文档 7「默认状态与交互」点名默认展开）
+ * ------------------------------------------------------------------------- */
+
+/*
+ * 三栏不等宽：版本号最短，材料名次之，版本说明要放三行摘要 + 变更记录，
+ * 1 : 1.05 : 1.2 是照 446px 内容宽试出来的 —— 均分时第三栏的摘要会被 -webkit-line-clamp
+ * 从三行压成两行，最关键的那句「提交评审时由系统自动快照」正好落在被截掉的第三行。
+ */
+/*
+ * flex-basis 必须是 auto 而不是 0。原先详情栏锁死 930px，basis:0 的两块（材料 6 / 模块 4）
+ * 按比例分那 930；弹窗的高度由内容决定，没有可分的剩余空间，basis:0 会让整块塌成 0 高 ——
+ * <b>三个材料栏连边框一起消失，看起来像这一块没做</b>。
+ */
+.crs-materials {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr 1.2fr;
+  gap: 0;
+  margin-top: 8px;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  background: #fff;
+  flex: 0 0 auto;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.crs-materials-col {
   display: flex;
   flex-direction: column;
-  gap: var(--space-v2-2);
-  margin: var(--space-v2-2) 0 0;
+  min-width: 0;
+  padding: 10px 10px 8px;
+  border-right: 1px solid #eef0f4;
+}
+
+.crs-materials-col:last-child {
+  border-right: 0;
+}
+
+.crs-materials-col > .crs-col-foot {
+  margin-top: auto;
+  text-align: center;
+}
+
+.crs-module > .crs-col-foot {
+  margin-top: 6px;
+  text-align: left;
+}
+
+.crs-version-list,
+.crs-material-list,
+.crs-changelog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 版本与材料条数固定（3 与 5），撑开分布正好填满分栏；变更记录不参与，
+   它下面还压着版本说明与脚注 */
+.crs-version-list,
+.crs-material-list {
+  justify-content: space-between;
+}
+
+.crs-mini-list,
+.crs-check-items,
+.crs-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  flex: 0 0 auto;
 }
 
 .crs-version {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid #eef0f4;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.crs-version[data-current='true'] {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.crs-version-top {
+  display: flex;
   align-items: center;
-  gap: var(--space-v2-2);
-  font-size: var(--type-table-size);
-  line-height: var(--type-table-line);
+  justify-content: space-between;
+  gap: 4px;
 }
 
 .crs-version-no {
-  flex: 0 0 32px;
   color: var(--text-primary);
+  font-size: var(--fs-12);
   font-weight: var(--type-body-medium-weight);
   font-variant-numeric: tabular-nums;
 }
 
-.crs-version-time {
+.crs-version-time,
+.crs-version-by {
   color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
   font-variant-numeric: tabular-nums;
 }
 
 .crs-version-tag {
   display: inline-flex;
   align-items: center;
-  height: var(--badge-h);
-  padding: 0 var(--badge-pad-x);
+  height: calc(var(--type-unit) * 16);
+  padding: 0 5px;
   border-radius: var(--radius-tag);
-  background: var(--brand-100);
-  color: var(--brand-action);
-  font-size: var(--type-badge-size);
-  font-weight: var(--type-badge-weight);
-  line-height: var(--badge-h);
+  background: #10b981;
+  color: #fff;
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 16);
+}
+
+.crs-material {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 色块只是让五种材料好扫一眼，不表意 —— 材料名就在右边，data-tone 不参与任何判定 */
+.crs-material-icon {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: #dbeafe;
+}
+
+.crs-material[data-tone='teal'] .crs-material-icon {
+  background: #ccfbf1;
+}
+
+.crs-material[data-tone='amber'] .crs-material-icon {
+  background: #fef3c7;
+}
+
+.crs-material[data-tone='violet'] .crs-material-icon {
+  background: #ede9fe;
+}
+
+.crs-material[data-tone='rose'] .crs-material-icon {
+  background: #ffe4e6;
+}
+
+.crs-material-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.crs-material-name,
+.crs-changelog-text {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.crs-material-ver,
+.crs-changelog-at,
+.crs-mini-at {
+  color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-version-summary {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.crs-changelog-item {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.crs-changelog-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--brand-action);
+}
+
+.crs-changelog-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .crs-version-note {
-  margin-top: var(--space-v2-2);
+  margin-top: 6px;
   color: var(--text-tertiary);
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
 }
 
-/* 五个动作按钮里有两个是长名（「录入结论=不通过·修改后重新评审」），
-   474px 一行放不下，允许换行；margin-top:auto 把整块压到面板底部 */
-.crs-detail-actions {
+/* ---------------------------------------------------------------------------
+ * 详情底部四个模块：自检 / 评审记录 / 试讲记录 / 状态流转日志
+ * ------------------------------------------------------------------------- */
+
+/* flex:4 0 auto 而不是 4 1 0：四个模块的内容条数是定的，被压缩时最先消失的是
+   每个模块底部的「查看全部…」入口，而那正是这四块存在的意义 */
+.crs-modules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+  flex: 4 0 auto;
+  min-height: 0;
+}
+
+.crs-module {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-v2-2);
-  margin-top: auto;
-  padding-top: var(--space-v2-4);
-  border-top: var(--border-v2);
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.crs-mini-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
+  color: var(--text-primary);
+}
+
+.crs-timeline li {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
+  color: var(--text-primary);
+}
+
+/* 三种阶段各自的圆点。填色只是辅助 —— 每条右边都有日期与文字说明它到哪一步了 */
+.crs-timeline-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 3px;
+  border-radius: 50%;
+  border: 1.5px solid #d1d5db;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.crs-timeline li[data-phase='done'] .crs-timeline-dot {
+  border-color: #10b981;
+  background: #10b981;
+}
+
+.crs-timeline li[data-phase='current'] .crs-timeline-dot {
+  border-color: var(--brand-action);
+  background: var(--brand-action);
+}
+
+.crs-timeline-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.crs-trial-status {
+  margin-top: 8px;
+  color: var(--text-primary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.crs-trial-note {
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
+}
+
+.crs-check-items li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
+}
+
+.crs-check-score {
+  flex: 0 0 auto;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }

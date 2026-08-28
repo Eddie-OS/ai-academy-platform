@@ -35,7 +35,7 @@ public class Lecturer {
     /** 来源部门。V1.2 由「部门选择」改为自由文本（N18），只用于展示与筛选。 */
     private String sourceDept;
 
-    /** 擅长领域，JSONB 字符串数组，取值来自作战单元字典。 */
+    /** 擅长领域，JSONB 字符串数组，与需求同一套现场口径；历史行可能仍是作战单元名称。 */
     private String expertiseDomains;
 
     private String teachingDirection;

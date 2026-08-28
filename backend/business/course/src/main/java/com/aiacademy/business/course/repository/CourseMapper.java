@@ -30,7 +30,23 @@ public interface CourseMapper {
     String COLUMNS = """
             id, course_no, course_name, review_track, domain_code, owner_no,
             initiated_date, expect_publish_date, summary, target_audience, class_hours,
-            category_code, validity_period, validity_end_date, external_link,
+            category_code, source, remark, initiation_no, business_pain, course_goal, course_value,
+            outline_summary, estimate_dev_days, review_judges, initiation_review_date,
+            initiation_review_conclusion, initiation_review_opinion, initiation_status,
+            plan_draft_date, actual_draft_date, enter_selfcheck,
+            selfcheck_checker_no, selfcheck_completed_date, selfcheck_conclusion,
+            selfcheck_record_status, submit_expert_review,
+            selfcheck_spec_answers::text AS selfcheck_spec_answers,
+            review_round_label, review_completed_date, review_ledger_phase, review_ledger_status,
+            enter_trial, prelim_round_label, prelim_reviewers, prelim_review_date,
+            prelim_completed_date, prelim_conclusion, prelim_opinion, enter_meeting,
+            meeting_round_label, meeting_reviewers, meeting_actual_date,
+            meeting_conclusion, meeting_opinion,
+            trial_lecturer_no, trial_current_phase, trial_ledger_status, trial_round_label,
+            trial_scheduled_date, trial_audience_group, trial_audience_count, trial_hours,
+            trial_format, trial_satisfaction, trial_optimize_advice, trial_acceptance_result,
+            trial_ready_to_publish, trial_lecturer_qualified, trial_conclusion_date, trial_remark,
+            validity_period, validity_end_date, external_link,
             main_state, dev_state, selfcheck_state, trial_state, publish_state,
             first_publish_date, quality_marks, close_reason, current_material_version,
             created_at, created_by, updated_at, updated_by, last_state_changed_at, version, deleted
@@ -75,6 +91,19 @@ public interface CourseMapper {
     String nextCourseNo();
 
     /**
+     * 立项单号：LI + 年月 + 4 位流水。与课程编号同一把咨询锁里生成，避免并发重号。
+     *
+     * <p>历史回填用的是「年月 + 6 位 id」，对不上这条 4 位正则，不会把流水顶回去。
+     */
+    @Select("""
+            SELECT 'LI' || to_char(CURRENT_DATE, 'YYYYMM') || lpad((
+                       COALESCE(MAX(substring(initiation_no from 9)::INT), 0) + 1)::TEXT, 4, '0')
+              FROM biz_course
+             WHERE initiation_no ~ ('^LI' || to_char(CURRENT_DATE, 'YYYYMM') || '\\d{4}$')
+            """)
+    String nextInitiationNo();
+
+    /**
      * 插入课程。
      *
      * <p>{@code main_state} 是 {@code NOT NULL}，所以初始状态在这里落库；随后由
@@ -84,12 +113,14 @@ public interface CourseMapper {
     @Select("""
             INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                     initiated_date, expect_publish_date, summary, target_audience,
-                                    class_hours, category_code, validity_period, external_link,
-                                    quality_marks, main_state, created_by, updated_by)
+                                    class_hours, category_code, source, remark, initiation_no,
+                                    validity_period, external_link, quality_marks, main_state,
+                                    created_by, updated_by)
             VALUES (#{c.courseNo}, #{c.courseName}, #{c.reviewTrack}, #{c.domainCode}, #{c.ownerNo},
                     #{c.initiatedDate}, #{c.expectPublishDate}, #{c.summary}, #{c.targetAudience},
-                    #{c.classHours}, #{c.categoryCode}, #{c.validityPeriod}, #{c.externalLink},
-                    #{c.qualityMarks}::jsonb, #{c.mainState}, #{operator}, #{operator})
+                    #{c.classHours}, #{c.categoryCode}, #{c.source}, #{c.remark}, #{c.initiationNo},
+                    #{c.validityPeriod}, #{c.externalLink}, #{c.qualityMarks}::jsonb, #{c.mainState},
+                    #{operator}, #{operator})
             RETURNING id
             """)
     long insert(@Param("c") Course course, @Param("operator") String operator);
@@ -114,6 +145,8 @@ public interface CourseMapper {
                    target_audience = #{c.targetAudience},
                    class_hours = #{c.classHours},
                    category_code = #{c.categoryCode},
+                   source = #{c.source},
+                   remark = #{c.remark},
                    validity_period = #{c.validityPeriod},
                    validity_end_date = #{c.validityEndDate},
                    external_link = #{c.externalLink},
@@ -126,6 +159,134 @@ public interface CourseMapper {
     int update(@Param("c") Course course,
                @Param("operator") String operator,
                @Param("expectedVersion") int expectedVersion);
+
+    /**
+     * 只写立项页字段。不动评审轨道、有效期、预计发布——那些改了会牵动三色灯与试讲验收标准。
+     *
+     * <p>不动 {@code last_state_changed_at}。立项状态是字典项，不是状态机。
+     */
+    @Update("""
+            UPDATE biz_course
+               SET business_pain = #{c.businessPain},
+                   course_goal = #{c.courseGoal},
+                   course_value = #{c.courseValue},
+                   target_audience = #{c.targetAudience},
+                   outline_summary = #{c.outlineSummary},
+                   estimate_dev_days = #{c.estimateDevDays},
+                   review_judges = #{c.reviewJudges},
+                   initiation_review_date = #{c.initiationReviewDate},
+                   initiation_review_conclusion = #{c.initiationReviewConclusion},
+                   initiation_review_opinion = #{c.initiationReviewOpinion},
+                   initiation_status = #{c.initiationStatus},
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{c.id} AND deleted = FALSE AND version = #{expectedVersion}
+            """)
+    int updateInitiation(@Param("c") Course course,
+                         @Param("operator") String operator,
+                         @Param("expectedVersion") int expectedVersion);
+
+    /**
+     * 只写开发页台账字段。不动五个状态列与 {@code last_state_changed_at}。
+     */
+    @Update("""
+            UPDATE biz_course
+               SET owner_no = #{c.ownerNo},
+                   plan_draft_date = #{c.planDraftDate},
+                   actual_draft_date = #{c.actualDraftDate},
+                   enter_selfcheck = #{c.enterSelfCheck},
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{c.id} AND deleted = FALSE AND version = #{expectedVersion}
+            """)
+    int updateDevelopment(@Param("c") Course course,
+                          @Param("operator") String operator,
+                          @Param("expectedVersion") int expectedVersion);
+
+    /**
+     * 只写自检页台账字段。不动五个状态列与 {@code last_state_changed_at}。
+     */
+    @Update("""
+            UPDATE biz_course
+               SET selfcheck_checker_no = #{c.selfcheckCheckerNo},
+                   selfcheck_completed_date = #{c.selfcheckCompletedDate},
+                   selfcheck_conclusion = #{c.selfcheckConclusion},
+                   selfcheck_record_status = #{c.selfcheckRecordStatus},
+                   submit_expert_review = #{c.submitExpertReview},
+                   selfcheck_spec_answers = #{c.selfcheckSpecAnswers}::jsonb,
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{c.id} AND deleted = FALSE AND version = #{expectedVersion}
+            """)
+    int updateSelfcheckInfo(@Param("c") Course course,
+                            @Param("operator") String operator,
+                            @Param("expectedVersion") int expectedVersion);
+
+    /**
+     * 只写评审页台账字段。不动五个状态列与 {@code last_state_changed_at}。
+     */
+    @Update("""
+            UPDATE biz_course
+               SET owner_no = #{c.ownerNo},
+                   review_round_label = #{c.reviewRoundLabel},
+                   review_completed_date = #{c.reviewCompletedDate},
+                   review_ledger_phase = #{c.reviewLedgerPhase},
+                   review_ledger_status = #{c.reviewLedgerStatus},
+                   enter_trial = #{c.enterTrial},
+                   prelim_round_label = #{c.prelimRoundLabel},
+                   prelim_reviewers = #{c.prelimReviewers},
+                   prelim_review_date = #{c.prelimReviewDate},
+                   prelim_completed_date = #{c.prelimCompletedDate},
+                   prelim_conclusion = #{c.prelimConclusion},
+                   prelim_opinion = #{c.prelimOpinion},
+                   enter_meeting = #{c.enterMeeting},
+                   meeting_round_label = #{c.meetingRoundLabel},
+                   meeting_reviewers = #{c.meetingReviewers},
+                   meeting_actual_date = #{c.meetingActualDate},
+                   meeting_conclusion = #{c.meetingConclusion},
+                   meeting_opinion = #{c.meetingOpinion},
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{c.id} AND deleted = FALSE AND version = #{expectedVersion}
+            """)
+    int updateReviewLedger(@Param("c") Course course,
+                           @Param("operator") String operator,
+                           @Param("expectedVersion") int expectedVersion);
+
+    /**
+     * 只写试讲页台账字段。不动五个状态列与 {@code last_state_changed_at}。
+     */
+    @Update("""
+            UPDATE biz_course
+               SET owner_no = #{c.ownerNo},
+                   trial_lecturer_no = #{c.trialLecturerNo},
+                   trial_current_phase = #{c.trialCurrentPhase},
+                   trial_ledger_status = #{c.trialLedgerStatus},
+                   trial_round_label = #{c.trialRoundLabel},
+                   trial_scheduled_date = #{c.trialScheduledDate},
+                   trial_audience_group = #{c.trialAudienceGroup},
+                   trial_audience_count = #{c.trialAudienceCount},
+                   trial_hours = #{c.trialHours},
+                   trial_format = #{c.trialFormat},
+                   trial_satisfaction = #{c.trialSatisfaction},
+                   trial_optimize_advice = #{c.trialOptimizeAdvice},
+                   trial_acceptance_result = #{c.trialAcceptanceResult},
+                   trial_ready_to_publish = #{c.trialReadyToPublish},
+                   trial_lecturer_qualified = #{c.trialLecturerQualified},
+                   trial_conclusion_date = #{c.trialConclusionDate},
+                   trial_remark = #{c.trialRemark},
+                   updated_at = NOW(),
+                   updated_by = #{operator},
+                   version = version + 1
+             WHERE id = #{c.id} AND deleted = FALSE AND version = #{expectedVersion}
+            """)
+    int updateTrialLedger(@Param("c") Course course,
+                          @Param("operator") String operator,
+                          @Param("expectedVersion") int expectedVersion);
 
     /**
      * 首次进入「发布」时回填首次发布时间与有效期截止日（规则 EX1、EX3）。
@@ -187,9 +348,15 @@ public interface CourseMapper {
     /** 详情页用，比 {@link #selectById} 多带负责人姓名、评审轮次、是否有关联需求三个派生列。 */
     @Select("""
             SELECT c.*,
+                   c.selfcheck_spec_answers::text AS selfcheck_spec_answers,
                    e.employee_name AS owner_name,
                    (SELECT COUNT(*) FROM dtl_course_review r
                      WHERE r.course_id = c.id AND r.deleted = FALSE) AS review_round,
+                   (SELECT r.record_state
+                      FROM dtl_course_review r
+                     WHERE r.course_id = c.id AND r.deleted = FALSE
+                     ORDER BY r.round_no DESC
+                     LIMIT 1) AS review_record_state,
                    EXISTS (SELECT 1 FROM rel_demand_course rc WHERE rc.course_id = c.id) AS has_demand
               FROM biz_course c
               LEFT JOIN org_employee e ON e.employee_no = c.owner_no AND e.deleted = FALSE

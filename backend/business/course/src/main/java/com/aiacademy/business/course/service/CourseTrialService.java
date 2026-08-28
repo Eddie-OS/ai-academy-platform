@@ -3,6 +3,7 @@ package com.aiacademy.business.course.service;
 import com.aiacademy.business.course.domain.Course;
 import com.aiacademy.business.course.domain.CourseEnums;
 import com.aiacademy.business.course.domain.CourseTrial;
+import com.aiacademy.business.course.domain.CourseTrialCalendarItem;
 import com.aiacademy.business.course.domain.CourseTrialConclusionForm;
 import com.aiacademy.business.course.domain.CourseTrialForm;
 import com.aiacademy.business.course.repository.CourseMapper;
@@ -19,6 +20,7 @@ import com.aiacademy.platform.storage.service.AttachmentService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -139,6 +141,17 @@ public class CourseTrialService {
         for (Long attachmentId : attachmentIds) {
             attachments.link(attachmentId, AttachmentOwnerType.COURSE_TRIAL, trialId, REF_FIELD, seqNo++);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<CourseTrialCalendarItem> calendar(LocalDate from, LocalDate to) {
+        if (from == null || to == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "请选择日历的起止日期");
+        }
+        if (to.isBefore(from)) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "日历的结束日期不能早于开始日期");
+        }
+        return trials.calendar(from, to);
     }
 
     /**

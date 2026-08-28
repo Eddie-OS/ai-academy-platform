@@ -9,12 +9,15 @@ import { courseApi } from '@/shared/api/courses';
 import { trainingApi, type TrainingPlan, type TrainingPlanFilter } from '@/shared/api/trainings';
 import { DataTable, actionsWidth, type DataTableColumn } from '@/shared/ui/DataTable';
 import { AnalyticsCard } from '@/shared/ui/CockpitLayout';
+import { WarningLightCell } from '@/shared/ui/WarningLight';
+import { FIELD_ENUM_KEYS } from '@/shared/api/meta';
 import { TrainingPlanFormModal } from '@/features/training/TrainingPlanFormModal';
 import {
   TRAINING_OBJECT_TYPE_CODES,
   TRAINING_STATE_FIELDS,
   selectOptions,
   useEmployees,
+  useFieldEnums,
   useStates,
 } from '@/features/training/trainingMeta';
 import { useIsOperator } from '@/shared/store/authStore';
@@ -48,6 +51,7 @@ export function TrainingPlanTable({ onSelectPlan, activePlanId }: TrainingPlanTa
   const [courseKeyword, setCourseKeyword] = useState('');
 
   const employees = useEmployees();
+  const fieldEnums = useFieldEnums();
   const planStates = useStates(TRAINING_OBJECT_TYPE_CODES.plan, TRAINING_STATE_FIELDS.plan);
 
   const page = useQuery({
@@ -111,9 +115,7 @@ export function TrainingPlanTable({ onSelectPlan, activePlanId }: TrainingPlanTa
       key: 'warningLight',
       title: '灯色',
       kind: 'light',
-      // 留位不填值：阶段 3 的 aggregate/warning 落地后换成后端给的灯色与天数。
-      // 此刻渲染成「健康」是在替后端下结论——一个逾期两个月的计划会被标成健康
-      render: () => null,
+      render: (row) => <WarningLightCell light={row.light} lightDays={row.lightDays} />,
     },
     {
       key: 'actions',
@@ -176,6 +178,14 @@ export function TrainingPlanTable({ onSelectPlan, activePlanId }: TrainingPlanTa
             style={{ width: 120 }}
             options={selectOptions(planStates)}
             onChange={(value) => patch({ planState: value ?? null })}
+          />
+          <Select
+            allowClear
+            size="small"
+            placeholder="灯色"
+            style={{ width: 110 }}
+            options={selectOptions(fieldEnums.data?.[FIELD_ENUM_KEYS.light])}
+            onChange={(value) => patch({ light: value ?? null })}
           />
           <DatePicker.RangePicker
             size="small"

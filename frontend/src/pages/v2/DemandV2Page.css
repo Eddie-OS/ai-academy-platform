@@ -28,12 +28,49 @@ html:not([data-regression]) .dmd {
 
 html:not([data-regression]) .dmd-kpis {
   height: auto;
-  flex: 108 1 0;
+  flex: 0 0 auto;
   min-height: 108px;
 }
 
 html:not([data-regression]) .dmd-filters {
   flex: 0 0 45px;
+  gap: var(--space-v2-3);
+}
+
+html:not([data-regression]) .dmd-search {
+  flex: 0 0 240px;
+  max-width: 240px;
+}
+
+html:not([data-regression]) .dmd-filter {
+  flex: 0 0 auto;
+  gap: var(--space-v2-2);
+}
+
+html:not([data-regression]) .dmd-filter .dmd-control {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
+html:not([data-regression]) .dmd-filters [data-testid='demand-daterange'] {
+  flex: 1 1 auto;
+  min-width: 240px;
+}
+
+html:not([data-regression]) .dmd-filters [data-testid='demand-daterange'] .dmd-daterange {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+html:not([data-regression]) .dmd-date-input {
+  width: auto;
+  flex: 1 1 96px;
+  min-width: 96px;
+}
+
+html:not([data-regression]) .dmd-reset,
+html:not([data-regression]) .dmd-create {
+  flex: 0 0 auto;
 }
 
 html:not([data-regression]) .dmd-main {
@@ -54,6 +91,96 @@ html:not([data-regression]) .panel.dmd-analysis {
   height: auto;
   flex: 258 1 0;
   min-height: 258px;
+}
+
+html:not([data-regression]) .panel.dmd-analysis.dmd-analysis-split {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 卡与卡之间用间距 + 内框分开，数字不会漂到隔壁列 */
+  gap: var(--space-v2-4);
+}
+
+html:not([data-regression]) .dmd-analysis-split .dmd-situation {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--space-v2-3);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  gap: var(--space-v2-2);
+}
+
+html:not([data-regression]) .dmd-situation-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: var(--space-v2-1);
+}
+
+html:not([data-regression]) .dmd-situation-row {
+  display: grid;
+  grid-template-columns: 3.5em 5.5em minmax(48px, 1fr);
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 20px;
+  gap: var(--space-v2-2);
+}
+
+html:not([data-regression]) .dmd-situation-name {
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .dmd-situation-metrics {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-v2-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .dmd-situation-value {
+  min-width: 1.5em;
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+  text-align: right;
+}
+
+html:not([data-regression]) .dmd-situation-share {
+  min-width: 3.5em;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  text-align: right;
+}
+
+html:not([data-regression]) .dmd-situation-track {
+  min-width: 0;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-muted);
+}
+
+html:not([data-regression]) .dmd-situation-bar {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+html:not([data-regression]) .dmd-situation-empty {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
 }
 
 /* ===========================================================================
@@ -87,6 +214,11 @@ html:not([data-regression]) .panel.dmd-analysis {
   border-radius: var(--radius-card);
   background: var(--bg-page);
   box-shadow: var(--shadow-card);
+}
+
+/* 产品模式与课程工作台顶部卡同一高度，不再跟着窗口被拉开 */
+html:not([data-regression]) .dmd-kpi {
+  min-height: 108px;
 }
 
 .dmd-kpi-top {
@@ -129,26 +261,29 @@ html:not([data-regression]) .panel.dmd-analysis {
   line-height: var(--type-kpi-line);
 }
 
-/* 百分比与基准之间留 20px：4px 时「↑12.5%较上周期」黏成一句，
-   读者要先断句才知道哪一截是数据 */
+/* 百分比与基准之间留空隙：「↑12.5%月度环比（较上月）」黏成一句时
+   读者要先断句才知道哪一截是数据。文案变长后允许折到第二行，
+   否则七张卡各约 190px，nowrap 会把末尾裁出卡外 */
 .dmd-kpi-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-v2-5);
-  white-space: nowrap;
+  gap: 2px var(--space-v2-2);
 }
 
 .dmd-kpi-delta {
   color: var(--success);
   font-size: var(--type-caption-size);
   line-height: var(--type-caption-line);
+  white-space: nowrap;
 }
 
-/* 环比基准用更小的灰字：「较上周期」是量词不是数据，与百分比同色会被读成指标的一部分 */
+/* 环比基准用更小的灰字：量词不是数据，与百分比同色会被读成指标的一部分 */
 .dmd-kpi-baseline {
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
 }
 
 /* ===========================================================================
@@ -255,6 +390,83 @@ html:not([data-regression]) .panel.dmd-analysis {
   color: var(--text-placeholder);
 }
 
+.dmd-filter-value[data-filled='true'] {
+  color: var(--text-primary);
+}
+
+/* 原生 select 对齐 .dmd-control 几何，避免 AntD Select 把 45px 筛选条顶出 1～2px */
+select.dmd-control {
+  appearance: none;
+  padding-right: 22px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 14px;
+}
+
+select.dmd-control:invalid,
+select.dmd-control[data-empty='true'] {
+  color: var(--text-placeholder);
+}
+
+.dmd-date-input {
+  width: 96px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-table-size);
+}
+
+.dmd-date-input:invalid,
+.dmd-date-input:placeholder-shown {
+  color: var(--text-placeholder);
+}
+
+.dmd-detail-empty {
+  margin: 0;
+  padding: var(--space-v2-4) 0;
+  color: var(--text-tertiary);
+  font-size: var(--type-table-size);
+  line-height: var(--lh-22);
+}
+
+.dmd-detail-live {
+  min-height: 0;
+}
+
+.dmd-detail-live .ant-card {
+  border-radius: var(--radius-control);
+}
+
+.dmd-review-form .ant-form-item {
+  margin-bottom: var(--space-v2-3);
+}
+
+.dmd-review-form .ant-form-item-label > label,
+.dmd-process-form .ant-form-item-label > label {
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+}
+
+.dmd-process-form .ant-form-item {
+  margin-bottom: var(--space-v2-3);
+}
+
+.dmd-solution-link {
+  margin: calc(var(--space-v2-3) * -1) 0 var(--space-v2-3);
+}
+
+.dmd-solution-link a {
+  color: var(--brand-600);
+  word-break: break-all;
+}
+
 .dmd-daterange {
   gap: var(--space-v2-2);
 }
@@ -355,6 +567,11 @@ html:not([data-regression]) .panel.dmd-analysis {
   gap: 17px;
 }
 
+/* 产品模式详情改弹窗后，列表 + 态势图吃满主区，不再给右栏留 445px */
+html:not([data-regression]) .dmd-left {
+  flex: 1 1 auto;
+}
+
 /* ===========================================================================
  * R5 需求表格。十二列宽度合计 884 = 区域宽，所以表格通栏、不吃卡片左右内边距
  * =========================================================================== */
@@ -365,6 +582,7 @@ html:not([data-regression]) .panel.dmd-analysis {
  * 需求名称列被挤掉 32px，L1 的列宽断言会直接失败。
  */
 .panel.dmd-table-panel {
+  position: relative;
   flex: 0 0 419px;
   height: 419px;
   padding-left: 0;
@@ -376,7 +594,48 @@ html:not([data-regression]) .panel.dmd-analysis {
   padding: 0 var(--card-pad);
 }
 
-/* 面板右上角的收起按钮。文档「默认状态与交互」：关闭详情后左区扩展到全宽 */
+/* 产品模式最大化：列表吃掉分析区与详情，整块主区可滚看行 */
+html:not([data-regression]) .dmd-main[data-maximized='true'] .dmd-left {
+  flex: 1 1 auto;
+}
+
+html:not([data-regression]) .dmd-main[data-maximized='true'] .panel.dmd-table-panel {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.dmd-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dmd-table-scroll .dmd-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-page);
+}
+
+.dmd-back-top {
+  position: absolute;
+  right: 16px;
+  bottom: 52px;
+  z-index: 2;
+  height: 28px;
+  padding: 0 10px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+/* 面板右上角：产品模式是最大化／还原，详情区仍是关闭 */
 .dmd-panel-close {
   display: inline-flex;
   align-items: center;
@@ -394,9 +653,6 @@ html:not([data-regression]) .panel.dmd-analysis {
 /* 表格向左右各外扩 1px 盖住卡片边框，这样第一列左沿与卡片外沿对齐，
    12 列的宽度才真的等于区域宽 884 而不是 882 */
 .dmd-table {
-  /* 表格吃满面板高度，多出来的高度由八行平分。分页条自己 margin-top:auto 贴底，
-     不给表格 flex:1 时面板变高只会在表格与分页条之间留一片空白 */
-  flex: 1;
   width: calc(100% + 2px);
   margin: 0 -1px;
   border-collapse: collapse;
@@ -441,6 +697,49 @@ html:not([data-regression]) .panel.dmd-analysis {
   color: var(--text-tertiary);
 }
 
+/* 首列贴卡片外沿时 ID 会顶边；列宽已含这段左内边距（合计仍 884） */
+.dmd-table th:first-child,
+.dmd-table td:first-child {
+  padding-left: 12px;
+}
+
+.dmd-table tbody tr {
+  cursor: pointer;
+  /* Esc 关详情后焦点回到这一行。默认黑框会像选中描边，用行底色表示当前行即可 */
+  outline: none;
+}
+
+.dmd-table tbody tr:focus,
+.dmd-table tbody tr:focus-visible {
+  outline: none;
+}
+
+.dmd-table tbody tr:hover td {
+  background: var(--brand-50);
+}
+
+.dmd-table tbody tr[data-selected='true']:hover td {
+  background: var(--brand-100);
+}
+
+html:not([data-regression]) .dmd-table tbody tr {
+  cursor: grab;
+}
+
+html:not([data-regression]) .dmd-table-scroll[data-reordering='true'],
+html:not([data-regression]) .dmd-table tbody tr[data-dragging='true'] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+html:not([data-regression]) .dmd-table tbody tr[data-dragging='true'] td {
+  opacity: 0.4;
+}
+
+html:not([data-regression]) .dmd-table tbody tr[data-drop='before'] td {
+  box-shadow: inset 0 2px 0 var(--brand-action);
+}
+
 /*
  * 需求名称列去掉左右内边距。
  *
@@ -460,6 +759,46 @@ html:not([data-regression]) .panel.dmd-analysis {
 
 .dmd-cell-stalled {
   color: var(--text-secondary);
+}
+
+.dmd-cell-priority {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 产品模式列表「闭环」：交付 → 验收 → 归档。归档后退出预警。
+ * 回归模式不渲染这一列，列宽仍按十一列 884。
+ */
+.dmd-close-loop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--brand-action);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.dmd-close-loop:hover:not(:disabled) {
+  background: var(--brand-50);
+}
+
+.dmd-close-loop:disabled {
+  border-color: var(--border-default);
+  color: var(--text-placeholder);
+  cursor: not-allowed;
+}
+
+.dmd-close-loop-footer {
+  height: 32px;
+  padding: 0 10px;
+  flex: 0 0 auto;
 }
 
 .dmd-blank {
@@ -485,7 +824,7 @@ html:not([data-regression]) .panel.dmd-analysis {
   border-radius: var(--radius-tag);
   background: var(--tag-bg);
   color: var(--tag-ink);
-  line-height: 20px;
+  line-height: var(--lh-20);
   white-space: nowrap;
 }
 
@@ -647,33 +986,56 @@ html:not([data-regression]) .panel.dmd-analysis {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
   min-width: 32px;
   height: 24px;
+  margin: 0;
+  padding: 0 4px;
   border: var(--border-v2);
   border-radius: var(--radius-control);
+  background: var(--bg-page);
   color: var(--text-primary);
+  font-family: inherit;
+  font-size: inherit;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+}
+
+.dmd-pager-input:disabled {
+  color: var(--text-placeholder);
 }
 
 /* ===========================================================================
- * R6 分析区：884×258。左态势图、中状态漏斗、右动态卡
+ * R6 分析区：884×258。口径栏、态势图、状态漏斗、动态卡四列并排
  * =========================================================================== */
 
 /*
- * 四块 Grid，列宽按目标稿红框 79∶186∶203∶115（≈14%∶32%∶35%∶20%）。
- * 口径栏与动态卡定宽，中间两块用 fr 分剩余——用 flex:1 均分会把漏斗和柱图
- * 拉成一样宽，动态卡就只剩 150px，插画被压扁。
+ * 四列走栅格，口径栏是其中定宽的第一列。
+ *
+ * 口径栏定宽 100px：「按所属领域统计」7 字在 10px 下 70px，胶囊左右各 8px = 86px，
+ * 余下 14px 兜住更长的口径名。既然是定宽的就得先从总宽里扣掉 —— 裹进态势图那一列时，
+ * 它会跟着列比例被连坐，而列比例是按三张图的信息量定的，不是按一条固定的窄栏定的。
+ *
+ * 三张图按 11:12:12 分掉余下的宽度：柱图那一列最窄，因为七个领域名已改成两行排版，
+ * 单个类目槽只要 27px；漏斗与动态卡都要横向排下一行文字，宽一档。
+ * 每档都写 minmax(0, Nfr)：默认的 1fr 下限是 auto，图例与柱图的最小内容宽
+ * 会把轨道顶宽，四列合计超出面板后最右的动态卡被 .panel 的 overflow:hidden 裁掉。
+ *
+ * 内边距取 12 而不是常规的 16：三列的内容自己带留白（内层卡内边距、图例），
+ * 面板再收 16px 会把柱图可用宽压到七个领域名排不下的程度。
  */
 .panel.dmd-analysis {
   flex: 0 0 258px;
   height: 258px;
   display: grid;
-  /* 110 / 32fr / 35fr / 178 ≈ 红框 14%∶32%∶35%∶20% */
-  grid-template-columns: 110px minmax(0, 32fr) minmax(0, 35fr) 178px;
+  grid-template-columns: 100px minmax(0, 11fr) minmax(0, 12fr) minmax(0, 12fr);
   padding: var(--space-v2-3);
   gap: var(--space-v2-3);
 }
 
+/* 列宽全部由栅格轨道给，所以这里不写 flex；只负责列内自上而下的排布 */
 .dmd-analysis-col {
   display: flex;
   flex-direction: column;
@@ -694,10 +1056,10 @@ html:not([data-regression]) .panel.dmd-analysis {
 }
 
 /*
- * 分析区的内层卡：三列各自把图表／插画装进一个浅框里。
+ * 分析区的内层卡：态势图与动态卡各自把图表／插画装进一个浅框里。
  *
  * 外层 .panel 已经是一张卡，内层再套一层是设计稿的写法，作用是把「标题 + 口径切换」
- * 和「图」分开 —— 三列并排时，没有内框的图会和隔壁列的标题连成一片。
+ * 和「图」分开 —— 四列并排时，没有内框的图会和隔壁列的标题连成一片。
  */
 .dmd-inset {
   display: flex;
@@ -717,8 +1079,8 @@ html:not([data-regression]) .panel.dmd-analysis {
 .dmd-inset-title {
   flex: 0 0 auto;
   color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 15px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-15);
   white-space: nowrap;
 }
 
@@ -745,14 +1107,8 @@ html:not([data-regression]) .panel.dmd-analysis {
   cursor: pointer;
 }
 
-.dmd-funnel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: var(--space-v2-2);
-}
-
-/* 口径栏：Grid 第一列定宽 100px。「按所属领域统计」7 字 + 胶囊内边距约 86px */
+/* 这两列不套内层卡，列内的标题／图／脚注由这里排成一叠 */
+.dmd-funnel,
 .dmd-trend-rail {
   display: flex;
   flex-direction: column;
@@ -773,15 +1129,15 @@ html:not([data-regression]) .panel.dmd-analysis {
   align-items: center;
   justify-content: center;
   gap: var(--space-v2-1);
-  height: 62px;
+  height: calc(var(--type-unit) * 62);
   padding: 0 var(--space-v2-2);
   border: 0;
   border-radius: var(--radius-control);
   background: none;
   color: var(--text-tertiary);
   font-family: inherit;
-  font-size: 10px;
-  line-height: 15px;
+  font-size: var(--fs-10);
+  line-height: calc(var(--type-unit) * 15);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -809,8 +1165,8 @@ html:not([data-regression]) .panel.dmd-analysis {
 }
 
 .dmd-funnel-chart {
-  /* 漏斗列加宽到 35% 后，图形可拿 42%，图例仍放得下「已评审 689 (54.3%)」 */
-  flex: 0 0 42%;
+  /* 图形略收，把中间空白让给图例，避免段名与数字挤叠 */
+  flex: 0 0 34%;
   min-width: 0;
   min-height: 0;
 }
@@ -823,8 +1179,8 @@ html:not([data-regression]) .panel.dmd-analysis {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
   font-variant-numeric: tabular-nums;
 }
 
@@ -834,7 +1190,7 @@ html:not([data-regression]) .panel.dmd-analysis {
   flex-wrap: nowrap;
   align-items: center;
   flex: 1 1 0;
-  gap: var(--space-v2-1);
+  gap: var(--space-v2-2);
   min-width: 0;
   min-height: 0;
   white-space: nowrap;
@@ -848,16 +1204,23 @@ html:not([data-regression]) .panel.dmd-analysis {
   border-radius: 2px;
 }
 
-/* 段名定宽，右边的数字才对得成一列；六个段名都是三个字，定宽不会截字 */
+/* 段名与数值分组：名弹性占左、数组合 margin-left:auto 贴右，中间空白吃掉叠字 */
 .dmd-funnel-name {
-  flex: 0 0 auto;
-  width: 34px;
+  flex: 1 1 auto;
+  min-width: 3em;
   color: var(--text-secondary);
+}
+
+.dmd-funnel-metrics {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: var(--space-v2-1);
+  margin-left: auto;
 }
 
 .dmd-funnel-value {
   flex: 0 0 auto;
-  width: 26px;
   color: var(--text-primary);
   font-weight: var(--type-body-medium-weight);
   text-align: right;
@@ -878,12 +1241,11 @@ html:not([data-regression]) .panel.dmd-analysis {
   flex: 0 0 auto;
   margin-top: var(--space-v2-1);
   color: var(--text-tertiary);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-14);
 }
 
-/* 需求动态：一期没有动态流（不做站内信与任何消息渠道），这里是空态卡。
-   宽度由 Grid 第四列 178px 定 */
+/* 需求动态：一期没有动态流（不做站内信与任何消息渠道），这里是空态卡 */
 .dmd-feed {
   display: flex;
   flex-direction: column;
@@ -919,12 +1281,29 @@ html:not([data-regression]) .panel.dmd-analysis {
   width: 100%;
 }
 
+/*
+ * 插画随列宽与卡高走，不写死像素。
+ *
+ * 写死尺寸时它在两套版式下都不对：回归模式的卡内可用高只有 232px，插画加两行文案顶到临界；
+ * 产品模式的卡片会随窗口长高，同一张图缩在中央，四周空出一大片，空态读起来像图没加载完。
+ *
+ * 宽取 min(188px, 78%)：百分比保证窄列里两侧不贴边，上限保证宽列里不喧宾夺主。
+ * A04 是方图，aspect-ratio:1 让高度跟着宽度算，不必再写死高。
+ * max-height 是纵向的闸——高度不够时先压插画（flex 允许收缩），而不是把两行文案挤出卡外。
+ */
 .dmd-feed-illustration {
-  /* 卡内可用约 162px，插画取 148 留一点呼吸；再小会回到「被压扁」的观感 */
-  width: 148px;
-  height: 148px;
-  flex: 0 0 auto;
+  width: min(188px, 78%);
+  height: auto;
+  max-height: 56%;
+  aspect-ratio: 1;
+  flex: 0 1 auto;
   object-fit: contain;
+}
+
+/* 产品模式的卡片比回归基线高一截，插画同步放大一档，否则卡中央会空出一片 */
+html:not([data-regression]) .dmd-feed-illustration {
+  width: min(240px, 82%);
+  max-height: 64%;
 }
 
 .dmd-feed-copy {
@@ -942,8 +1321,8 @@ html:not([data-regression]) .panel.dmd-analysis {
 
 .dmd-feed-caption {
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
 }
 
 /* ===========================================================================
@@ -953,6 +1332,86 @@ html:not([data-regression]) .panel.dmd-analysis {
 .panel.dmd-detail {
   flex: 0 1 calc((100% - 11px) * 445 / 1329);
   min-width: 0;
+}
+
+/* ===========================================================================
+ * 产品模式需求详情弹窗：外壳与课程工作台共用 .crs-modal（1100 × 1200、居中）。
+ * 这里只改弹窗内部：页签、正文滚动、底栏一行，不改外框。
+ * =========================================================================== */
+
+.crs-modal .panel.dmd-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 14px 10px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.crs-modal .dmd-detail-head,
+.crs-modal .dmd-tabs,
+.crs-modal .dmd-detail-actions {
+  flex: 0 0 auto;
+}
+
+.crs-modal .dmd-detail-head {
+  padding-right: 30px;
+}
+
+.crs-modal .dmd-detail-head .dmd-panel-close {
+  display: none;
+}
+
+.crs-modal .dmd-tabs {
+  gap: 12px;
+  margin-top: 8px;
+  padding-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.crs-modal .dmd-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.crs-modal .dmd-tab {
+  padding: 0 0 8px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+}
+
+.crs-modal .dmd-tab[data-active='true'] {
+  border-bottom-color: var(--brand-action);
+  background: none;
+  color: var(--brand-action);
+}
+
+.crs-modal .dmd-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.crs-modal .dmd-detail-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.crs-modal .dmd-detail-actions .ant-btn {
+  height: calc(var(--type-unit) * 28);
+  padding: 0 10px;
+  font-size: var(--fs-12);
+  line-height: calc(var(--type-unit) * 26);
 }
 
 .dmd-detail-head {
@@ -1017,7 +1476,7 @@ html:not([data-regression]) .panel.dmd-analysis {
   color: var(--text-secondary);
   font-family: inherit;
   font-size: var(--type-caption-size);
-  line-height: 18px;
+  line-height: var(--lh-18);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1057,12 +1516,39 @@ html:not([data-regression]) .panel.dmd-analysis {
   line-height: var(--type-body-line);
 }
 
+.dmd-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+}
+
+.dmd-edit-basic {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
 /* 字段组的浅框。与分析区的内层卡同一形态，共用 --radius-control 与 --border-v2 */
 .dmd-group {
   margin-top: var(--space-v2-2);
   padding: var(--space-v2-2) var(--space-v2-3);
   border: var(--border-v2);
   border-radius: var(--radius-control);
+}
+
+.dmd-group.dmd-desc {
+  padding-top: var(--space-v2-1);
+  padding-bottom: var(--space-v2-1);
 }
 
 .dmd-fields {
@@ -1107,6 +1593,21 @@ html:not([data-regression]) .panel.dmd-analysis {
   color: var(--text-primary);
 }
 
+/* 登记表单标签更长（「预计开发完成时间」），长文本要能换行 */
+.dmd-fields-register dt {
+  flex-basis: 132px;
+}
+
+.dmd-fields-register dd {
+  white-space: pre-wrap;
+}
+
+.dmd-desc-text[data-expanded='true'] {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
 /* 状态值渲染成浅底徽章，自由文本不渲染 —— 徽章在这一页的含义是「可流转的状态」，
    给「解决方案名称」套上徽章会让人以为它也能流转 */
 .dmd-value-tag {
@@ -1117,14 +1618,15 @@ html:not([data-regression]) .panel.dmd-analysis {
   background: var(--brand-100);
   color: var(--brand-action);
   font-size: var(--type-caption-size);
-  line-height: 20px;
+  line-height: var(--lh-20);
 }
 
 .dmd-people {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-v2-2) var(--space-v2-3);
-  margin-top: var(--space-v2-3);
+  /* 较原 12px 收 4px：页签可点后表头区偶发多吃高度，正文需保住「查看更多」 */
+  margin-top: var(--space-v2-2);
 }
 
 /* 两列窄格里放不下「标签 ｜ 值」的横排，标签改到值上方 */
@@ -1139,7 +1641,7 @@ html:not([data-regression]) .panel.dmd-analysis {
 .dmd-person-role {
   color: var(--text-tertiary);
   font-size: var(--type-caption-size);
-  line-height: 18px;
+  line-height: var(--lh-18);
 }
 
 .dmd-person-body {
@@ -1163,20 +1665,20 @@ html:not([data-regression]) .panel.dmd-analysis {
 
 .dmd-person-name {
   color: var(--text-primary);
-  line-height: 18px;
+  line-height: var(--lh-18);
 }
 
 .dmd-person-title {
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
 }
 
 .dmd-desc-text {
   margin-top: var(--space-v2-2);
   color: var(--text-secondary);
   font-size: var(--type-table-size);
-  line-height: 20px;
+  line-height: var(--lh-20);
   /* 三行封顶，展开靠下面的「查看更多」。不给行数上限时长描述会把按钮顶出面板 */
   display: -webkit-box;
   -webkit-line-clamp: 3;

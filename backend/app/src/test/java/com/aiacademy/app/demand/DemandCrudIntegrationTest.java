@@ -108,15 +108,33 @@ class DemandCrudIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("需求 8.3.1 第 4／6 项：提出人与负责人必须在人员台账里")
-    void 人员必须来自台账() {
-        DemandForm form = new DemandForm("野工号", "COURSE", "NOT_EXISTS", ownerNo,
+    @DisplayName("现场口径 D-21：提出人与负责人允许手填，不必在人员台账")
+    void 手填人员也能登记() {
+        DemandForm form = new DemandForm("手填人员", "零售", "张三", "李四",
+                LocalDate.now(), LocalDate.now().plusDays(30), "描述", null, null, null,
+                "当前痛点", "定性收益", "补充说明", "李四、王五");
+
+        long id = application.register(form);
+        DemandListItem item = demands.get(id);
+        assertThat(item.getDomainCode()).isEqualTo("零售");
+        assertThat(item.getProposerNo()).isEqualTo("张三");
+        assertThat(item.getOwnerNo()).isEqualTo("李四");
+        assertThat(item.getOwnerNames()).isEqualTo("李四、王五");
+        assertThat(item.getBusinessBackground()).isEqualTo("当前痛点");
+        assertThat(item.getRoiAnalysis()).isEqualTo("定性收益");
+        assertThat(item.getRemark()).isEqualTo("补充说明");
+    }
+
+    @Test
+    @DisplayName("现场口径 D-21：所属领域不能停在「手动输入」哨兵值")
+    void 领域不能停在手动输入哨兵() {
+        DemandForm form = new DemandForm("哨兵领域", "手动输入", proposerNo, ownerNo,
                 LocalDate.now(), LocalDate.now().plusDays(30), "描述", null, null, null);
 
         assertThatThrownBy(() -> application.register(form))
                 .isInstanceOf(BizException.class)
                 .satisfies(e -> assertThat(((BizException) e).errorCode()).isEqualTo(ErrorCode.PARAM_INVALID))
-                .hasMessageContaining("需求提出人");
+                .hasMessageContaining("所属领域");
     }
 
     @Test
@@ -234,7 +252,7 @@ class DemandCrudIntegrationTest extends IntegrationTest {
     private DemandForm 表单(String name) {
         return new DemandForm(name, "COURSE", proposerNo, ownerNo,
                 LocalDate.now().minusDays(10), LocalDate.now().plusDays(30),
-                name + " 的业务问题与场景", "部门提出", "效率提升", "高");
+                name + " 的业务问题与场景", "部门提出", "效率提升", "P0（紧急重要）");
     }
 
     private String 造人员(String name, String dept) {

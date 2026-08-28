@@ -5,6 +5,7 @@ import com.aiacademy.app.repository.LecturerLookupMapper;
 import com.aiacademy.app.web.dto.CourseTrialVO;
 import com.aiacademy.business.course.domain.CourseEnums;
 import com.aiacademy.business.course.domain.CourseTrial;
+import com.aiacademy.business.course.domain.CourseTrialCalendarItem;
 import com.aiacademy.business.course.domain.CourseTrialConclusionForm;
 import com.aiacademy.business.course.domain.CourseTrialForm;
 import com.aiacademy.business.course.service.CourseService;
@@ -12,12 +13,15 @@ import com.aiacademy.business.course.service.CourseTrialService;
 import com.aiacademy.common.api.R;
 import com.aiacademy.common.security.WriteApi;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -40,6 +44,13 @@ public class CourseTrialController {
         this.application = application;
         this.courses = courses;
         this.lecturers = lecturers;
+    }
+
+    @GetMapping("/api/course-trials/calendar")
+    public R<List<CourseTrialCalendarItem>> calendar(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return R.ok(trials.calendar(from, to).stream().map(this::withLecturerName).toList());
     }
 
     @GetMapping("/api/courses/{courseId}/trials")
@@ -97,5 +108,15 @@ public class CourseTrialController {
 
     private CourseTrialVO toVO(CourseTrial trial) {
         return CourseTrialVO.of(trial, lecturers.nameOf(trial.lecturerId()));
+    }
+
+    private CourseTrialCalendarItem withLecturerName(CourseTrialCalendarItem item) {
+        if (item.lecturerName() != null || item.lecturerId() == null) {
+            return item;
+        }
+        return new CourseTrialCalendarItem(
+                item.trialDate(), item.courseId(), item.courseName(),
+                item.roundNo(), item.roundLabel(), item.lecturerId(),
+                lecturers.nameOf(item.lecturerId()), item.audienceCount());
     }
 }

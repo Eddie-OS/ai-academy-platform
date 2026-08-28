@@ -34,7 +34,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.handler;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -118,6 +120,78 @@ class WriteApiPermissionTest extends IntegrationTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    /**
+     * 验收 A2-2：用用户账号<b>逐个</b>调用全部写接口，除三个白名单外全部 403。
+     *
+     * <p>与上面「已注册的写接口全部带注解」不是同一件事。那条只看注解在不在，
+     * 这条真的把请求发出去。两者的差别在于：注解齐全但拦截器被某个 Controller 的
+     * 自定义安全配置绕开时，只有这条会红。需求第 18 章把它写成参数化测试正是这个用意。
+     *
+     * <p>路径变量一律填 1。403 在 {@code PermissionInterceptor} 里产生，
+     * 早于参数解析与业务查询，所以对象存不存在不影响断言。
+     */
+    @Test
+    @DisplayName("A2-2：用户账号逐个调用全部写接口，除三个白名单外一律 403")
+    void 全部写接口对用户账号一律403() throws Exception {
+        Map<String, String> wrongStatus = new TreeMap<>();
+        Set<String> userWritable = new java.util.TreeSet<>();
+        Set<String> anonymous = new java.util.TreeSet<>();
+        int checked = 0;
+
+        for (Map.Entry<RequestMappingInfo, HandlerMethod> entry
+                : handlerMapping.getHandlerMethods().entrySet()) {
+            RequestMappingInfo info = entry.getKey();
+            HandlerMethod handler = entry.getValue();
+            if (!isWriteMapping(info) || !isProjectController(handler)
+                    || handler.getBeanType() == TestEndpoints.WriteEndpoints.class) {
+                continue;
+            }
+
+            String method = info.getMethodsCondition().getMethods().iterator().next().name();
+            String pattern = info.getPathPatternsCondition() == null ? null
+                    : info.getPathPatternsCondition().getFirstPattern().getPatternString();
+            if (pattern == null) {
+                continue;
+            }
+            String route = method + " " + pattern;
+            String url = pattern.replaceAll("\\{[^/}]+}", "1");
+
+            WriteApi annotation = handler.getMethodAnnotation(WriteApi.class);
+            if (annotation != null && annotation.value() == WriteAudience.USER_ALLOWED) {
+                userWritable.add(route);
+                continue;
+            }
+            // 登录与登出不在 6.2 的权限矩阵里：用户账号必须能登录，否则它连只读也做不到
+            if (annotation != null && annotation.value() == WriteAudience.ANONYMOUS) {
+                anonymous.add(route);
+                continue;
+            }
+
+            checked++;
+            int status = mvc.perform(as查看(request(method, url)))
+                    .andReturn().getResponse().getStatus();
+            if (status != 403) {
+                wrongStatus.put(route, "实际 " + status);
+            }
+        }
+
+        assertThat(wrongStatus)
+                .describedAs("这些写接口对用户账号没有返回 403，PM2 被绕过了")
+                .isEmpty();
+        assertThat(userWritable)
+                .describedAs("用户账号可写的接口只有需求 6.2.5 的点赞、评论与停留时长回报三条")
+                .containsExactly(
+                        "PATCH /api/cases/{caseId}/views/{viewId}",
+                        "POST /api/cases/{caseId}/comments",
+                        "POST /api/cases/{caseId}/likes");
+        assertThat(anonymous)
+                .describedAs("免登录的写接口只有登录与登出两条")
+                .containsExactly("POST /api/auth/login", "POST /api/auth/logout");
+        assertThat(checked)
+                .describedAs("一个写接口都没打到，说明这条断言在空转")
+                .isGreaterThanOrEqualTo(50);
+    }
+
     @Test
     @DisplayName("PMI-2：读接口无差别开放，查看账号读导入批次、人员台账、配置中心都是 200")
     void 读接口对两个账号一致() throws Exception {
@@ -162,6 +236,16 @@ class WriteApiPermissionTest extends IntegrationTest {
     /** Spring Boot 自带的 error 端点与 actuator、springdoc 不在 E1-5 的范围里。 */
     private boolean isProjectController(HandlerMethod handler) {
         return handler.getBeanType().getName().startsWith("com.aiacademy");
+    }
+
+    private MockHttpServletRequestBuilder request(String method, String url) {
+        return switch (method) {
+            case "POST" -> post(url);
+            case "PUT" -> put(url);
+            case "PATCH" -> patch(url);
+            case "DELETE" -> delete(url);
+            default -> throw new IllegalArgumentException("不是写方法：" + method);
+        };
     }
 
     private MockHttpServletRequestBuilder as运营(MockHttpServletRequestBuilder builder) {

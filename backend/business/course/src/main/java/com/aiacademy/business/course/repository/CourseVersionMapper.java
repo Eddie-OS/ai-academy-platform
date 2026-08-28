@@ -5,7 +5,9 @@ import com.aiacademy.business.course.domain.CourseMaterialVersionFile;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -106,12 +108,52 @@ public interface CourseVersionMapper {
                    (SELECT r.round_no FROM dtl_course_review r
                      WHERE r.version_id = v.id AND r.deleted = FALSE
                      ORDER BY r.round_no LIMIT 1) AS bound_review_round,
+                   v.version_label, v.version_status, v.owner_no, v.updated_date,
+                   v.courseware_url, v.recording_url,
                    v.created_at, v.created_by
               FROM dtl_course_material_version v
              WHERE v.course_id = #{courseId} AND v.deleted = FALSE
              ORDER BY v.id DESC
             """)
     List<CourseMaterialVersion> findVersions(@Param("courseId") long courseId);
+
+    @Select("""
+            SELECT v.id, v.course_id, v.version_no, v.trigger_type, v.remark,
+                   (SELECT r.round_no FROM dtl_course_review r
+                     WHERE r.version_id = v.id AND r.deleted = FALSE
+                     ORDER BY r.round_no LIMIT 1) AS bound_review_round,
+                   v.version_label, v.version_status, v.owner_no, v.updated_date,
+                   v.courseware_url, v.recording_url,
+                   v.created_at, v.created_by
+              FROM dtl_course_material_version v
+             WHERE v.id = #{versionId} AND v.course_id = #{courseId} AND v.deleted = FALSE
+            """)
+    CourseMaterialVersion findByCourseAndId(@Param("courseId") long courseId,
+                                            @Param("versionId") long versionId);
+
+    @Update("""
+            UPDATE dtl_course_material_version
+               SET version_label = #{versionLabel},
+                   version_status = #{versionStatus},
+                   owner_no = #{ownerNo},
+                   updated_date = #{updatedDate},
+                   courseware_url = #{coursewareUrl},
+                   recording_url = #{recordingUrl},
+                   remark = #{remark},
+                   updated_at = NOW(),
+                   updated_by = #{operator}
+             WHERE id = #{versionId} AND course_id = #{courseId} AND deleted = FALSE
+            """)
+    int updateLedger(@Param("courseId") long courseId,
+                     @Param("versionId") long versionId,
+                     @Param("versionLabel") String versionLabel,
+                     @Param("versionStatus") String versionStatus,
+                     @Param("ownerNo") String ownerNo,
+                     @Param("updatedDate") LocalDate updatedDate,
+                     @Param("coursewareUrl") String coursewareUrl,
+                     @Param("recordingUrl") String recordingUrl,
+                     @Param("remark") String remark,
+                     @Param("operator") String operator);
 
     @Select("""
             SELECT f.id, f.version_id, f.material_type, f.attachment_id, f.file_name_snapshot,
@@ -134,6 +176,8 @@ public interface CourseVersionMapper {
 
     @Select("""
             SELECT v.id, v.course_id, v.version_no, v.trigger_type, v.remark, NULL AS bound_review_round,
+                   v.version_label, v.version_status, v.owner_no, v.updated_date,
+                   v.courseware_url, v.recording_url,
                    v.created_at, v.created_by
               FROM dtl_course_material_version v
              WHERE v.course_id = #{courseId} AND v.deleted = FALSE

@@ -8,7 +8,21 @@
  * 试讲结论只用「合格／不合格」。
  */
 
-export const REVIEW_TABS = ['课程评审记录', '试讲记录', '需求评审'] as const;
+import { withCurrentDates } from './fixtureClock';
+
+/**
+ * 六个页签。设计稿只画了前三个，需求 13.3.1 要求六个（业务裁决 V-61 按需求落地）。
+ *
+ * 顺序不能改：默认页签「试讲记录」在第 2 位，p09 spec 是按 `nth(1)` 钉住的。
+ */
+export const REVIEW_TABS = [
+  '课程评审记录',
+  '试讲记录',
+  '需求评审',
+  '业务验收',
+  '案例审核',
+  '待录入结论',
+] as const;
 export type ReviewTab = (typeof REVIEW_TABS)[number];
 
 export const REVIEW_DEFAULT_TAB: ReviewTab = '试讲记录';
@@ -45,9 +59,71 @@ export interface ReviewRecord {
   courseConclusion?: string;
   score?: string;
   opinion: string;
+  recordCode?: string;
+  domain?: string;
+  owner?: string;
+  lecturer?: string;
+  lecturerName?: string;
+  duration?: string;
+  studentCount?: number;
+  lecturerScore?: string;
+  courseScore?: string;
+  courseOperator?: string;
+  lecturerPoints?: string[];
+  coursePoints?: string[];
 }
 
-export const REVIEW_RECORDS: ReviewRecord[] = [
+/**
+ * 页签中文名 → 评审记录中心接口 tab 码（与 `reviewRecordsApi` 的 `ReviewTabCode` 一一对齐）。
+ *
+ * `satisfies Record<ReviewTab, string>` 是有用的：漏掉一个页签会在编译期报错，
+ * 而不是在运行时把 `undefined` 当 tab 发给后端、拿回一个空列表。
+ */
+export const REVIEW_TAB_CODE = {
+  课程评审记录: 'COURSE_REVIEW',
+  试讲记录: 'COURSE_TRIAL',
+  需求评审: 'DEMAND_REVIEW',
+  业务验收: 'DEMAND_ACCEPTANCE',
+  案例审核: 'CASE_AUDIT',
+  待录入结论: 'PENDING',
+} as const satisfies Record<ReviewTab, string>;
+
+export const REVIEW_FILTERS = ['对象类型', '评审结果', '评审日期', '录入人', '领域'] as const;
+
+/**
+ * 第六个页签，同时是 KPI 第四张卡的标签。
+ *
+ * 标成 {@link ReviewTab} 而不是宽 string：页签栏要拿它和当前页签比，
+ * 类型不收窄的话这个比较永远为假、角标数字永远不出现，而且不报任何错。
+ */
+export const REVIEW_PENDING_TAB: ReviewTab = '待录入结论';
+
+export const REVIEW_PENDING_PANEL = {
+  title: '待录入任务',
+  count: 12,
+  hint: '以下评审结论尚未录入，请尽快补齐。',
+} as const;
+
+export const REVIEW_PENDING_TASKS = [
+  { id: 'pending-1', title: '职场高效沟通技巧 · 课程结论', owner: '张小北' },
+  { id: 'pending-2', title: '数据分析思维与可视化 · 试讲结论', owner: '王敏' },
+  { id: 'pending-3', title: '智能知识库建设需求 · 评审结论', owner: '李华' },
+] as const;
+
+export const REVIEW_DETAIL_TAGS = ['沟通技巧', '案例不足', '需二次试讲'] as const;
+
+export const REVIEW_DETAIL_ATTACHMENT = {
+  name: '试讲反馈表_V1.0.pdf',
+  size: '1.2 MB',
+} as const;
+
+export const REVIEW_DETAIL_TIMELINE = withCurrentDates([
+  { at: '2024-06-10 14:30', text: '录入试讲结论', detail: '讲师：合格 / 课程：不合格' },
+  { at: '2024-06-09 10:00', text: '完成试讲', detail: '第 2 轮试讲' },
+  { at: '2024-06-01 09:00', text: '创建试讲记录', detail: 'V1.0' },
+] as const);
+
+export const REVIEW_RECORDS: ReviewRecord[] = withCurrentDates([
   {
     id: 'trial-workplace-communication',
     type: '试讲记录',
@@ -61,6 +137,15 @@ export const REVIEW_RECORDS: ReviewRecord[] = [
     courseConclusion: '不合格',
     score: '讲师 86 / 课程 64',
     opinion: '讲师表现达到试讲要求，但课程案例与互动设计不足，需完善后重新提交课程结论。',
+    recordCode: 'ST20240610001',
+    domain: '通用能力',
+    owner: '李华',
+    lecturerName: '赵明',
+    duration: '45 分钟',
+    studentCount: 12,
+    lecturerScore: '86',
+    courseScore: '64',
+    courseOperator: '张小北',
   },
   {
     id: 'trial-prompt-engineering',
@@ -126,4 +211,4 @@ export const REVIEW_RECORDS: ReviewRecord[] = [
     operator: '王敏',
     opinion: '需求范围和验收口径已确认。',
   },
-];
+]);

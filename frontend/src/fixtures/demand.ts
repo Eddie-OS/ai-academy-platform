@@ -36,9 +36,13 @@
  * 现在写死一套推导，等于把一个本该可配的阈值锁进了前端。
  */
 
+import { withCurrentDates } from './fixtureClock';
 import type { ActionAvailability } from '@/shared/api/types';
 
-/** R3 七张 KPI。第一张是总数，后六张是六个状态的计数（跨评审与开发两组状态字段） */
+/**
+ * R3 七张 KPI。数字一律是累计总数（不随顶栏日期窗切片）；
+ * {@code delta} 是月度环比，卡面文案见 DemandV2Page 的 DELTA_BASELINE_LABEL。
+ */
 export const DEMAND_KPIS = [
   { id: 'total', label: '需求总数', value: '1,268', delta: '↑ 12.5%' },
   { id: 'pendingReview', label: '待评审', value: '162', delta: '↑ 8.3%' },
@@ -50,25 +54,29 @@ export const DEMAND_KPIS = [
 ] as const;
 
 /**
- * 分流出口的两个合法枚举值，以及给窄列用的短标签。
+ * 分流出口（界面文案「评审流转去向」）的两个合法枚举值，以及给窄列用的短标签。
  *
- * <p>分流列只有 70px（文档标注「必须照抄」），12px 下放得下 5 个字，
- * 而枚举全称是 12 字与 8 字。所以列内出短标签、`title` 出全称。
+ * <p>列内出短标签、`title` 出全称。短标签取的是「这条出口激活哪一组状态字段」——
+ * 「解决方案」对应解决方案状态、「需求开发」对应需求开发状态。
  *
- * <p>短标签取的是「这条出口激活哪一组状态字段」——「解决方案」对应解决方案状态、
- * 「需求开发」对应需求开发状态。比「出口一／出口二」强的地方是运营不必记编号。
+ * <p>需求 5.2.2 原文只有两值。现场口径 D-20 补第三条「需求驳回」，
+ * 处理状态固定「结束」，须同步改 DemandEnums 与库表 CHECK。
  */
 export const DEMAND_OUTLETS = {
   SOLUTION: { value: '用现有工具输出解决方案', shortLabel: '解决方案' },
   DEVELOP: { value: '造工具需求开发', shortLabel: '需求开发' },
+  REJECT: { value: '需求驳回', shortLabel: '需求驳回' },
 } as const;
+
+/** 筛选项与表头的显示名。字段英文仍是 outlet，与命名对照表一致 */
+export const DEMAND_OUTLET_LABEL = '评审流转去向';
 
 export type DemandOutlet = keyof typeof DEMAND_OUTLETS;
 
 export interface DemandRow {
   id: string;
   name: string;
-  /** 所属领域。字典值（dict_item），不是状态机状态 */
+  /** 所属领域。现场口径 D-21：零售／GTM／电商／MKT／服务／渠道／政企 */
   domain: string;
   proposer: string;
   owner: string;
@@ -83,6 +91,15 @@ export interface DemandRow {
   currentState: string | null;
   /** 预计完成时间。纯日期语义，用 DATE 不用时间戳——三色灯按自然日算 */
   expectedDate: string;
+  /** 提出时间。纯日期，与登记表单一致 */
+  proposedDate: string;
+  priority: string;
+  demandSource: string;
+  demandType: string;
+  businessBackground: string;
+  roiAnalysis: string;
+  remark: string;
+  description: string;
   light: 'BLUE' | 'YELLOW' | 'RED' | 'NONE';
   lightReason?: 'OVERDUE' | 'STALLED';
   /** 停滞天数。已完结的需求不再计停滞，用 null 表达「无数据」，界面显示「—」 */
@@ -90,17 +107,26 @@ export interface DemandRow {
 }
 
 /** R5 需求表格，八行取自文档 14.2「AI需求列表（可见8行）」 */
-export const DEMAND_ROWS: DemandRow[] = [
+export const DEMAND_ROWS: DemandRow[] = withCurrentDates([
   {
     id: 'REQ-2024-0831',
     name: '智能教案生成增强需求',
-    domain: '课程内容',
+    domain: '零售',
     proposer: '李明',
     owner: '王芳',
     reviewState: '待评审',
     outlet: null,
     currentState: null,
     expectedDate: '2024-06-30',
+    proposedDate: '2024-05-08',
+    priority: 'P0（紧急重要）',
+    demandSource: '部门提出',
+    demandType: '效率提升',
+    businessBackground: '零售一线备课仍靠手工拼教案，版本散落在个人网盘，难以复用也难以质检。',
+    roiAnalysis: '定性：缩短备课准备；量化：预计每门课少 2 人天重复劳动。',
+    remark: '演示数据。附件请在新建需求保存后上传。',
+    description:
+      '【背景】教案生成准确率不足，教师仍需大量改写。\n【目标】按课纲输出可直接上课的初稿。\n【要求】覆盖零售场景用语，支持导出后二次编辑。',
     light: 'RED',
     lightReason: 'STALLED',
     stalledDays: 3,
@@ -108,7 +134,7 @@ export const DEMAND_ROWS: DemandRow[] = [
   {
     id: 'REQ-2024-0822',
     name: '学员能力画像优化需求',
-    domain: '学员运营',
+    domain: 'GTM',
     proposer: '张小北',
     owner: '陈华',
     reviewState: '评审中',
@@ -117,92 +143,155 @@ export const DEMAND_ROWS: DemandRow[] = [
     outlet: 'SOLUTION',
     currentState: '已发布',
     expectedDate: '2024-06-20',
+    proposedDate: '2024-05-22',
+    priority: 'P1（重要）',
+    demandSource: '战略任务',
+    demandType: '体验优化',
+    businessBackground: '学员画像粒度粗，无法按行为与能力分层运营，推荐与资源匹配都偏经验。',
+    roiAnalysis: '定性：提升个性化推荐精度；量化：目标是培训资源匹配命中率提高约 15%。',
+    remark: '评审中保留原出口，清空出口需二次确认。',
+    description:
+      '当前学员画像逻辑中，无法及时精细化运营需求，希望基于行为数据、学习偏好、能力水平等多维度进行画像优化，提升个性化推荐精度与培训资源匹配效率。',
     light: 'YELLOW',
     stalledDays: 5,
   },
   {
     id: 'REQ-2024-0786',
     name: 'AI助教问答准确率提升',
-    domain: '教学服务',
+    domain: '电商',
     proposer: '刘洋',
     owner: '陈华',
     reviewState: '已评审',
     outlet: 'DEVELOP',
     currentState: '已立项',
     expectedDate: '2024-07-15',
+    proposedDate: '2024-05-18',
+    priority: 'P1（重要）',
+    demandSource: '培训反馈',
+    demandType: '质量改善',
+    businessBackground: '助教问答常答非所问，电商业务术语识别差，一线仍要人工兜底。',
+    roiAnalysis: '定性：降低答疑等待；量化：预计人工兜底量下降约三成。',
+    remark: '已立项，待拆开发任务。',
+    description:
+      '【背景】AI 助教在商品、促销、售后场景误答偏多。\n【目标】电商高频问法准确率达到可上线标准。\n【要求】保留人工接管入口，错误回答可标记回灌。',
     light: 'BLUE',
     stalledDays: 0,
   },
   {
     id: 'REQ-2024-0765',
     name: '课程标签体系扩展需求',
-    domain: '课程内容',
+    domain: 'MKT',
     proposer: '王芳',
     owner: '周强',
     reviewState: '已评审',
     outlet: 'DEVELOP',
     currentState: '开发中',
     expectedDate: '2024-06-25',
+    proposedDate: '2024-05-12',
+    priority: 'P2（一般）',
+    demandSource: '个人提出',
+    demandType: '体验优化',
+    businessBackground: '课程标签过粗，MKT 投放无法按客群精确圈选内容。',
+    roiAnalysis: '定性：投放素材与课程匹配更准；量化：减少无效曝光。',
+    remark: '标签字典需与配置中心对齐。',
+    description:
+      '【背景】现有标签无法支撑投放分群。\n【目标】扩展可运营的标签体系。\n【要求】兼容历史课程，不打断已上架内容。',
     light: 'YELLOW',
     stalledDays: 2,
   },
   {
     id: 'REQ-2024-0742',
     name: '讲师能力评估模型优化',
-    domain: '讲师运营',
+    domain: '服务',
     proposer: '赵敏',
     owner: '周强',
     reviewState: '已评审',
     outlet: 'DEVELOP',
     currentState: '开发中',
     expectedDate: '2024-07-05',
+    proposedDate: '2024-05-16',
+    priority: 'P1（重要）',
+    demandSource: '部门提出',
+    demandType: '质量改善',
+    businessBackground: '讲师评估靠主观印象，服务条线难以判断谁能上岗、谁需回炉。',
+    roiAnalysis: '定性：评估口径可复述；量化：减少因错派讲师导致的场次返工。',
+    remark: '评估维度先做最小集。',
+    description:
+      '【背景】讲师能力评价缺少统一模型。\n【目标】给出可比较的评估结果。\n【要求】不自动改培养状态，结论由运营录入。',
     light: 'BLUE',
     stalledDays: 1,
   },
   {
     id: 'REQ-2024-0699',
     name: '学习路径推荐算法升级',
-    domain: '学习体验',
+    domain: '渠道',
     proposer: '孙悦',
     owner: '李明',
     reviewState: '已评审',
     outlet: 'SOLUTION',
     currentState: '已发布',
     expectedDate: '2024-05-28',
+    proposedDate: '2024-04-20',
+    priority: 'P2（一般）',
+    demandSource: '案例反推',
+    demandType: '效率提升',
+    businessBackground: '渠道伙伴学习路径固定，无法按岗位和已学内容跳转。',
+    roiAnalysis: '定性：缩短上岗路径；量化：人均学习时长预计下降。',
+    remark: '已发布解决方案，持续观察使用情况。',
+    description:
+      '【背景】学习路径是一张表推到底。\n【目标】按岗位与完成情况推荐下一步。\n【要求】可人工覆盖推荐结果。',
     light: 'BLUE',
     stalledDays: null,
   },
   {
     id: 'REQ-2024-0651',
     name: '企业培训报表自定义导出',
-    domain: '数据分析',
+    domain: '政企',
     proposer: '周强',
     owner: '陈华',
     reviewState: '已评审',
     outlet: 'DEVELOP',
     currentState: '已上线',
     expectedDate: '2024-05-20',
+    proposedDate: '2024-04-08',
+    priority: 'P0（紧急重要）',
+    demandSource: '战略任务',
+    demandType: '成本降低',
+    businessBackground: '政企客户要按项目导出培训报表，现靠手工拼表，出错且慢。',
+    roiAnalysis: '定性：交付周期缩短；量化：单次导出从半天降到分钟级。',
+    remark: '已上线，后续按项目模板迭代。',
+    description:
+      '【背景】报表字段因项目而异，无法一次导出。\n【目标】支持自定义列并落档。\n【要求】导出走异步任务，不卡页面。',
     light: 'BLUE',
     stalledDays: null,
   },
   {
     id: 'REQ-2024-0620',
     name: '案例库智能检索优化',
-    domain: '案例管理',
+    domain: '零售',
     proposer: '李明',
     owner: '王芳',
     reviewState: '待评审',
     outlet: null,
     currentState: null,
     expectedDate: '2024-07-10',
+    proposedDate: '2024-05-30',
+    priority: 'P2（一般）',
+    demandSource: '案例反推',
+    demandType: '效率提升',
+    businessBackground: '案例库只能按标题搜，零售一线找不到相近场景的案例。',
+    roiAnalysis: '定性：复用成功案例；量化：减少重复整理同类材料。',
+    remark: '待评审，检索策略先做关键词 + 领域。',
+    description:
+      '【背景】案例检索召回差，相近业务找不到参考。\n【目标】按领域与关键词提高命中。\n【要求】不引入独立搜索引擎，先用库内检索。',
     light: 'RED',
     lightReason: 'STALLED',
     stalledDays: 4,
   },
-];
+]);
 
 /** 默认选中行。文档「默认状态与交互」：当前行浅蓝底 */
-export const DEMAND_SELECTED_ID = 'REQ-2024-0822';
+export const DEMAND_SELECTED_ID = withCurrentDates('REQ-2024-0822');
 
 /**
  * 需求ID 的固定前缀。列表里只显示它后面那一段。
@@ -255,10 +344,19 @@ export const DEMAND_PAGE_ITEMS: Array<number | null> = [1, 2, 3, 4, 5, null, DEM
 export const DEMAND_FILTERS = [
   { id: 'domain', label: '所属领域', placeholder: '请选择' },
   { id: 'reviewState', label: '需求评审状态', placeholder: '全部' },
-  { id: 'outlet', label: '分流出口', placeholder: '全部' },
+  { id: 'outlet', label: DEMAND_OUTLET_LABEL, placeholder: '全部' },
   { id: 'owner', label: '负责人', placeholder: '请选择' },
-  { id: 'light', label: '灯色', placeholder: '全部' },
+  { id: 'light', label: '预警', placeholder: '全部' },
 ] as const;
+
+/**
+ * 回归模式下「需求评审状态」筛选的下拉项。
+ *
+ * <p>产品模式取 {@code /api/meta/enums} 下发的评审状态（纪律 STK-1）。
+ * {@code ?fixture=1} 跑在 {@code vite build} 的静态产物上，没有后端可问，
+ * 下拉会空——空下拉本身不参与像素比对，但展开后的截图会缺三行，所以这里冻结一份。
+ */
+export const DEMAND_REVIEW_STATE_OPTIONS = ['待评审', '评审中', '已评审'] as const;
 
 /** 搜索框的占位文案。三个可搜字段全写出来，否则运营不知道能不能按提出人搜 */
 export const DEMAND_SEARCH_PLACEHOLDER = '搜索需求ID/名称/提出人';
@@ -269,18 +367,18 @@ export const DEMAND_DATE_RANGE = { label: '日期区间', from: '开始日期', 
 /**
  * R6 分析区左侧：领域分布柱图。
  *
- * <p>数组取文档 14.3「P02 领域柱图」的 7 个值，领域名取 14.2 表格里出现的 7 个领域，
+ * <p>数组取文档 14.3「P02 领域柱图」的 7 个值，领域名按现场口径 D-21 七类，
  * 按数值降序对应 —— 文档只给了数组没给标签顺序，这里按柱高从高到低配领域，
  * 与表格里的领域集合完全一致，不额外发明领域。
  */
 export const DEMAND_DOMAIN_BARS = [
-  { domain: '课程内容', value: 356 },
-  { domain: '学员运营', value: 298 },
-  { domain: '教学服务', value: 214 },
-  { domain: '讲师运营', value: 156 },
-  { domain: '学习体验', value: 108 },
-  { domain: '数据分析', value: 76 },
-  { domain: '案例管理', value: 60 },
+  { domain: '零售', value: 356 },
+  { domain: 'GTM', value: 298 },
+  { domain: '电商', value: 214 },
+  { domain: 'MKT', value: 156 },
+  { domain: '服务', value: 108 },
+  { domain: '渠道', value: 76 },
+  { domain: '政企', value: 60 },
 ] as const;
 
 /** 柱图纵轴刻度。封顶 400 略高于最大值 356，五档与设计稿一致 */
@@ -343,16 +441,13 @@ export const DEMAND_FEED = {
 } as const;
 
 /**
- * R7 需求详情：默认选中 REQ-2024-0822 的「分流与处理」页签。
+ * R7 需求详情：默认选中 REQ-2024-0822 的「基本信息」页签。
  *
- * <p>V2.0 同时给了「解决方案状态=验证通过」与「需求开发状态=开发中」，
- * 但两组字段互斥、且「验证通过」不是合法值（解决方案状态只有 已输出／已发布）。
- * 业务裁决按出口一落地：复用工具名称落到「解决方案名称」（字段 22），
- * 状态取「已发布」——一个已验证通过、正在被复用的工具，对应的就是解决方案已发布。
+ * <p>「分流与处理」字段组仍按出口一落地（解决方案名称／已发布），点到该页签可见；
  * 需求开发状态整组不显示，因为它是出口二专用。
  */
 /**
- * 六个页签，顺序照设计稿，默认落在第三个「分流与处理」。
+ * 六个页签，顺序照设计稿；默认落在第一个「基本信息」。
  *
  * <p>「评审信息」与「催办记录」对应的是需求自己的评审记录与催办台账明细，
  * 两者在一期都是真实存在的从表；「催办记录」<b>不是消息记录</b>——
@@ -368,7 +463,7 @@ export const DEMAND_DETAIL_TABS = [
 ] as const;
 
 /** 默认页签。写成常量而不是下标，改顺序时不会静默换掉默认页 */
-export const DEMAND_DETAIL_ACTIVE_TAB = '分流与处理';
+export const DEMAND_DETAIL_ACTIVE_TAB = '基本信息';
 
 /** 当前页签下的小节标题 */
 export const DEMAND_DETAIL_SECTION_TITLE = '分流与处理信息';
@@ -394,9 +489,9 @@ export interface DemandDetailField {
  * <p>只出出口一那一组。设计稿把「解决方案状态」与「需求开发状态」并列画了出来，
  * 但两组按需求 1215 互斥，同时显示会让人以为这个需求既走了出口一又走了出口二。
  */
-export const DEMAND_DETAIL_FIELDS: DemandDetailField[] = [
+export const DEMAND_DETAIL_FIELDS: DemandDetailField[] = withCurrentDates([
   {
-    label: '分流出口',
+    label: DEMAND_OUTLET_LABEL,
     value: DEMAND_OUTLETS.SOLUTION.value,
     hint: '出口一：用现有工具输出解决方案。选定后仅激活解决方案状态一组字段',
   },
@@ -409,7 +504,7 @@ export const DEMAND_DETAIL_FIELDS: DemandDetailField[] = [
   // API-5：「—」用 null 表达。出口一的需求要等标记交付使用后才进业务验收，
   // 此刻还没标记，所以业务验收状态整组为空
   { label: '业务验收状态', value: null },
-];
+]);
 
 /**
  * 详情里的两个人。
@@ -423,10 +518,10 @@ export const DEMAND_DETAIL_PEOPLE = [
 ] as const;
 
 /** 领域与提出时间。领域是字典值，渲染成徽章；时间含时分，3.3 规定不显示秒 */
-export const DEMAND_DETAIL_META = [
-  { label: '所属领域', value: '学员运营', tag: true },
+export const DEMAND_DETAIL_META = withCurrentDates([
+  { label: '所属领域', value: 'GTM', tag: true },
   { label: '提出时间', value: '2024-05-22 14:30', tag: false },
-] as const;
+] as const);
 
 /** 需求描述。超出三行折叠，展开入口固定文案「查看更多」 */
 export const DEMAND_DESCRIPTION =
@@ -453,3 +548,55 @@ export const DEMAND_ACTION_AVAILABILITY: ActionAvailability = {
 
 /** 按钮的渲染顺序照 V2.0 的四个位置，不按可用性排序——位置变动比置灰更让人困惑 */
 export const DEMAND_ACTION_ORDER = ['开始评审', '录入评审结论', '关联课程', '一键催办'] as const;
+
+/**
+ * 产品模式操作区。视觉回归 {@code ?fixture=1} 仍用 {@link DEMAND_ACTION_ORDER}，不要改上面那四个。
+ * 这四个是操作名，不是状态值；显隐不按评审状态推断（纪律 STK-1）。
+ */
+export const PRODUCT_DEMAND_ACTION_ORDER = [
+  '修改需求信息',
+  '录入评审结论',
+  '录入开发状态',
+  '一键催办',
+] as const;
+
+export const PRODUCT_DEMAND_ACTION_AVAILABILITY: ActionAvailability = {
+  allowedActions: [...PRODUCT_DEMAND_ACTION_ORDER],
+  blockedActions: [],
+};
+
+/**
+ * 回归模式下非选中行的按钮可用性。
+ *
+ * <p>产品模式走 {@link PRODUCT_DEMAND_ACTION_AVAILABILITY}，<b>不经过这里</b>——
+ * 真实数据的可执行动作由 {@code transitions/available} 下发。这段只服务
+ * {@code ?fixture=1} 的像素比对：设计稿冻结了「按状态置灰并给出原因」的那一版四按钮，
+ * 换成产品模式的四个会让 p02 的截图对不上。
+ *
+ * <p>它住在 fixtures 而不是页面里，是因为它扮演的正是<b>后端响应本身</b>——
+ * 状态值在这里是载荷，和真实响应里的状态值一样（见本目录在 STK-1 门禁里的豁免理由）。
+ */
+export function regressionAvailability(reviewState: string): ActionAvailability {
+  if (reviewState === '待评审') {
+    return {
+      allowedActions: ['开始评审', '关联课程', '一键催办'],
+      blockedActions: [{ action: '录入评审结论', reason: '当前状态为「待评审」，请先「开始评审」' }],
+    };
+  }
+  if (reviewState === '评审中') {
+    return {
+      allowedActions: ['录入评审结论', '关联课程', '一键催办'],
+      blockedActions: [
+        { action: '开始评审', reason: '当前状态为「评审中」，不能再执行「开始评审」' },
+      ],
+    };
+  }
+  return {
+    allowedActions: ['关联课程', '一键催办'],
+    blockedActions: [
+      { action: '开始评审', reason: '当前状态为「已评审」，不能再执行「开始评审」' },
+      { action: '录入评审结论', reason: '当前状态为「已评审」，不能再执行「录入评审结论」' },
+    ],
+  };
+}
+

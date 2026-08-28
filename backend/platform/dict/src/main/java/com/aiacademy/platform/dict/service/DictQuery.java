@@ -21,6 +21,18 @@ public class DictQuery {
     /** {@code dict_item.dict_type} 的取值，与表上的 CHECK 约束一致。 */
     public static final String TYPE_COMBAT_UNIT = "作战单元";
     public static final String TYPE_COURSE_CATEGORY = "课程分类";
+    public static final String TYPE_COURSE_INITIATION_STATUS = "课程立项状态";
+    public static final String TYPE_COURSE_INITIATION_REVIEW_CONCLUSION = "课程立项评审结论";
+    public static final String TYPE_COURSE_SELFCHECK_RECORD_STATUS = "课程自检记录状态";
+    public static final String TYPE_COURSE_SELFCHECK_CONCLUSION = "课程自检结论";
+    public static final String TYPE_COURSE_REVIEW_PHASE = "课程评审阶段";
+    public static final String TYPE_COURSE_REVIEW_LEDGER_STATUS = "课程评审台账状态";
+    public static final String TYPE_PRELIM_REVIEW_CONCLUSION = "初步评审结论";
+    public static final String TYPE_MEETING_CONCLUSION = "上会最终结论";
+    public static final String TYPE_COURSE_TRIAL_PHASE = "课程试讲阶段";
+    public static final String TYPE_COURSE_TRIAL_LEDGER_STATUS = "课程试讲台账状态";
+    public static final String TYPE_COURSE_TRIAL_FORMAT = "课程试讲形式";
+    public static final String TYPE_TRIAL_ACCEPTANCE_RESULT = "试讲验收结果";
 
     private final DictItemMapper mapper;
 

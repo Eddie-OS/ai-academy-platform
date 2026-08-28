@@ -9,6 +9,7 @@ import { courseApi, type CourseCalendarItem, type CourseSchedule } from '@/share
 import { AnalyticsCard } from '@/shared/ui/CockpitLayout';
 import { useIsOperator } from '@/shared/store/authStore';
 import { fontSize, neutral, space } from '@/shared/theme/designTokens';
+import { invalidateCourseListAndMetrics } from '@/features/course/courseFilters';
 
 const { Text } = Typography;
 
@@ -56,7 +57,7 @@ export function CourseScheduleBoard({ onSelect }: { onSelect: (courseId: number)
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['course-calendar'] });
-    void queryClient.invalidateQueries({ queryKey: ['courses'] });
+    invalidateCourseListAndMetrics(queryClient);
   };
 
   const saveNode = useMutation({

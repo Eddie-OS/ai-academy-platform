@@ -18,11 +18,12 @@ public record DemandReviewVO(
         LocalDate reviewDate,
         String reviewConclusion,
         String reviewOpinion,
+        String remark,
         OffsetDateTime createdAt,
         String createdBy) {
 
     public static DemandReviewVO of(DemandReview r) {
         return new DemandReviewVO(r.id(), r.demandId(), r.roundNo(), r.reviewDate(),
-                r.reviewConclusion(), r.reviewOpinion(), r.createdAt(), r.createdBy());
+                r.reviewConclusion(), r.reviewOpinion(), r.remark(), r.createdAt(), r.createdBy());
     }
 }

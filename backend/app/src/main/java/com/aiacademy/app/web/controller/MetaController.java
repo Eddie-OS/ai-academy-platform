@@ -88,10 +88,10 @@ public class MetaController {
     }
 
     /**
-     * 三类字典的当前值。
+     * 字典的当前值。
      *
-     * <p>7.5 写的是「4 类字典」，那是 V1.1 的口径——激励类型字典已随 N20（激励推二期）删除，
-     * 现存三类：作战单元、课程分类、自检 CheckList 清单项。
+     * <p>7.5 写的是「4 类字典」，那是 V1.1 的口径——激励类型字典已随 N20（激励推二期）删除。
+     * 现存：作战单元、课程分类、立项／自检／评审台账字典、自检 CheckList 清单项。
      *
      * <p>只下发<b>启用中</b>的项：停用项仅在配置中心可见（规则 DC1「仅在新建时不再可选」）。
      */
@@ -100,6 +100,25 @@ public class MetaController {
         Map<String, List<DictOption>> result = new LinkedHashMap<>();
         result.put(DictQuery.TYPE_COMBAT_UNIT, options(DictQuery.TYPE_COMBAT_UNIT));
         result.put(DictQuery.TYPE_COURSE_CATEGORY, options(DictQuery.TYPE_COURSE_CATEGORY));
+        result.put(DictQuery.TYPE_COURSE_INITIATION_STATUS, options(DictQuery.TYPE_COURSE_INITIATION_STATUS));
+        result.put(DictQuery.TYPE_COURSE_INITIATION_REVIEW_CONCLUSION,
+                options(DictQuery.TYPE_COURSE_INITIATION_REVIEW_CONCLUSION));
+        result.put(DictQuery.TYPE_COURSE_SELFCHECK_RECORD_STATUS,
+                options(DictQuery.TYPE_COURSE_SELFCHECK_RECORD_STATUS));
+        result.put(DictQuery.TYPE_COURSE_SELFCHECK_CONCLUSION,
+                options(DictQuery.TYPE_COURSE_SELFCHECK_CONCLUSION));
+        result.put(DictQuery.TYPE_COURSE_REVIEW_PHASE, options(DictQuery.TYPE_COURSE_REVIEW_PHASE));
+        result.put(DictQuery.TYPE_COURSE_REVIEW_LEDGER_STATUS,
+                options(DictQuery.TYPE_COURSE_REVIEW_LEDGER_STATUS));
+        result.put(DictQuery.TYPE_PRELIM_REVIEW_CONCLUSION,
+                options(DictQuery.TYPE_PRELIM_REVIEW_CONCLUSION));
+        result.put(DictQuery.TYPE_MEETING_CONCLUSION, options(DictQuery.TYPE_MEETING_CONCLUSION));
+        result.put(DictQuery.TYPE_COURSE_TRIAL_PHASE, options(DictQuery.TYPE_COURSE_TRIAL_PHASE));
+        result.put(DictQuery.TYPE_COURSE_TRIAL_LEDGER_STATUS,
+                options(DictQuery.TYPE_COURSE_TRIAL_LEDGER_STATUS));
+        result.put(DictQuery.TYPE_COURSE_TRIAL_FORMAT, options(DictQuery.TYPE_COURSE_TRIAL_FORMAT));
+        result.put(DictQuery.TYPE_TRIAL_ACCEPTANCE_RESULT,
+                options(DictQuery.TYPE_TRIAL_ACCEPTANCE_RESULT));
         result.put("自检CheckList清单项", selfchecks.list().stream()
                 .filter(item -> Boolean.TRUE.equals(item.enabled()))
                 .map(item -> new DictOption(String.valueOf(item.id()), item.itemText(), null))
@@ -139,6 +158,8 @@ public class MetaController {
         result.putAll(TrainingEnums.forMetaApi());
         result.putAll(LecturerEnums.forMetaApi());
         result.putAll(CaseEnums.forMetaApi());
+        // 三色灯 API 码（与 calc_light／LightColor 一致）；不放 business Enums，避免业务依赖 warning
+        result.put("灯色", List.of("BLUE", "YELLOW", "RED", "NONE"));
         return R.ok(result);
     }
 

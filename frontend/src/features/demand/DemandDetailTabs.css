@@ -1,0 +1,112 @@
+.dmd-tab-section {
+  margin: 0;
+}
+
+.dmd-tab-section + .dmd-tab-section {
+  margin-top: var(--space-md);
+}
+
+.dmd-tab-heading {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-body);
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-strong-weight);
+  line-height: var(--text-body-line);
+}
+
+.dmd-course-link {
+  margin: calc(var(--space-sm) * -1) 0 var(--space-sm);
+}
+
+.dmd-course-link a {
+  color: var(--color-text-link);
+  word-break: break-all;
+}
+
+.dmd-esc-status {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  line-height: var(--text-body-line);
+}
+
+.dmd-esc-status[data-status='done'] {
+  background: var(--color-success-bg);
+  color: var(--color-success-text-on-bg);
+}
+
+.dmd-esc-status[data-status='pending'] {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text-on-bg);
+}
+
+.dmd-state-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dmd-state-item {
+  position: relative;
+  padding: 0 0 var(--space-md) var(--space-lg);
+}
+
+.dmd-state-item::before {
+  content: '';
+  position: absolute;
+  top: var(--space-xs);
+  bottom: 0;
+  left: var(--space-2xs);
+  width: 1px;
+  background: var(--color-border-divider);
+}
+
+.dmd-state-item:last-child {
+  padding-bottom: 0;
+}
+
+.dmd-state-item:last-child::before {
+  display: none;
+}
+
+.dmd-state-dot {
+  position: absolute;
+  top: var(--space-2xs);
+  left: 0;
+  width: var(--space-xs);
+  height: var(--space-xs);
+  border-radius: var(--radius-xs);
+  background: var(--color-icon-default);
+}
+
+.dmd-state-time {
+  margin: 0 0 var(--space-xs);
+  color: var(--color-text-body);
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-strong-weight);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--text-body-line);
+}
+
+.dmd-state-meta {
+  margin: 0;
+  color: var(--color-text-body);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+}
+
+.dmd-state-meta dt {
+  display: inline;
+  color: var(--color-text-secondary);
+}
+
+.dmd-state-meta dd {
+  display: inline;
+  margin: 0 0 0 var(--space-sm);
+}
+
+.dmd-state-meta div + div {
+  margin-top: var(--space-3xs);
+}

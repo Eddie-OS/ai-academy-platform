@@ -107,6 +107,9 @@ function demand(): Demand {
     updatedAt: '2026-08-01T10:00:00+08:00',
     updatedBy: 'operator',
     version: 0,
+    light: 'NONE',
+    lightDays: null,
+    lightReason: null,
   };
 }
 

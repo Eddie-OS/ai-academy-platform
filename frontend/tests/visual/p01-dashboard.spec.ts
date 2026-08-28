@@ -16,26 +16,33 @@ import {
  * 后面的文本断言即使通过也没有意义。
  */
 
-/** 文档 5「区域坐标（CSS px）」表。R1/R2 由 expectShellGeometry 覆盖，这里从 R3 起 */
+/**
+ * 文档 5「区域坐标（CSS px）」表，按业务改版 V-70 修订。R1/R2 由 expectShellGeometry 覆盖，
+ * 这里从 R3 起。
+ *
+ * <p>两处偏离 V2.0 原表：R3 由六张 KPI 减为五张（撤「课程总数」，外框宽度不变）；
+ * R8「业务价值」整区撤销，它的 239px 连同 11px 间距归 R9，于是 R9 从 x=1312 w=250
+ * 变成 x=1062 w=500。<b>编号不重排</b>——欢迎卡仍叫 R9，改成 R8 会让文档 5 的坐标表
+ * 与代码里的 data-region 对不上号。
+ */
 const REGIONS: Region[] = [
-  { id: 'R3', name: '六张 KPI', x: 242, y: 86, w: 1320, h: 124 },
+  { id: 'R3', name: '五张 KPI', x: 242, y: 86, w: 1320, h: 124 },
   { id: 'R4', name: '五张业务入口卡', x: 242, y: 229, w: 1320, h: 216 },
   { id: 'R5', name: '三色灯预警', x: 242, y: 461, w: 499, h: 282 },
   { id: 'R6', name: '待办行动清单', x: 752, y: 461, w: 810, h: 282 },
   { id: 'R7', name: '效率指标', x: 242, y: 758, w: 807, h: 211 },
-  { id: 'R8', name: '业务价值', x: 1062, y: 758, w: 239, h: 211 },
-  { id: 'R9', name: '欢迎卡', x: 1312, y: 758, w: 250, h: 211 },
+  { id: 'R9', name: '欢迎卡', x: 1062, y: 758, w: 500, h: 211 },
 ];
 
-/** 文档 5「内部几何」：待办行动清单 810px 的七列宽度，标注为「必须照抄」 */
+/** V-71b：待办行动清单 810px 七列，左右向中间收（合计仍 810） */
 const WORKLIST_COLUMN_WIDTHS = [
-  { label: '责任人', width: 90 },
-  { label: '业务对象', width: 165 },
-  { label: '当前节点', width: 135 },
-  { label: '截止日期', width: 130 },
-  { label: '剩余天数', width: 80 },
-  { label: '预警灯', width: 100 },
-  { label: '操作', width: 110 },
+  { label: '责任人', width: 152 },
+  { label: '业务对象', width: 120 },
+  { label: '当前节点', width: 88 },
+  { label: '截止日期', width: 118 },
+  { label: '剩余天数', width: 88 },
+  { label: '预警灯', width: 124 },
+  { label: '操作', width: 120 },
 ];
 
 test.describe('P01 总看板', () => {
@@ -47,36 +54,40 @@ test.describe('P01 总看板', () => {
     await expectShellGeometry(page, 'dashboard');
   });
 
-  test('L1 九区域外框', async ({ page }) => {
+  test('L1 八区域外框', async ({ page }) => {
     await expectRegionGeometry(page, REGIONS);
   });
 
-  test('L1 九区域内容不溢出区域', async ({ page }) => {
+  test('L1 八区域内容不溢出区域', async ({ page }) => {
     await expectContentWithinRegions(
       page,
       REGIONS.map((region) => region.id),
     );
   });
 
-  test('L1 待办清单七列列宽（文档标注「必须照抄」）', async ({ page }) => {
+  test('L1 待办清单七列列宽（V-71 合计 810）', async ({ page }) => {
     const headers = page.locator("[data-region='R6'] thead th");
     await expect(headers).toHaveCount(WORKLIST_COLUMN_WIDTHS.length);
 
+    let sum = 0;
     for (const [index, column] of WORKLIST_COLUMN_WIDTHS.entries()) {
       const header = headers.nth(index);
       await expect(header, `第 ${index + 1} 列应是「${column.label}」`).toHaveText(column.label);
       const box = await header.boundingBox();
+      const width = box?.width ?? 0;
+      sum += width;
       expect(
-        Math.abs((box?.width ?? 0) - column.width),
-        `「${column.label}」列宽实测 ${box?.width}，应为 ${column.width}`,
+        Math.abs(width - column.width),
+        `「${column.label}」列宽实测 ${width}，应为 ${column.width}`,
       ).toBeLessThanOrEqual(BOUNDARY_TOLERANCE);
     }
+    expect(Math.abs(sum - 810), `七列合计 ${sum}，应为 810`).toBeLessThanOrEqual(BOUNDARY_TOLERANCE);
   });
 
-  test('L2 冻结 KPI 六项数值与环比', async ({ page }) => {
+  /** V-70 撤掉了「课程总数」，因此是五项而不是 V2.0 的六项 */
+  test('L2 冻结 KPI 五项数值与环比', async ({ page }) => {
     const expected = [
       ['需求总数', '1,268', '↑ 12.5%'],
-      ['课程总数', '842', '↑ 8.3%'],
       ['已发布课程', '512', '↑ 14.7%'],
       ['讲师池人数', '1,236', '↑ 7.9%'],
       ['培训场次数', '328', '↑ 20.1%'],
@@ -90,6 +101,35 @@ test.describe('P01 总看板', () => {
       await expect(card.locator('.kpi-label')).toHaveText(label);
       await expect(card.locator('.kpi-value')).toHaveText(value);
       await expect(card.locator('.kpi-delta')).toHaveText(delta);
+    }
+
+    await expect(page.locator("[data-region='R3']")).not.toContainText('课程总数');
+  });
+
+  /**
+   * 五张 KPI 与五张入口卡逐列对齐（V-70 第 2 条）。
+   *
+   * <p>这条断言的对象是<b>两行之间的关系</b>，L1 的区域外框断言看不到它：
+   * R3 与 R4 的外框都是 x=242 w=1320，无论里面装五列还是六列都照样通过。
+   * 对齐没了的表现是上下两行的竖直分界线错开，第一列几乎看不出、最后一列差 44px。
+   */
+  test('L1 KPI 与入口卡逐列对齐', async ({ page }) => {
+    const kpis = page.locator("[data-region='R3'] .kpi");
+    const entries = page.locator("[data-region='R4'] .entry");
+    await expect(kpis).toHaveCount(5);
+    await expect(entries).toHaveCount(5);
+
+    for (let index = 0; index < 5; index += 1) {
+      const kpi = await kpis.nth(index).boundingBox();
+      const entry = await entries.nth(index).boundingBox();
+      expect(
+        Math.abs((kpi?.x ?? 0) - (entry?.x ?? 0)),
+        `第 ${index + 1} 列左沿：KPI 在 ${kpi?.x}，入口卡在 ${entry?.x}`,
+      ).toBeLessThanOrEqual(BOUNDARY_TOLERANCE);
+      expect(
+        Math.abs((kpi?.width ?? 0) - (entry?.width ?? 0)),
+        `第 ${index + 1} 列宽度：KPI ${kpi?.width}，入口卡 ${entry?.width}`,
+      ).toBeLessThanOrEqual(BOUNDARY_TOLERANCE);
     }
   });
 
@@ -129,26 +169,27 @@ test.describe('P01 总看板', () => {
     for (const illegal of ['待澄清', '已下架', '认证讲师', '待认证', '进行中']) {
       expect(text, `不得出现非法状态值「${illegal}」（V-7）`).not.toContain(illegal);
     }
-    // 替换后的合法取值应在
-    for (const legal of ['已评审', '已关闭', '可上岗', '培养中', '待培养', '执行中']) {
+    /*
+     * 合法取值应在。这份清单比 V-70 之前短：课程卡、培训卡、案例卡的底部数已由业务
+     * 重新指定口径，「已关闭」「待培养」「执行中」不再出现在这一行上——它们仍是合法状态值，
+     * 只是不再是这三张卡展示的东西。
+     */
+    for (const legal of ['已评审', '可上岗', '培养中', '待试讲']) {
       expect(text).toContain(legal);
     }
   });
 
   /**
-   * 文档 14.1 冻结的五行待办，逐行核对。
-   *
-   * <p>灯色全部照抄文档——新口径下这五行本来就自洽。唯一的偏离是第 5 行的对象名：
-   * 「讲师认证-067」触碰禁区 F-1（V-10），这条也一起锁住，防的是「照文档改回去」。
+   * 文档 14.1 前五行 + V-71 补的滚动样例。姓名混入三字名，灯色徽章用两字短标签。
    */
-  test('L2 待办清单五行与文档 14.1 一致', async ({ page }) => {
+  test('L2 待办清单前五行与文档 14.1 一致，且面板可滚动', async ({ page }) => {
     const rows = page.locator("[data-region='R6'] tbody tr");
-    await expect(rows).toHaveCount(5);
+    await expect(rows).toHaveCount(9);
 
     const expected = [
-      { owner: '李明', object: 'AI需求-0987', node: '评审中', deadline: '2024-06-12', days: '2 天' },
-      { owner: '王芳', object: '课程-0456', node: '课程开发中', deadline: '2024-06-15', days: '5 天' },
-      { owner: '张伟', object: '培训场次-0321', node: '执行准备', deadline: '2024-06-18', days: '8 天' },
+      { owner: '李明远', object: 'AI需求-0987', node: '评审中', deadline: '2024-06-12', days: '2 天' },
+      { owner: '王晓芳', object: '课程-0456', node: '课程开发中', deadline: '2024-06-15', days: '5 天' },
+      { owner: '张伟强', object: '培训场次-0321', node: '执行准备', deadline: '2024-06-18', days: '8 天' },
       { owner: '陈晨', object: '案例-0188', node: '内容完善', deadline: '2024-06-10', days: '0 天' },
       { owner: '刘洋', object: '讲师-067', node: '入池评审', deadline: '2024-06-20', days: '10 天' },
     ];
@@ -157,8 +198,7 @@ test.describe('P01 总看板', () => {
       const cells = rows.nth(index).locator('td');
       /*
        * 责任人列用 data-owner 而不是 toHaveText：单元格里除了姓名还有一个首字圆牌，
-       * 取整格文本会读成「李李明」。
-       * 圆牌已经 aria-hidden，但 toHaveText 读的是 textContent，不看无障碍属性。
+       * 取整格文本会读成「李李明远」。
        */
       await expect(rows.nth(index)).toHaveAttribute('data-owner', row.owner);
       await expect(cells.nth(0)).toContainText(row.owner);
@@ -169,38 +209,57 @@ test.describe('P01 总看板', () => {
       await expect(cells.nth(6)).toHaveText('去处理');
     }
 
+    // 三字名完整可见，不被 ellipsis 裁成「李明…」（V-71）
+    for (const name of ['李明远', '王晓芳', '张伟强', '周立伟', '郑海涛']) {
+      const nameBox = await page
+        .locator(`[data-region='R6'] [data-owner='${name}'] .worklist-owner-name`)
+        .boundingBox();
+      expect(nameBox, `${name} 应在责任人列内`).toBeTruthy();
+      const clipped = await page
+        .locator(`[data-region='R6'] [data-owner='${name}'] .worklist-owner-name`)
+        .evaluate((node) => node.scrollWidth > node.clientWidth + 1);
+      expect(clipped, `${name} 被裁切了`).toBe(false);
+    }
+
     // 禁区 F-1：平台里没有「讲师认证」这件事（V-10）
     await expect(page.locator("[data-region='R6']")).not.toContainText('讲师认证');
+    await expect(page.locator("[data-region='R6']")).not.toContainText('测试人员');
 
-    // 灯色照抄文档 14.1：红／黄／蓝／红／蓝
+    // 前五行灯色照抄文档 14.1：红／黄／蓝／红／蓝；徽章用两字短标签
     const lights = page.locator("[data-region='R6'] tbody [data-testid='warning-light']");
     for (const [index, color] of ['RED', 'YELLOW', 'BLUE', 'RED', 'BLUE'].entries()) {
       await expect(lights.nth(index)).toHaveAttribute('data-color', color);
     }
-
-    // 两行红灯都还没到期（剩余 2 天、0 天），成因只能是状态停滞而不是逾期。
-    // 写成「已逾期」会和同一行的「剩余 2 天」直接打脸
-    await expect(lights.nth(0)).toHaveText('状态停滞');
-    await expect(lights.nth(3)).toHaveText('状态停滞');
+    await expect(lights.nth(0)).toHaveText('停滞');
+    await expect(lights.nth(3)).toHaveText('停滞');
     await expect(page.locator("[data-region='R6'] tbody")).not.toContainText('已逾期');
-
-    // 天数只出现在「剩余天数」列，预警灯列不重复一遍（否则 100px 会折行把行高顶起来）
     await expect(lights.first()).not.toContainText('天');
+
+    // 行数超出可视区 → 滚动容器可滚（V-71：清单不再是死的）
+    const scrollable = await page.locator("[data-testid='worklist-scroll']").evaluate((node) => {
+      return node.scrollHeight > node.clientHeight + 1;
+    });
+    expect(scrollable, '待办清单应出现纵向滚动').toBe(true);
+
+    // 行高约一半：首行高度不得再被 flex 拉到 40px 以上
+    const rowBox = await rows.first().boundingBox();
+    expect(rowBox?.height ?? 99).toBeLessThanOrEqual(32);
   });
 
-  test('L2 五张入口卡的底部三数都在卡内，没被插画挤出去', async ({ page }) => {
+  test('L2 五张入口卡的底部数都在卡内，没被插画挤出去', async ({ page }) => {
     /*
      * 这条断言防的是一类不报错的回归：插画用 flex:1 吃掉余量，
-     * 一旦它的收缩被某个 min-height 或 aspect-ratio 挡住，就会把底部三数顶到卡片外面。
-     * 卡片本身仍是 216px、L1 区域断言照样通过，只有那三个数字看不见了 ——
+     * 一旦它的收缩被某个 min-height 或 aspect-ratio 挡住，就会把底部数顶到卡片外面。
+     * 卡片本身仍是 216px、L1 区域断言照样通过，只有那几个数字看不见了 ——
      * 而「入口卡上没有数」和「这个驾驶舱暂时没数据」在界面上长得一模一样。
      */
     const cards = page.locator("[data-region='R4'] [data-testid='dash-entry']");
     await expect(cards).toHaveCount(5);
 
+    // V-70 起条数逐卡不同：需求／课程／讲师各三条，培训／案例各两条，合计 13
+    const perCard = [3, 3, 3, 2, 2];
     const stats = page.locator("[data-region='R4'] [data-testid='entry-stat']");
-    // 五张卡各三条。案例卡的后两条属 N18 口径，仅回归模式渲染（V-8），这里正是回归模式
-    await expect(stats).toHaveCount(15);
+    await expect(stats).toHaveCount(perCard.reduce((sum, count) => sum + count, 0));
 
     /*
      * 比的是<b>区域</b>下沿而不是卡片下沿。
@@ -212,28 +271,29 @@ test.describe('P01 总看板', () => {
     const region = await page.locator("[data-region='R4']").boundingBox();
     const regionBottom = (region?.y ?? 0) + (region?.height ?? 0);
 
-    for (let index = 0; index < 5; index += 1) {
+    let cursor = 0;
+    for (const [index, count] of perCard.entries()) {
       const card = await cards.nth(index).boundingBox();
       expect(
         Math.abs((card?.height ?? 0) - 216),
         `第 ${index + 1} 张卡实测高 ${card?.height}px，应为 216px`,
       ).toBeLessThanOrEqual(BOUNDARY_TOLERANCE);
 
-      const lastStat = await stats.nth(index * 3 + 2).boundingBox();
-      expect(lastStat, `第 ${index + 1} 张卡的第三个统计取不到 boundingBox`).not.toBeNull();
+      const lastStat = await stats.nth(cursor + count - 1).boundingBox();
+      expect(lastStat, `第 ${index + 1} 张卡的末位统计取不到 boundingBox`).not.toBeNull();
       const statBottom = (lastStat?.y ?? 0) + (lastStat?.height ?? 0);
       expect(
         statBottom,
-        `第 ${index + 1} 张卡的三数底沿 ${statBottom} 越过区域下沿 ${regionBottom}`,
+        `第 ${index + 1} 张卡的底部数底沿 ${statBottom} 越过区域下沿 ${regionBottom}`,
       ).toBeLessThanOrEqual(regionBottom);
+      cursor += count;
     }
 
-    // 徽章与 KPI 同源，对不上会被当成 bug
-    await expect(cards.nth(0)).toContainText('1,268');
-    await expect(cards.nth(1)).toContainText('842');
-    await expect(cards.nth(2)).toContainText('1,236');
-    await expect(cards.nth(3)).toContainText('328');
-    await expect(cards.nth(4)).toContainText('186');
+    /*
+     * V-70 撤掉了标题右侧的总量徽章。它显示的是该驾驶舱对应的那张 KPI，
+     * 与 R3 那一行重复同一个数；这里反过来锁住「不要把它加回来」。
+     */
+    await expect(page.locator("[data-region='R4'] .entry-badge")).toHaveCount(0);
   });
 
   test('L2 待办总数在四处一致', async ({ page }) => {
@@ -258,22 +318,28 @@ test.describe('P01 总看板', () => {
     await expect(page.locator("[data-region='R9']")).toContainText(`共 ${sidebar} 项待办`);
   });
 
-  test('L2 业务价值面板标题不折行', async ({ page }) => {
-    // 239px 的窄卡要同时放「业务价值」+「（人工填报）」+「查看明细」，
-    // 三者按默认字号合计 216px 会把标题挤成两行，把三条数值往下推出卡外
-    const title = page.locator("[data-region='R8'] .panel-title");
-    const box = await title.boundingBox();
-    expect(box?.height, `标题实测 ${box?.height}px，单行应约 26px`).toBeLessThanOrEqual(28);
+  /**
+   * V-70 撤销了 R8「业务价值」整区，这里锁住它不被加回来。
+   *
+   * <p>撤区的连带后果是业务价值填报页 /value-reports 失去了唯一入口
+   * （它在 navigation.ts 里 inSidebar:false，原先只能从这张卡的「查看明细」进）。
+   * 新入口待业务指定，见待修清单 V-70-a。
+   */
+  test('L2 业务价值区已撤销', async ({ page }) => {
+    await expect(page.locator("[data-region='R8']")).toHaveCount(0);
+    await expect(page.locator('.dash-row-bottom > .panel')).toHaveCount(2);
+    await expect(page.locator('.dash')).not.toContainText('业务价值');
   });
 
   test('L2 效率指标四条，终点值与冻结数据一致', async ({ page }) => {
     const items = page.locator("[data-region='R7'] .efficiency-item");
     await expect(items).toHaveCount(4);
 
+    // 第三条按需求 7.7 的原名叫「课程一次评审通过率」；V2.0 的卡面省了「课程」两字（V-70）
     const expected = [
       ['需求平均评审周期', '5.6 天'],
       ['课程平均开发周期', '28.3 天'],
-      ['一次评审通过率', '71.2%'],
+      ['课程一次评审通过率', '71.2%'],
       ['案例平均上架周期', '15.8 天'],
     ];
     for (const [index, [label, value]] of expected.entries()) {
@@ -319,11 +385,26 @@ test.describe('P01 总看板', () => {
     }
   });
 
-  test('L2 业务价值三项为人工填报值', async ({ page }) => {
-    const region = page.locator("[data-region='R8']");
-    await expect(region).toContainText('效率提升');
-    await expect(region).toContainText('18.7%');
-    await expect(region).toContainText('12.4%');
-    await expect(region).toContainText('¥128.6万');
+  /**
+   * 待办清单七格文字之间要留出间隔（V-70 第 8 条）。
+   *
+   * <p>七列列宽是文档 5 标注「必须照抄」的固定值，所以放宽间距只能靠格内的横向内边距，
+   * 而那不会改列宽——上面的 L1 列宽断言与这一条互不冲突，两条必须同时成立。
+   * 原先横向内边距是 0，「2024-06-12」的末位紧挨下一列「10 天」的首位。
+   */
+  test('L2 待办清单相邻两格的文字之间留有间隔', async ({ page }) => {
+    const cells = page.locator("[data-region='R6'] tbody tr").first().locator('td');
+    const count = await cells.count();
+
+    // 末格不算：它已经贴着卡片右沿，留内边距反而让「操作」列比其余六列往里缩一档
+    for (let index = 0; index < count - 1; index += 1) {
+      const pad = await cells
+        .nth(index)
+        .evaluate((node) => parseFloat(getComputedStyle(node).paddingRight));
+      expect(
+        pad,
+        `第 ${index + 1} 格的右内边距是 ${pad}px，相邻两列的文字会首尾相接`,
+      ).toBeGreaterThanOrEqual(8);
+    }
   });
 });

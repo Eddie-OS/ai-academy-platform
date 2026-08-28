@@ -21,18 +21,21 @@ public class DemandListItem extends Demand {
     /**
      * 当前处理状态（需求 8.6 的默认展示列之一）。
      *
-     * <p>需求用「一个分流出口 + 两组状态字段」建模，列表要在一列里显示需求走到哪儿了，就得按
-     * 出口取对应那一组的值：出口一看解决方案状态，出口二看需求开发状态。还没定出口时为空。
+     * <p>按分流出口取对应那一组：出口一看解决方案状态（尚未输出时展示「待输出」），
+     * 出口二看需求开发状态，出口三「需求驳回」固定「结束」。还没定出口时为空。
      *
      * <p>这里读的是<b>出口</b>取值而不是状态值——出口是需求主表上的普通枚举字段，与 A-6 的
      * 「业务代码不得出现状态值字面量」不冲突：状态值仍然原样取自库里的列。
      */
     public String getCurrentProcessState() {
         if (DemandEnums.OUTLET_SOLUTION.equals(getOutlet())) {
-            return getSolutionState();
+            return getSolutionState() != null ? getSolutionState() : DemandEnums.PROCESS_PENDING_OUTPUT;
         }
         if (DemandEnums.OUTLET_DEVELOPMENT.equals(getOutlet())) {
             return getDevState();
+        }
+        if (DemandEnums.OUTLET_REJECT.equals(getOutlet())) {
+            return DemandEnums.PROCESS_ENDED;
         }
         return null;
     }

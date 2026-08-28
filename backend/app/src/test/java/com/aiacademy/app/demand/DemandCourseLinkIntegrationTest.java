@@ -6,6 +6,7 @@ import com.aiacademy.app.application.DemandCourseLinkService;
 import com.aiacademy.app.support.IntegrationTest;
 import com.aiacademy.business.course.domain.CourseForm;
 import com.aiacademy.business.course.domain.CourseQuery;
+import com.aiacademy.business.demand.domain.DemandCourseLinkForm;
 import com.aiacademy.business.demand.domain.DemandForm;
 import com.aiacademy.business.demand.domain.DemandQuery;
 import com.aiacademy.business.course.service.CourseService;
@@ -178,6 +179,18 @@ class DemandCourseLinkIntegrationTest extends IntegrationTest {
         assertThat(links.coursesOf(demandId)).isEmpty();
     }
 
+    @Test
+    @DisplayName("关联课程页签可保存 http 外链，非法协议拒绝")
+    void 外链可保存() {
+        long demandId = 造需求("课程外链");
+        demands.updateCourseLink(demandId, new DemandCourseLinkForm("https://example.com/kc", null));
+        assertThat(demands.get(demandId).getCourseLink()).isEqualTo("https://example.com/kc");
+
+        assertThatThrownBy(() -> demands.updateCourseLink(demandId,
+                new DemandCourseLinkForm("ftp://example.com/kc", null)))
+                .hasMessageContaining("http://");
+    }
+
     // -------------------------------------------------------------------------
     // 夹具
     // -------------------------------------------------------------------------
@@ -185,14 +198,14 @@ class DemandCourseLinkIntegrationTest extends IntegrationTest {
     private long 造需求(String name) {
         return demandApplication.register(new DemandForm(name + System.nanoTime(), "COURSE",
                 employeeNo, employeeNo, LocalDate.now().minusDays(10), LocalDate.now().plusDays(30),
-                name + " 的业务问题与场景", "部门提出", "效率提升", "中"));
+                name + " 的业务问题与场景", "部门提出", "效率提升", "P1（重要）"));
     }
 
     private long 造课程(String name) {
         return courseApplication.initiate(new CourseForm(name + System.nanoTime(),
                 "内部端到端课程", "COURSE", employeeNo,
                 LocalDate.now().minusDays(30), LocalDate.now().plusDays(30),
-                name + " 的简介", "一线客服", new BigDecimal("4.5"), null,
+                name + " 的简介", "一线客服", new BigDecimal("4.5"), null, null, null,
                 "12 个月", "https://example.com/course", List.of()));
     }
 

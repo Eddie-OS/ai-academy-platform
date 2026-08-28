@@ -16,6 +16,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Avatar } from '@/shared/ui/v2/Avatar';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
 import { isRegressionMode } from '@/app/regressionMode';
+import { useFocusedId } from '@/shared/hooks/useFocusParam';
 import {
   ATTENDEE_SCALE,
   GROWTH_ADVICE,
@@ -209,7 +210,7 @@ function PoolGroup({ group }: { group: LecturerGroup }) {
 }
 
 function LecturerCardView({ card }: { card: LecturerCard }) {
-  const selected = card.id === LECTURER_SELECTED_ID;
+  const selected = card.id === useFocusedId(LECTURER_SELECTED_ID);
 
   return (
     <article
@@ -383,9 +384,11 @@ function Conclusion({ value }: { value: string }) {
 
 /** R7 讲师详情：1081,203,481,753 */
 function DetailPanel() {
-  const selected = LECTURER_GROUPS.flatMap((group) => group.cards).find(
-    (card) => card.id === LECTURER_SELECTED_ID,
-  );
+  const focusedId = useFocusedId(LECTURER_SELECTED_ID);
+  const cards = LECTURER_GROUPS.flatMap((group) => group.cards);
+  // 跳过来的编号可能不在讲师池样本里（模拟数据只覆盖了一部分），那就退回默认选中项，
+  // 否则整块详情空掉，看起来像跳转把页面打坏了
+  const selected = cards.find((card) => card.id === focusedId) ?? cards.find((card) => card.id === LECTURER_SELECTED_ID);
 
   return (
     <section className="panel lct-detail" data-region="R7" aria-label="讲师详情">

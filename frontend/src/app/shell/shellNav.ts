@@ -10,6 +10,7 @@
  * {@code /dashboard?fixture=1} 一类的示例仍可直接访问。
  */
 
+import { withCurrentDates } from '@/fixtures/fixtureClock';
 import type { PageKey } from '@/shared/theme/designTokensV2';
 
 export interface ShellNavItem {
@@ -88,8 +89,24 @@ export const PAGE_TITLE: Record<PageKey, string> = {
   review: '评审记录中心',
 };
 
-/** 4.1：默认日期区间。文档 0.3 禁止按当前时间改变状态，这个值参与视觉回归 */
-export const DEFAULT_DATE_RANGE = { from: '2024-05-12', to: '2024-06-10' } as const;
+/** 4.1：默认日期区间。回归模式冻结（这个值参与视觉回归），产品模式随今天平移 */
+export const DEFAULT_DATE_RANGE = withCurrentDates({ from: '2024-05-12', to: '2024-06-10' } as const);
+
+export const APP_NAME = 'AI学院联合作战平台';
+
+/**
+ * 浏览器标签页标题（SC 2.4.2）。
+ *
+ * <p>导入与配置中心没有 pageKey，但一样要有标题——它们是运营每天开着的两页，
+ * 全都叫「AI学院联合作战平台」时多标签下无法区分。
+ */
+export function resolveDocumentTitle(pathname: string): string {
+  const pageKey = resolvePageKey(pathname);
+  if (pageKey) return `${PAGE_TITLE[pageKey]} · ${APP_NAME}`;
+
+  const operation = SHELL_NAV_OPERATION.find((item) => pathname.startsWith(item.path));
+  return operation ? `${operation.label} · ${APP_NAME}` : APP_NAME;
+}
 
 /** 按路径反查 pageKey。详情深链（/demands/123）落到所属驾驶舱 */
 export function resolvePageKey(pathname: string): PageKey | null {

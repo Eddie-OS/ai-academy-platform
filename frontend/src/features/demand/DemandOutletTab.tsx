@@ -1,161 +1,204 @@
-import { useState } from 'react';
-import { Alert, App, Button, Card, Descriptions, Form, Input, Modal, Skeleton, Space, Typography } from 'antd';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { Alert, App, Button, Card, DatePicker, Descriptions, Form, Input, Select, Space } from 'antd';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import dayjs, { type Dayjs } from 'dayjs';
 import { ApiError } from '@/shared/api/client';
-import { DEMAND_OBJECT_TYPE, demandApi, type Demand } from '@/shared/api/demands';
-import { allowedAction, fieldOf, transitionApi } from '@/shared/api/transitions';
+import { demandApi, type Demand } from '@/shared/api/demands';
+import { invalidateDemandGraph } from '@/shared/query/invalidateGraph';
 import { useIsOperator } from '@/shared/store/authStore';
-import { PageState } from '@/shared/ui/PageState';
-import { neutral, space } from '@/shared/theme/designTokens';
+import { space } from '@/shared/theme/designTokens';
 import { DemandAttachments, DEMAND_REF_FIELDS } from './DemandAttachments';
-import { DEMAND_STATE_FIELDS, useOutlets } from './demandMeta';
-
-const { Text } = Typography;
+import {
+  DEMAND_OBJECT_TYPE_CODE,
+  DEMAND_STATE_FIELDS,
+  FIELD_ENUM_KEYS,
+  selectOptions,
+  useFieldEnums,
+  useOutlets,
+  useStates,
+  useTerminalStates,
+} from './demandMeta';
 
 /**
  * 详情页「分流与处理」页签（需求 8.3.3）。
  *
- * <p><b>按分流出口决定显示哪一组字段</b>（8.3.3 的界面动态显示规则）：出口为空时字段 21–27 全部
- * 隐藏，出口一显示 21–23，出口二显示 24–27。两组字段同时摆出来的后果是，运营在出口一的需求上
- * 看到一个永远是「—」的「首次上线时间」，然后来问「为什么上线时间不自动填」。
- *
- * <p>状态本身在页头的状态区推进，这里只负责那些<b>要连同业务字段一起写</b>的动作：
- * 「输出解决方案」必须同时给出方案名称（需求 8.3.3 第 22 项：出口一时必填）。
+ * <p>流转去向只展示两条处理出口。选解决方案或需求开发后出现对应名称／状态／备注。
+ * 状态取值来自元数据（纪律 STK-1），保存时后端按转换表推进，不自动连跳。
  */
 
 interface DemandOutletTabProps {
   demand: Demand;
+  demo?: boolean;
 }
 
-/** 输出解决方案的动作码，与后端 {@code DemandStateMachines.ACTION_CREATE_SOLUTION} 一致。 */
-const ACTION_CREATE_SOLUTION = 'CREATE_SOLUTION';
+interface ProcessValues {
+  outlet: string;
+  solutionName?: string;
+  solutionState?: string;
+  solutionRemark?: string;
+  devName?: string;
+  devState?: string;
+  devRemark?: string;
+  expectFinishDate?: Dayjs | null;
+  acceptanceState?: string;
+  acceptanceRemark?: string;
+  deliveryMark?: string;
+  deliveryRemark?: string;
+  actualFinishDate?: Dayjs | null;
+  solutionLink?: string;
+}
 
-export function DemandOutletTab({ demand }: DemandOutletTabProps) {
+export function DemandOutletTab({ demand, demo }: DemandOutletTabProps) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const isOperator = useIsOperator();
+  const fieldEnums = useFieldEnums();
   const outlets = useOutlets();
-  const [creating, setCreating] = useState(false);
-  const [form] = Form.useForm<{ solutionName: string }>();
+  const [form] = Form.useForm<ProcessValues>();
+  const canEdit = isOperator && !demo;
+  const outlet = Form.useWatch('outlet', form);
 
-  const availability = useQuery({
-    queryKey: ['demands', demand.id, 'available'],
-    queryFn: () => transitionApi.available(DEMAND_OBJECT_TYPE, demand.id),
-  });
-  const canCreateSolution =
-    allowedAction(fieldOf(availability.data, DEMAND_STATE_FIELDS.solution), ACTION_CREATE_SOLUTION) !== null;
+  const pendingOutput = fieldEnums.data?.[FIELD_ENUM_KEYS.solutionPendingOutput]?.[0];
+  const undelivered = fieldEnums.data?.[FIELD_ENUM_KEYS.deliveryUndelivered]?.[0];
+  const solutionStates = useStates(DEMAND_OBJECT_TYPE_CODE, DEMAND_STATE_FIELDS.solution);
+  const devStates = useStates(DEMAND_OBJECT_TYPE_CODE, DEMAND_STATE_FIELDS.dev);
+  const acceptanceStates = useStates(DEMAND_OBJECT_TYPE_CODE, DEMAND_STATE_FIELDS.acceptance);
+  const deliveryStates = useStates(DEMAND_OBJECT_TYPE_CODE, DEMAND_STATE_FIELDS.deliveryMark);
+  const deliveryTerminals = useTerminalStates(DEMAND_OBJECT_TYPE_CODE, DEMAND_STATE_FIELDS.deliveryMark);
 
-  const createSolution = useMutation({
-    mutationFn: (values: { solutionName: string }) =>
-      demandApi.createSolution(demand.id, values.solutionName, demand.version),
+  const destinationOptions = [
+    outlets.solution && { value: outlets.solution, label: '用工具-输出解决方案' },
+    outlets.development && { value: outlets.development, label: '造工具-需求开发' },
+  ].filter((item): item is { value: string; label: string } => Boolean(item));
+
+  const deliveryOptions = deliveryFormOptions(
+    undelivered ?? '未交付',
+    deliveryStates,
+    deliveryTerminals,
+    demand.deliveryMark,
+  );
+  const acceptanceOptions = acceptanceFormOptions(acceptanceStates, demand.acceptanceState);
+  const savedLink = httpLink(demand.solutionLink);
+
+  useEffect(() => {
+    form.setFieldsValue({
+      outlet: demand.outlet && demand.outlet !== outlets.reject ? demand.outlet : undefined,
+      solutionName: demand.solutionName ?? undefined,
+      solutionState: demand.solutionState ?? pendingOutput,
+      solutionRemark: demand.solutionRemark ?? undefined,
+      devName: demand.devName ?? undefined,
+      devState: demand.devState ?? undefined,
+      devRemark: demand.devRemark ?? undefined,
+      expectFinishDate: demand.expectFinishDate ? dayjs(demand.expectFinishDate) : null,
+      acceptanceState: demand.acceptanceState ?? undefined,
+      acceptanceRemark: demand.acceptanceRemark ?? undefined,
+      deliveryMark: demand.deliveryMark ?? undelivered,
+      deliveryRemark: demand.deliveryRemark ?? undefined,
+      actualFinishDate: demand.actualFinishDate ? dayjs(demand.actualFinishDate) : null,
+      solutionLink: demand.solutionLink ?? undefined,
+    });
+  }, [
+    form,
+    demand.id,
+    demand.version,
+    demand.outlet,
+    demand.solutionName,
+    demand.solutionState,
+    demand.solutionRemark,
+    demand.devName,
+    demand.devState,
+    demand.devRemark,
+    demand.expectFinishDate,
+    demand.acceptanceState,
+    demand.acceptanceRemark,
+    demand.deliveryMark,
+    demand.deliveryRemark,
+    demand.actualFinishDate,
+    demand.solutionLink,
+    pendingOutput,
+    undelivered,
+    outlets.reject,
+  ]);
+
+  const save = useMutation({
+    mutationFn: (values: ProcessValues) =>
+      demandApi.saveProcessInfo(demand.id, {
+        outlet: values.outlet,
+        solutionName: values.solutionName || null,
+        solutionState: values.solutionState || null,
+        solutionRemark: values.solutionRemark || null,
+        devName: values.devName || null,
+        devState: values.devState || null,
+        devRemark: values.devRemark || null,
+        expectFinishDate: values.expectFinishDate?.format('YYYY-MM-DD') ?? null,
+        acceptanceState: values.acceptanceState || null,
+        acceptanceRemark: values.acceptanceRemark || null,
+        deliveryMark: values.deliveryMark || null,
+        deliveryRemark: values.deliveryRemark || null,
+        actualFinishDate: values.actualFinishDate?.format('YYYY-MM-DD') ?? null,
+        solutionLink: values.solutionLink || null,
+        version: demand.version,
+      }),
     onSuccess: () => {
-      message.success('解决方案已记录，解决方案状态已随之变更');
-      setCreating(false);
-      form.resetFields();
-      void queryClient.invalidateQueries({ queryKey: ['demands'] });
+      message.success('分流与处理已保存');
+      invalidateDemandGraph(queryClient);
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
   });
 
-  if (!demand.outlet) {
+  if (outlets.reject && demand.outlet === outlets.reject) {
     return (
-      <PageState
-        variant="empty"
-        objectName="分流信息"
-        description="这条需求还没有分流出口。出口在「评审信息」页签随评审结论一起录入，录入后这里会显示对应那一组字段。"
-      />
-    );
-  }
-
-  // 出口的取值来自 /api/meta/field-enums，元数据还没到时两个都是 undefined。
-  // 此时不猜：显示一组不属于这条需求的字段，比晚一秒显示糟得多
-  if (!outlets.solution || !outlets.development) {
-    return <Skeleton active paragraph={{ rows: 3 }} />;
-  }
-
-  if (demand.outlet === outlets.development) {
-    return (
-      <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
-        <Alert
-          type="info"
-          showIcon
-          message="上线时间与优化次数由状态变更自动记账"
-          description="首次上线时间只写一次，它是需求处理周期指标的终点；最新上线时间每次上线都会更新；优化次数统计转入优化的次数，不设上限。三者都不可手工修改。"
-        />
-        <Card size="small" title="需求开发">
-          <Descriptions
-            column={2}
-            size="small"
-            styles={{ label: { color: neutral[600], width: 120 } }}
-            items={[
-              { key: 'outlet', label: '分流出口', children: demand.outlet },
-              { key: 'devState', label: '需求开发状态', children: demand.devState ?? '—' },
-              { key: 'first', label: '首次上线时间', children: demand.firstOnlineDate ?? '—' },
-              { key: 'latest', label: '最新上线时间', children: demand.latestOnlineDate ?? '—' },
-              {
-                key: 'optimize',
-                label: '优化次数',
-                children: demand.optimizeCount === null ? '—' : `${demand.optimizeCount} 次`,
-              },
-            ]}
-          />
-        </Card>
-      </Space>
-    );
-  }
-
-  return (
-    <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
-      <Card
-        size="small"
-        title="解决方案"
-        extra={
-          isOperator &&
-          canCreateSolution && (
-            <Button type="primary" size="small" onClick={() => setCreating(true)}>
-              输出解决方案
-            </Button>
-          )
-        }
-      >
+      <Card size="small" title="需求驳回">
         <Descriptions
-          column={2}
+          column={1}
           size="small"
-          styles={{ label: { color: neutral[600], width: 120 } }}
           items={[
-            { key: 'outlet', label: '分流出口', children: demand.outlet },
-            { key: 'state', label: '解决方案状态', children: demand.solutionState ?? '—' },
-            { key: 'name', label: '解决方案名称', span: 2, children: demand.solutionName ?? '—' },
-            {
-              key: 'files',
-              label: '解决方案附件',
-              span: 2,
-              children: (
-                <DemandAttachments
-                  demandId={demand.id}
-                  refField={DEMAND_REF_FIELDS.solutionFiles}
-                  emptyHint="还没有上传解决方案附件"
-                />
-              ),
-            },
+            { key: 'outlet', label: '流转去向', children: demand.outlet },
+            { key: 'state', label: '处理状态', children: demand.currentProcessState ?? '—' },
           ]}
         />
       </Card>
+    );
+  }
 
-      <Modal
-        open={creating}
-        title="输出解决方案"
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={createSolution.isPending}
-        onCancel={() => setCreating(false)}
-        onOk={() => void form.validateFields().then((values) => createSolution.mutateAsync(values))}
+  const isSolution = Boolean(outlets.solution && outlet === outlets.solution);
+  const isDevelopment = Boolean(outlets.development && outlet === outlets.development);
+
+  return (
+    <Space className="dmd-process-form" direction="vertical" size={space.md} style={{ width: '100%' }}>
+      {demo && (
+        <Alert
+          type="info"
+          showIcon
+          message="演示数据不能保存分流与处理"
+          description="请先「新建需求」或打开已落库的需求，再在此页填写。"
+        />
+      )}
+
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark
+        disabled={!canEdit}
+        onFinish={(values) => {
+          if (demo) {
+            message.info('演示数据无法保存，请先「新建需求」');
+            return;
+          }
+          void save.mutateAsync(values);
+        }}
       >
-        <Space direction="vertical" size={space.sm} style={{ width: '100%' }}>
-          <Text type="secondary">
-            方案名称与解决方案状态一起保存。拆成两步会让「有状态但没名称」的需求真实存在于两次请求之间。
-          </Text>
-          <Form form={form} layout="vertical" requiredMark={false}>
+        <Form.Item
+          label="流转去向"
+          name="outlet"
+          extra="与评审结论对应的两条处理出口。"
+          rules={[{ required: true, message: '请选择流转去向' }]}
+        >
+          <Select showSearch optionFilterProp="label" options={destinationOptions} placeholder="请选择流转去向" />
+        </Form.Item>
+
+        {isSolution && (
+          <>
             <Form.Item
               label="解决方案名称"
               name="solutionName"
@@ -163,9 +206,168 @@ export function DemandOutletTab({ demand }: DemandOutletTabProps) {
             >
               <Input maxLength={200} showCount />
             </Form.Item>
-          </Form>
-        </Space>
-      </Modal>
+            <Form.Item label="解决方案状态" name="solutionState">
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={selectOptions([pendingOutput, ...solutionStates].filter((item): item is string => Boolean(item)))}
+                placeholder="请选择解决方案状态"
+              />
+            </Form.Item>
+            <Form.Item label="备注" name="solutionRemark">
+              <Input.TextArea rows={3} autoSize={{ minRows: 2 }} />
+            </Form.Item>
+          </>
+        )}
+
+        {isDevelopment && (
+          <>
+            <Form.Item
+              label="需求开发名称"
+              name="devName"
+              rules={[{ required: true, message: '请填写需求开发名称' }]}
+            >
+              <Input maxLength={200} showCount />
+            </Form.Item>
+            <Form.Item label="需求开发状态" name="devState">
+              <Select
+                showSearch
+                optionFilterProp="label"
+                options={selectOptions(devStates)}
+                placeholder="请选择需求开发状态"
+              />
+            </Form.Item>
+            <Form.Item label="备注" name="devRemark">
+              <Input.TextArea rows={3} autoSize={{ minRows: 2 }} />
+            </Form.Item>
+            <Descriptions
+              size="small"
+              column={1}
+              items={[
+                { key: 'first', label: '首次上线时间', children: demand.firstOnlineDate ?? '—' },
+                { key: 'latest', label: '最新上线时间', children: demand.latestOnlineDate ?? '—' },
+                {
+                  key: 'optimize',
+                  label: '优化次数',
+                  children: demand.optimizeCount === null || demand.optimizeCount === undefined
+                    ? '—'
+                    : `${demand.optimizeCount} 次`,
+                },
+              ]}
+            />
+          </>
+        )}
+
+        <Form.Item label="预计完成时间" name="expectFinishDate">
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          label="业务验收状态"
+          name="acceptanceState"
+          extra="「已验收」请到「业务验收」页签录入结论（须填验收人）"
+        >
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={acceptanceOptions}
+            placeholder="请选择业务验收状态"
+          />
+        </Form.Item>
+        <Form.Item label="备注" name="acceptanceRemark">
+          <Input.TextArea rows={2} autoSize={{ minRows: 2 }} />
+        </Form.Item>
+        <Form.Item label="交付使用状态" name="deliveryMark">
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={deliveryOptions}
+            placeholder="请选择交付使用状态"
+          />
+        </Form.Item>
+        <Form.Item label="备注" name="deliveryRemark">
+          <Input.TextArea rows={2} autoSize={{ minRows: 2 }} />
+        </Form.Item>
+        <Form.Item label="实际完成时间" name="actualFinishDate">
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          label="关联解决方案"
+          name="solutionLink"
+          extra="填写 http:// 或 https:// 开头的链接，保存后可点击跳转"
+        >
+          <Input placeholder="https://" />
+        </Form.Item>
+        {savedLink && (
+          <p className="dmd-solution-link">
+            <a href={savedLink} target="_blank" rel="noopener noreferrer">
+              {savedLink}
+            </a>
+          </p>
+        )}
+
+        {canEdit && (
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={save.isPending}>
+              保存
+            </Button>
+          </Form.Item>
+        )}
+      </Form>
+
+      {isSolution && !demo && (
+        <DemandAttachments
+          demandId={demand.id}
+          refField={DEMAND_REF_FIELDS.solutionFiles}
+          emptyHint="还没有上传解决方案附件"
+        />
+      )}
     </Space>
   );
+}
+
+/**
+ * 交付使用状态下拉。终态不进选项——归档是退出预警的动作，得走「闭环」按钮走转换接口，
+ * 在这张表单里直接选中会绕过验收前置（C9）。终态由后端转换表算出，这里不列举状态名。
+ */
+function deliveryFormOptions(
+  undelivered: string | undefined,
+  states: string[],
+  terminalStates: string[],
+  current: string | null | undefined,
+) {
+  const values = [undelivered, ...states.filter((item) => !terminalStates.includes(item))].filter(
+    (item): item is string => Boolean(item),
+  );
+  if (current && !values.includes(current)) {
+    values.push(current);
+  }
+  return selectOptions(values);
+}
+
+/**
+ * 业务验收状态下拉里「通过」的下标。
+ *
+ * <p>下发顺序即后端 {@code DemandStateMachines} 的定义顺序，通过之后才是「不通过」。
+ * 表单只放到「通过」为止：不通过必须连着结论与验收人一起录，入口在「业务验收」页签。
+ */
+const ACCEPTANCE_PASSED_INDEX = 2;
+
+/** 需求 8.3.3 的展示名。它不是状态值——状态值是下发数组里的那一项，这里只换标签。 */
+const ACCEPTANCE_PASSED_LABEL = '已验收';
+
+function acceptanceFormOptions(states: string[], current: string | null | undefined) {
+  const passed = states[ACCEPTANCE_PASSED_INDEX];
+  const options = states
+    .slice(0, ACCEPTANCE_PASSED_INDEX + 1)
+    .map((value) => ({ value, label: value === passed ? ACCEPTANCE_PASSED_LABEL : value }));
+  if (current && !options.some((item) => item.value === current)) {
+    options.push({ value: current, label: current === passed ? ACCEPTANCE_PASSED_LABEL : current });
+  }
+  return options;
+}
+
+function httpLink(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.startsWith('http://') || value.startsWith('https://') ? value : null;
 }

@@ -23,7 +23,8 @@ import { ApiError } from '@/shared/api/client';
 import { caseApi, type CaseFilter, type CaseInfo } from '@/shared/api/cases';
 import { DataTable, actionsWidth, type DataTableColumn } from '@/shared/ui/DataTable';
 import { AnalyticsRow, CockpitDetailPanel, CockpitLayout } from '@/shared/ui/CockpitLayout';
-import { CASE_METRICS } from '@/shared/metrics/cockpitMetrics';
+import { CASE_METRICS, mergeMetricValues } from '@/shared/metrics/cockpitMetrics';
+import { metricsApi } from '@/shared/api/metrics';
 import { PageState } from '@/shared/ui/PageState';
 import { StatusTag } from '@/shared/ui/StatusTag';
 import { EM_DASH, formatDateTime } from '@/shared/format';
@@ -94,6 +95,11 @@ export function CaseCockpitPage() {
   const page = useQuery({
     queryKey: ['cases', 'page', filter, pageNum, pageSize],
     queryFn: () => caseApi.page(filter, pageNum, pageSize),
+  });
+
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'cases'],
+    queryFn: () => metricsApi.quantity('cases'),
   });
 
   const detail = useQuery({
@@ -210,7 +216,7 @@ export function CaseCockpitPage() {
             ]}
           />
         }
-        metrics={CASE_METRICS}
+        metrics={mergeMetricValues(CASE_METRICS, quantity.data)}
         filters={
           <Space wrap size={space.xs}>
             <Input.Search
@@ -233,6 +239,7 @@ export function CaseCockpitPage() {
               options={selectOptions(states)}
               onChange={(value) => patch({ caseState: value ?? null })}
             />
+            {/* 没有灯色筛选：案例已退出三色灯范围（业务改版 V-70） */}
             <Select
               allowClear
               placeholder="精品标注"

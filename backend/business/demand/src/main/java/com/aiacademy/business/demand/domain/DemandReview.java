@@ -20,6 +20,7 @@ public record DemandReview(
         LocalDate reviewDate,
         String reviewConclusion,
         String reviewOpinion,
+        String remark,
         OffsetDateTime createdAt,
         String createdBy) {
 }

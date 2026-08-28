@@ -72,9 +72,10 @@
 .tsk-kpi {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  padding: 16px;
+  padding: 12px 14px;
   border: var(--border-v2);
   border-radius: var(--radius-card);
   background: var(--bg-page);
@@ -93,22 +94,70 @@
   color: var(--brand-action);
 }
 
+.tsk-kpi-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
 .tsk-kpi-label {
   overflow: hidden;
   color: var(--text-tertiary);
   font-size: var(--type-caption-size);
-  line-height: 18px;
+  line-height: var(--lh-18);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .tsk-kpi-value {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--text-primary);
   font-size: var(--type-kpi-small-size);
   font-weight: var(--type-kpi-weight);
   line-height: var(--type-kpi-small-line);
   font-variant-numeric: tabular-nums;
+}
+
+.tsk-kpi-delta {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--success);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 逾期卡的环比上涨是坏消息，绿色会读反 */
+.tsk-kpi-delta[data-warn='true'] {
+  color: var(--danger);
+}
+
+.tsk-kpi-period {
+  color: var(--text-tertiary);
+}
+
+.tsk-kpi[data-kpi='overdue'] .tsk-kpi-icon,
+.tsk-kpi[data-warn='true'] .tsk-kpi-icon {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.tsk-kpi[data-kpi='pending'] .tsk-kpi-icon {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.tsk-kpi[data-kpi='processing'] .tsk-kpi-icon {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.tsk-kpi[data-kpi='completed'] .tsk-kpi-icon {
+  background: #dcfce7;
+  color: #15803d;
 }
 
 /* R5 筛选器：224,247,1001,71 */
@@ -182,6 +231,7 @@
 
 .tsk-table-head {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   height: 52px;
   padding: 0 16px;
@@ -193,13 +243,31 @@
   font-size: var(--type-caption-size);
 }
 
+/*
+ * 表体单独滚动，表头与分页固定。整块面板滚动的话，接口返回 50 条时分页条会被推到
+ * 面板外面，运营看不到共多少条。
+ */
+.tsk-table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/*
+ * 回归基线只认设计稿那 5 行。fixture 补到 10 行是为了让产品模式的表体不留白，
+ * 多出来的行在回归模式里必须收起，否则 R6 内容溢出区域下沿。
+ */
+html[data-regression] .tsk-table tbody tr:nth-child(n + 6) {
+  display: none;
+}
+
 .tsk-table {
   width: 1001px;
   table-layout: fixed;
   border-collapse: collapse;
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
 }
 
 .tsk-table th,
@@ -260,8 +328,8 @@
   align-items: center;
   padding: 0 6px;
   border-radius: var(--radius-tag);
-  font-size: 11px;
-  line-height: 20px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-20);
   white-space: nowrap;
 }
 
@@ -292,8 +360,8 @@
   gap: 3px;
   max-width: 100%;
   overflow: hidden;
-  font-size: 10px;
-  line-height: 16px;
+  font-size: var(--fs-10);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -319,17 +387,19 @@
   background: transparent;
   color: var(--brand-action);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-12);
   cursor: pointer;
 }
 
 .tsk-pager {
   display: flex;
+  flex: 0 0 auto;
   justify-content: space-between;
   margin-top: auto;
   padding: 10px 16px;
+  border-top: 1px solid var(--border-light);
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-variant-numeric: tabular-nums;
 }
 
@@ -357,7 +427,7 @@
 
 .tsk-focus-head span {
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 .tsk-focus ol {
@@ -373,7 +443,12 @@
   align-items: center;
   height: 29px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--fs-12);
+}
+
+/* 551px 宽的回归版式塞不下第五列；状态徽章只在产品模式的宽卡里出现。 */
+.tsk-focus li .tsk-state {
+  display: none;
 }
 
 .tsk-focus-rank {
@@ -392,7 +467,7 @@
 .tsk-focus-owner,
 .tsk-focus-deadline {
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
   text-align: right;
 }
 
@@ -403,34 +478,40 @@
 .panel.tsk-empty {
   flex-direction: row;
   align-items: center;
+  gap: var(--space-v2-3);
   width: 428px;
   height: 150px;
-  padding: 16px;
+  padding: 16px 20px;
 }
 
-.tsk-empty img {
-  width: 72px;
-  height: 72px;
-  margin-right: 12px;
-  object-fit: contain;
-}
-
-.tsk-empty div {
+.tsk-empty-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1 1 0;
   min-width: 0;
+  gap: var(--space-v2-1);
+}
+
+.tsk-empty-art {
+  flex: 0 0 auto;
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
 }
 
 .tsk-empty p {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--fs-13);
   font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-20);
 }
 
-.tsk-empty div span {
-  display: block;
-  margin-top: 4px;
+.tsk-empty-copy span {
   color: var(--text-tertiary);
-  font-size: 10px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .tsk-empty button {
@@ -438,15 +519,15 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
-  height: 28px;
-  margin-left: auto;
-  padding: 0 8px;
+  height: 32px;
+  margin-top: var(--space-v2-2);
+  padding: 0 12px;
   border: 0;
   border-radius: var(--radius-control);
   background: var(--brand-action);
   color: #fff;
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-12);
 }
 
 /* R9 详情：1248,68,328,899 */
@@ -457,6 +538,7 @@
   width: 328px;
   height: 899px;
   padding: 16px;
+  overflow: auto;
 }
 
 .tsk-detail-head {
@@ -468,8 +550,8 @@
 .tsk-detail-head h2 {
   margin-top: 4px;
   color: var(--text-primary);
-  font-size: 16px;
-  line-height: 24px;
+  font-size: var(--fs-16);
+  line-height: var(--lh-24);
 }
 
 .tsk-detail-head button {
@@ -484,8 +566,15 @@
 
 .tsk-detail-id {
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-variant-numeric: tabular-nums;
+}
+
+.tsk-detail-created {
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
 }
 
 .tsk-detail > .tsk-state {
@@ -495,42 +584,110 @@
 .tsk-detail-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 20px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .tsk-detail-fields dt {
   color: var(--text-tertiary);
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 .tsk-detail-fields dd {
   margin: 3px 0 0;
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .tsk-description,
+.tsk-source,
+.tsk-timeline,
+.tsk-derive,
 .tsk-comments {
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .tsk-description h3,
+.tsk-source h3,
+.tsk-timeline h3,
+.tsk-derive h3,
 .tsk-comments h3 {
   color: var(--text-primary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--fs-13);
+  line-height: var(--lh-20);
 }
 
-.tsk-description p {
+.tsk-description p,
+.tsk-derive p {
   margin-top: 6px;
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 20px;
+  font-size: var(--fs-12);
+  line-height: var(--lh-20);
+}
+
+.tsk-source p {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+}
+
+.tsk-source strong {
+  color: var(--brand-action);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.tsk-source span {
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+}
+
+.tsk-timeline ol {
+  margin: 8px 0 0;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--border-light);
+  list-style: none;
+}
+
+.tsk-timeline li {
+  position: relative;
+  margin-bottom: 10px;
+  padding-left: 12px;
+  color: var(--text-secondary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+}
+
+.tsk-timeline li:before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: -18px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-action);
+}
+
+.tsk-timeline time {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--fs-10);
+  font-variant-numeric: tabular-nums;
+}
+
+.tsk-comments-empty {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
 }
 
 .tsk-comments article {
@@ -544,7 +701,7 @@
 }
 
 .tsk-comments article p {
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
 .tsk-comments strong {
@@ -554,15 +711,15 @@
 .tsk-comments time {
   margin-left: 8px;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: var(--fs-10);
 }
 
 .tsk-comments article span {
   display: block;
   margin-top: 2px;
   color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-17);
 }
 
 .tsk-comment-input {
@@ -574,7 +731,7 @@
   border: var(--border-v2);
   border-radius: var(--radius-control);
   color: var(--text-placeholder);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 .tsk-comment-input span {
@@ -589,17 +746,40 @@
   background: var(--bg-muted);
   color: var(--text-placeholder);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--fs-11);
 }
 
-/* 产品模式：保留设计比例，随可用内容区一起扩展。 */
+/*
+ * 回归模式下 .tsk-main 必须透明：R3～R8 的坐标是相对 .tsk 定位容器量的，
+ * 多一层真实盒子就多一个外边距合并点，七个区域会整体下移。
+ */
+.tsk-main {
+  display: contents;
+}
+
+/*
+ * 产品模式：保留设计比例，随可用内容区一起扩展。
+ * 详情不再绝对定位，而是与工作区并排成两列 —— 绝对定位的 328px 抽屉在宽屏下
+ * 会与工作区重叠，在窄屏下又压不住 899px 的固定高度。
+ */
 html:not([data-regression]) .tsk {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 26%);
+  column-gap: 12px;
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
+}
+
+html:not([data-regression]) .tsk-main {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  width: auto;
-  height: auto;
-  min-height: 900px;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  margin-bottom: var(--space-v2-3);
 }
 
 html:not([data-regression]) .tsk-tabs,
@@ -607,20 +787,104 @@ html:not([data-regression]) .tsk-kpis,
 html:not([data-regression]) .tsk-filters,
 html:not([data-regression]) .panel.tsk-table-panel,
 html:not([data-regression]) .tsk-bottom {
-  width: calc(100% - 337px);
+  width: 100%;
+  margin-top: 0;
 }
 
 html:not([data-regression]) .panel.tsk-detail {
-  right: 0;
+  position: relative;
+  top: auto;
   left: auto;
-  height: 100%;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
 }
 
 html:not([data-regression]) .tsk-kpis {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  height: auto;
+  min-height: 76px;
+  flex: 0 0 auto;
 }
 
-/* 让底部两张卡吸收窗口多出的纵向空间，避免大屏下留白。 */
+html:not([data-regression]) .tsk-kpi {
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+html:not([data-regression]) .tsk-kpi-icon {
+  order: 2;
+}
+
+html:not([data-regression]) .tsk-tabs,
+html:not([data-regression]) .tsk-filters {
+  flex: 0 0 auto;
+}
+
+/* 表格与底部两卡按设计稿 438:180 的比例分掉剩余高度，basis 取 0 避免图片自然高度污染分配 */
+html:not([data-regression]) .panel.tsk-table-panel {
+  flex: 438 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+html:not([data-regression]) .tsk-table {
+  width: 100%;
+}
+
 html:not([data-regression]) .tsk-bottom {
-  margin-top: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+  flex: 180 1 0;
+  width: 100%;
+  height: auto;
+  min-height: 168px;
+  margin: 0;
+}
+
+html:not([data-regression]) .panel.tsk-focus,
+html:not([data-regression]) .panel.tsk-empty {
+  width: auto;
+  height: auto;
+  min-height: 0;
+}
+
+html:not([data-regression]) .tsk-focus ol {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html:not([data-regression]) .tsk-focus li {
+  grid-template-columns: 24px minmax(0, 1fr) 48px 56px 68px;
+  height: 34px;
+}
+
+html:not([data-regression]) .tsk-focus li .tsk-state {
+  display: inline-flex;
+  justify-self: end;
+}
+
+html:not([data-regression]) .panel.tsk-empty {
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 24px;
+}
+
+html:not([data-regression]) .tsk-empty-copy {
+  flex: 0 1 42%;
+  max-width: 280px;
+}
+
+html:not([data-regression]) .tsk-empty-art {
+  flex: 0 1 48%;
+  width: clamp(160px, 48%, 260px);
+  height: auto;
+  max-height: calc(100% - 8px);
+  aspect-ratio: 1;
+  object-fit: contain;
 }

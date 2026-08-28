@@ -347,7 +347,7 @@ class CourseMaterialReviewIntegrationTest extends IntegrationTest {
     private CourseForm 表单(String name) {
         return new CourseForm(name + System.nanoTime(), "内部端到端课程", "COURSE", ownerNo,
                 LocalDate.now().minusDays(30), LocalDate.now().plusDays(30),
-                name + " 的简介", "一线客服", new BigDecimal("4.5"), null,
+                name + " 的简介", "一线客服", new BigDecimal("4.5"), null, null, null,
                 "12 个月", "https://example.com/course", List.of("推荐"));
     }
 

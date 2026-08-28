@@ -76,9 +76,20 @@ class CourseCrudIntegrationTest extends IntegrationTest {
 
         String yearMonth = LocalDate.now().toString().substring(0, 7).replace("-", "");
         assertThat(first).matches("KC" + yearMonth + "\\d{4}");
+        assertThat(courses.get(application.initiate(表单("立项单号"))).getInitiationNo())
+                .matches("LI" + yearMonth + "\\d{4}");
         assertThat(Integer.parseInt(second.substring(8)))
                 .describedAs("流水必须递增，重号会撞上 uk_course_no")
                 .isEqualTo(Integer.parseInt(first.substring(8)) + 1);
+    }
+
+    @Test
+    @DisplayName("详情立项页：立项单号是 LI + 年月 + 4 位流水，与课程编号独立")
+    void 立项单号规则() {
+        String yearMonth = LocalDate.now().toString().substring(0, 7).replace("-", "");
+        String no = courses.get(application.initiate(表单("立项单号"))).getInitiationNo();
+        assertThat(no).matches("LI" + yearMonth + "\\d{4}");
+        assertThat(no).isNotEqualTo(courses.get(application.initiate(表单("另一门"))).getCourseNo());
     }
 
     @Test
@@ -300,6 +311,44 @@ class CourseCrudIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("列表「评审状态」筛的是最新一轮评审记录，不是课程主状态")
+    void 按最新评审记录状态筛选() {
+        String keyword = "评审状态筛" + System.nanoTime();
+        long pendingId = application.initiate(表单(keyword + "待录"));
+        long doneId = application.initiate(表单(keyword + "完成"));
+        long noneId = application.initiate(表单(keyword + "未评"));
+
+        jdbc.update(
+                """
+                INSERT INTO dtl_course_review
+                    (course_id, round_no, review_date, record_state, created_by, updated_by)
+                VALUES (?, 1, CURRENT_DATE, '待录入结论', 'ops', 'ops'),
+                       (?, 1, CURRENT_DATE, '已完成', 'ops', 'ops')
+                """,
+                pendingId, doneId);
+
+        CourseQuery pending = new CourseQuery();
+        pending.setKeyword(keyword);
+        pending.setReviewRecordState("待录入结论");
+        assertThat(courses.page(pending).records())
+                .extracting(CourseListItem::getId)
+                .containsExactly(pendingId);
+
+        CourseQuery done = new CourseQuery();
+        done.setKeyword(keyword);
+        done.setReviewRecordState("已完成");
+        assertThat(courses.page(done).records())
+                .extracting(CourseListItem::getId)
+                .containsExactly(doneId);
+
+        CourseQuery all = new CourseQuery();
+        all.setKeyword(keyword);
+        assertThat(courses.page(all).records())
+                .extracting(CourseListItem::getId)
+                .containsExactlyInAnyOrder(pendingId, doneId, noneId);
+    }
+
+    @Test
     @DisplayName("SEC2：逻辑删除后列表与详情都查不到，行仍在库里")
     void 逻辑删除() {
         String keyword = "待删除" + System.nanoTime();
@@ -325,7 +374,7 @@ class CourseCrudIntegrationTest extends IntegrationTest {
     private CourseForm 表单(String name, String validityPeriod) {
         return new CourseForm(name, "内部端到端课程", "COURSE", ownerNo,
                 LocalDate.now().minusDays(30), LocalDate.now().plusDays(30),
-                name + " 的简介", "一线客服", new BigDecimal("4.5"), null,
+                name + " 的简介", "一线客服", new BigDecimal("4.5"), null, null, null,
                 validityPeriod, "https://example.com/course", List.of("推荐"));
     }
 

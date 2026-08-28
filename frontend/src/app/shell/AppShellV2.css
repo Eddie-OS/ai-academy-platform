@@ -19,6 +19,37 @@ html[data-regression] .shell {
   min-height: 0;
 }
 
+/*
+ * 跳过导航链接。未聚焦时用 clip 而不是 display:none／visibility:hidden ——
+ * 后两者会把它从 Tab 序列里摘掉，链接就永远无法获得焦点。
+ */
+.shell-skip-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 聚焦后必须真的看得见，且高度够到 SC 2.5.8 的 24px 目标尺寸 */
+.shell-skip-link:focus {
+  z-index: 100;
+  width: auto;
+  height: auto;
+  padding: 8px 12px;
+  overflow: visible;
+  /* 6px 是设计基础规范 3.2 给按钮的圆角；控件 token 是 V2.0 复刻件量出来的 8px，
+     跳过导航不在那九张截图里，按规范取 6px */
+  border-radius: 6px;
+  background: var(--brand-action-hover);
+  clip: auto;
+  clip-path: none;
+  color: #fff;
+  font-size: var(--type-body-size);
+}
+
 /* ===========================================================================
  * 侧栏（4.1：逐页宽度；右边框 1px #E5E7EB；Logo 槽高 64px；底部用户卡固定）
  * =========================================================================== */
@@ -124,7 +155,7 @@ html[data-regression] .shell {
   border-radius: 9px;
   background: var(--danger);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-weight: 500;
   line-height: 1;
 }
@@ -199,6 +230,29 @@ html[data-regression] .shell {
   color: var(--text-tertiary);
   font-size: var(--type-body-size);
   cursor: pointer;
+}
+
+/* ===========================================================================
+ * 收起态（--sidebar-w 收到 64px，见 tokens-v2.css）
+ *
+ * 侧栏宽度由变量负责，这里只管 64px 轨道里剩下的图标怎么摆：三处都要从
+ * 「左对齐 + 12px 左内边距」改成居中，否则图标整列偏左 6px，
+ * 而偏 6px 这种事在只有图标的轨道里看着像是没对齐的设计。
+ * =========================================================================== */
+
+.shell[data-collapsed='true'] .shell-nav-item,
+.shell[data-collapsed='true'] .shell-collapse,
+.shell[data-collapsed='true'] .shell-user {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Logo 槽的 16px 左内边距是展开态的品牌像素例外，收起态放的是方形 Logo mark，
+   仍按同一档缩进会让它比下面居中的图标列往右偏一截 */
+.shell[data-collapsed='true'] .shell-logo {
+  justify-content: center;
+  padding-left: 0;
 }
 
 /* ===========================================================================
@@ -313,6 +367,66 @@ html[data-regression] .shell {
   gap: var(--space-v2-2);
 }
 
+.shell-search-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.shell-search-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.shell-search-icon:hover {
+  background: var(--brand-50);
+  color: var(--brand-action);
+}
+
+.shell-search-expand {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    width 200ms ease,
+    opacity 160ms ease,
+    margin 200ms ease;
+}
+
+.shell-search-toggle[data-open='true'] .shell-search-expand {
+  width: 280px;
+  margin-right: var(--space-v2-2);
+  opacity: 1;
+}
+
+.shell-search-expand .shell-search-input {
+  box-sizing: border-box;
+  width: 280px;
+  height: var(--control-h);
+  padding: 0 var(--input-pad-x);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+}
+
+.shell-search-icon:focus-visible,
+.shell-search-expand .shell-search-input:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 1px;
+}
+
 /*
  * 三个动作入口无边框。它们是导航而不是命令：描边后与右边的「新建」同权重，
  * 而「新建」是这一栏唯一的写操作，必须是视觉焦点。
@@ -346,20 +460,22 @@ html[data-regression] .shell {
  * 而按钮已经没有边框，右上角本来就是空的。16px 而不是 18px：
  * 无边框之后角标太大会读成一个独立的红色徽章，而不是这个入口的计数。
  */
+/* 尺寸与偏移都按 --type-unit 计价：角标本来就压在文字上，字号跟着窗口长大而它
+   停在 16px／右 2px 时，红圈会直接落到「任务」两个字上 */
 .shell-action-badge {
   position: absolute;
-  top: 3px;
-  right: 2px;
+  top: calc(var(--type-unit) * 3);
+  right: calc(var(--type-unit) * 2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 16px;
-  height: 16px;
+  min-width: calc(var(--type-unit) * 16);
+  height: calc(var(--type-unit) * 16);
   padding: 0 4px;
   border-radius: 8px;
   background: var(--danger);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-weight: 500;
   line-height: 1;
 }
@@ -442,11 +558,22 @@ html[data-regression] .shell {
   padding: 0 var(--space-v2-6) 0 calc(var(--content-x) - var(--sidebar-w));
   overflow-y: auto;
   /*
+   * 跳过导航与 Esc 关弹窗／下拉后，焦点会落到这块 main（tabIndex=-1）。
+   * 浏览器默认描边会绕整页正文画一圈黑框，侧栏与内容之间看起来多了一条线。
+   * main 不是控件，焦点环没有意义；侧栏／按钮仍走下面的 focus-visible。
+   */
+  outline: none;
+  /*
    * 截图（唯一事实来源）的正文底是浅灰，白卡片靠底色差浮起来。
    * Token 表写页面=#FFFFFF 会让 15px 间距与卡片间隙消失，整页读成一块白板、
    * 比例全糊——见 V-66。侧栏／顶栏仍用 --bg-page 白底。
    */
   background: var(--bg-muted);
+}
+
+.shell-content:focus,
+.shell-content:focus-visible {
+  outline: none;
 }
 
 html[data-regression] .shell-content {

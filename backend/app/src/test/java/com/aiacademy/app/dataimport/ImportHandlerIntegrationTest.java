@@ -413,22 +413,21 @@ class ImportHandlerIntegrationTest extends ImportTestBase {
     }
 
     @Test
-    @DisplayName("13.9.3：擅长领域必须在作战单元字典里，且报错要列出可选值")
+    @DisplayName("擅长领域必须在所属领域可选值里，且报错要列出可选值")
     void 讲师擅长领域走字典() {
         String no = 造人员("王五", "客服中心");
 
         ImportPreview preview = 上传(ImportType.LECTURER, List.of(
-                List.of(no, "王五", "客服中心", "课程;不存在的领域", "方向", "可上岗", "在池")));
+                List.of(no, "王五", "客服中心", "零售;不存在的领域", "方向", "可上岗", "在池")));
 
         assertThat(preview.canConfirm()).isFalse();
         assertThat(preview.errors()).singleElement().satisfies(problem -> {
             assertThat(problem.column()).isEqualTo("擅长领域");
             assertThat(problem.value()).isEqualTo("不存在的领域");
             assertThat(problem.reason())
-                    .describedAs("作战单元是配置项（需求 13.9.3），报错必须列出当前字典值，"
-                            + "否则运营无从知道该填什么")
-                    .contains("课程")
-                    .contains("培训");
+                    .describedAs("报错必须列出当前可选领域，否则运营无从知道该填什么")
+                    .contains("零售")
+                    .contains("服务");
         });
     }
 

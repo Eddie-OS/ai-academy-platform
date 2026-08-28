@@ -59,38 +59,77 @@
    * ========================================================================= */
   --font-family-v2: Inter, 'Noto Sans SC', sans-serif;
 
-  --type-page-title-size: 24px;
-  --type-page-title-line: 36px;
+  /*
+   * 字号阶梯。档位值是 1586×992 设计画布上的实测像素，全部按 --type-unit 计价 ——
+   * 画布上 1 个字号像素等于多少真实像素，由文件末尾的产品模式那一节决定。
+   *
+   * 页面 CSS 里的字号与行高一律取这里的档位。写死 px 的那一档在大窗口下不会跟着长，
+   * 结果就是横带按比例伸开、字却还是 11px，面板越大文字看着越小。
+   */
+  --type-unit: 1px;
+
+  --fs-9: calc(var(--type-unit) * 9);
+  --fs-10: calc(var(--type-unit) * 10);
+  --fs-11: calc(var(--type-unit) * 11);
+  --fs-12: calc(var(--type-unit) * 12);
+  --fs-13: calc(var(--type-unit) * 13);
+  --fs-14: calc(var(--type-unit) * 14);
+  --fs-15: calc(var(--type-unit) * 15);
+  --fs-16: calc(var(--type-unit) * 16);
+  --fs-18: calc(var(--type-unit) * 18);
+  --fs-20: calc(var(--type-unit) * 20);
+  --fs-22: calc(var(--type-unit) * 22);
+  --fs-24: calc(var(--type-unit) * 24);
+  --fs-26: calc(var(--type-unit) * 26);
+  --fs-28: calc(var(--type-unit) * 28);
+
+  --lh-13: calc(var(--type-unit) * 13);
+  --lh-14: calc(var(--type-unit) * 14);
+  --lh-15: calc(var(--type-unit) * 15);
+  --lh-16: calc(var(--type-unit) * 16);
+  --lh-17: calc(var(--type-unit) * 17);
+  --lh-18: calc(var(--type-unit) * 18);
+  --lh-20: calc(var(--type-unit) * 20);
+  --lh-22: calc(var(--type-unit) * 22);
+  --lh-24: calc(var(--type-unit) * 24);
+  --lh-26: calc(var(--type-unit) * 26);
+  --lh-28: calc(var(--type-unit) * 28);
+  --lh-30: calc(var(--type-unit) * 30);
+  --lh-32: calc(var(--type-unit) * 32);
+  --lh-36: calc(var(--type-unit) * 36);
+
+  --type-page-title-size: var(--fs-24);
+  --type-page-title-line: var(--lh-36);
   --type-page-title-weight: 600;
 
-  --type-panel-title-size: 18px;
-  --type-panel-title-line: 28px;
+  --type-panel-title-size: var(--fs-18);
+  --type-panel-title-line: var(--lh-28);
   --type-panel-title-weight: 600;
 
-  --type-body-size: 14px;
-  --type-body-line: 22px;
+  --type-body-size: var(--fs-14);
+  --type-body-line: var(--lh-22);
   --type-body-weight: 400;
   /* 按钮/导航/字段名用同字号但 500 字重，不是另一档字号 */
   --type-body-medium-weight: 500;
 
-  --type-table-size: 13px;
-  --type-table-line: 20px;
+  --type-table-size: var(--fs-13);
+  --type-table-line: var(--lh-20);
   --type-table-weight: 400;
 
-  --type-caption-size: 12px;
-  --type-caption-line: 18px;
+  --type-caption-size: var(--fs-12);
+  --type-caption-line: var(--lh-18);
   --type-caption-weight: 400;
 
-  --type-badge-size: 12px;
-  --type-badge-line: 16px;
+  --type-badge-size: var(--fs-12);
+  --type-badge-line: var(--lh-16);
   --type-badge-weight: 500;
 
-  --type-kpi-size: 28px;
-  --type-kpi-line: 36px;
+  --type-kpi-size: var(--fs-28);
+  --type-kpi-line: var(--lh-36);
   --type-kpi-weight: 600;
 
-  --type-kpi-small-size: 20px;
-  --type-kpi-small-line: 28px;
+  --type-kpi-small-size: var(--fs-20);
+  --type-kpi-small-line: var(--lh-28);
   --type-kpi-small-weight: 600;
 
   /* =========================================================================
@@ -124,31 +163,35 @@
 
   /* =========================================================================
    * 2.4 组件固定尺寸
+   *
+   * 装文字的那些尺寸（控件高、导航项高、角标、头像、图标底板）按 --type-unit 计价，
+   * 与字号同步长大。留在裸 px 上的是内边距与间距 —— 大屏上把它们一起放大只会让密度
+   * 回到画布水平，多出来的像素白给。
    * ========================================================================= */
-  --control-h: 36px; /* 标准按钮与输入/选择器 */
+  --control-h: calc(var(--type-unit) * 36); /* 标准按钮与输入/选择器 */
   --control-pad-x: 16px;
   --control-gap: 8px;
-  --control-compact-h: 28px; /* 表格内操作按钮 */
+  --control-compact-h: calc(var(--type-unit) * 28); /* 表格内操作按钮 */
   --control-compact-pad-x: 10px;
   --input-pad-x: 12px;
-  --btn-create-w: 78px; /* 顶栏「新建」，左图标 16px */
-  --btn-create-h: 38px;
-  --badge-h: 22px;
+  --btn-create-w: calc(var(--type-unit) * 78); /* 顶栏「新建」，左图标 16px */
+  --btn-create-h: calc(var(--type-unit) * 38);
+  --badge-h: calc(var(--type-unit) * 22);
   --badge-pad-x: 8px;
-  --nav-item-h: 40px;
+  --nav-item-h: calc(var(--type-unit) * 40);
   --nav-item-pad-x: 12px;
   --nav-item-gap: 4px;
-  --kpi-icon-plate: 44px; /* KPI 卡的图标底板 */
+  --kpi-icon-plate: calc(var(--type-unit) * 44); /* KPI 卡的图标底板 */
   --card-pad: 16px;
   --card-pad-compact: 12px;
   --panel-gap: 12px;
 
   /* 头像「仅这 5 档」，用错档位会让行高与基线一起偏 */
-  --avatar-xs: 24px;
-  --avatar-sm: 32px;
-  --avatar-md: 40px;
-  --avatar-lg: 56px;
-  --avatar-xl: 64px;
+  --avatar-xs: calc(var(--type-unit) * 24);
+  --avatar-sm: calc(var(--type-unit) * 32);
+  --avatar-md: calc(var(--type-unit) * 40);
+  --avatar-lg: calc(var(--type-unit) * 56);
+  --avatar-xl: calc(var(--type-unit) * 64);
 
   /* =========================================================================
    * 4.1 全局固定元素
@@ -156,13 +199,13 @@
   --viewport-w: 1586px;
   --viewport-h: 992px;
   --grid-gap: 12px;
-  --logo-slot-h: 64px;
-  --logo-box-w: 148px; /* 文档 0.1 唯一允许的品牌像素例外 */
-  --logo-box-h: 33px;
+  --logo-slot-h: calc(var(--type-unit) * 64);
+  --logo-box-w: calc(var(--type-unit) * 148); /* 文档 0.1 唯一允许的品牌像素例外 */
+  --logo-box-h: calc(var(--type-unit) * 33);
   --logo-box-left: 16px;
   --logo-box-top: 18px;
-  --logo-mark-w: 24px;
-  --logo-mark-h: 27px;
+  --logo-mark-w: calc(var(--type-unit) * 24);
+  --logo-mark-h: calc(var(--type-unit) * 27);
 }
 
 /*
@@ -236,12 +279,126 @@
   --content-w: 1320px;
 }
 
-/* 产品模式的壳层：九页共用一套，取截图的中位数量级并对齐 4px 标尺 */
+/*
+ * 产品模式的壳层：九页共用一套，取截图的中位数量级并对齐 4px 标尺。
+ * 同样按 --type-unit 计价 —— 侧栏锁死 200px 而字变大时，「讲师与能力地图」
+ * 会被截成「讲师与能力…」，而侧栏是全平台唯一的导航。
+ */
 :root {
-  --sidebar-w: 200px;
-  --topbar-h: 64px;
-  --content-x: 224px;
-  --content-w: 1338px;
+  --sidebar-w: calc(var(--type-unit) * 200);
+  --topbar-h: calc(var(--type-unit) * 64);
+  --content-x: calc(var(--type-unit) * 224);
+  --content-w: calc(var(--type-unit) * 1338);
+}
+
+/*
+ * 收起态的壳层：侧栏收成 64px 的图标轨（设计基础规范 4.2「侧栏展开 240 / 收起 64」，
+ * 本壳层的展开档是 200，收起档沿用规范的 64）。
+ *
+ * <b>两个变量必须成对改。</b>正文的左内边距是 calc(--content-x - --sidebar-w)，
+ * 单改 --sidebar-w 时内边距等量变大、正文一步不动，屏幕上的效果是侧栏与正文之间
+ * 空出一条白带 —— 而侧栏确实"变窄"了，很容易被当成已经做好了。
+ * 收起档的正文起点 = 64 + 24（正文左边距那一档）= 88。
+ *
+ * 只在产品模式生效：回归模式下侧栏恒为展开态（九组实测宽度都是展开态量的），
+ * AppShellV2 因此在回归模式不渲染 data-collapsed。
+ */
+.shell[data-collapsed='true'] {
+  --sidebar-w: calc(var(--type-unit) * 64);
+  --content-x: calc(var(--type-unit) * 88);
+}
+
+/*
+ * 产品模式：字号跟着窗口按画布比例长大。
+ *
+ * 窗口比画布大时，各横带按比例伸开（见各页 html:not([data-regression]) 的 flex 权重），
+ * 而字号写死在 px 上不会跟着长 —— 2560 宽的屏上详情面板有 590px 宽、正文仍是 11px，
+ * 于是面板越大文字看着越小。这里把「画布上的 1px 字号」换算成真实像素：
+ *
+ * - 取宽高两轴比例中较小的那个（100/1586 vw 与 100/992 vh），等于把画布按 contain 装进窗口。
+ *   只看宽度的话，宽而矮的窗口会把字放大到挤爆本来就吃紧的纵向密集面板。
+ * - 下限 1px：1440×900 的基准窗口比画布小，那里字号只夹在画布原值，不跟着缩。
+ *   再缩就低于设计规范的最小字号了。
+ * - 上限 1.5px：4K 屏上继续等比会让正文比设计稿的页面标题还大。超过之后只长空间不长字。
+ *
+ * 回归模式不进这一节，--type-unit 保持 1px，九张基线仍是画布原值。
+ */
+html:not([data-regression]) {
+  --type-unit: clamp(1px, min(0.06305vw, 0.10081vh), 1.5px);
+}
+
+/*
+ * 图标跟着字号一起长。lucide-react 把尺寸写成 <svg> 的 width/height 属性，
+ * 而 CSS 的 width/height 盖得住属性 —— 属性选择器是 CSS 里唯一能读到
+ * 「这个图标原本几号」的办法，所以逐档登记。字放大 45% 而图标还是 14px 时，
+ * 每个「图标 + 文字」的组合都会看着图标掉了一号。
+ *
+ * 只登记项目里实际用到的档位；没登记的图标保持属性值，最差也就是不放大。
+ */
+html:not([data-regression]) svg[width='11'] {
+  --icon-px: 11;
+}
+html:not([data-regression]) svg[width='12'] {
+  --icon-px: 12;
+}
+html:not([data-regression]) svg[width='13'] {
+  --icon-px: 13;
+}
+html:not([data-regression]) svg[width='14'] {
+  --icon-px: 14;
+}
+html:not([data-regression]) svg[width='15'] {
+  --icon-px: 15;
+}
+html:not([data-regression]) svg[width='16'] {
+  --icon-px: 16;
+}
+html:not([data-regression]) svg[width='18'] {
+  --icon-px: 18;
+}
+html:not([data-regression]) svg[width='20'] {
+  --icon-px: 20;
+}
+html:not([data-regression]) svg[width='22'] {
+  --icon-px: 22;
+}
+html:not([data-regression]) svg[width='24'] {
+  --icon-px: 24;
+}
+html:not([data-regression]) svg[width='32'] {
+  --icon-px: 32;
+}
+html:not([data-regression]) svg[width='40'] {
+  --icon-px: 40;
+}
+html:not([data-regression]) svg[width='56'] {
+  --icon-px: 56;
+}
+html:not([data-regression]) svg[width='72'] {
+  --icon-px: 72;
+}
+
+/* 选择器必须把档位再列一遍：写成 svg[width] 会连 AntD 的 width="1em" 图标一起接管，
+   它们没登记 --icon-px，尺寸会算成 0，图标直接消失 */
+html:not([data-regression])
+  svg:is(
+    [width='11'],
+    [width='12'],
+    [width='13'],
+    [width='14'],
+    [width='15'],
+    [width='16'],
+    [width='18'],
+    [width='20'],
+    [width='22'],
+    [width='24'],
+    [width='32'],
+    [width='40'],
+    [width='56'],
+    [width='72']
+  ) {
+  width: calc(var(--type-unit) * var(--icon-px));
+  height: calc(var(--type-unit) * var(--icon-px));
 }
 
 body {

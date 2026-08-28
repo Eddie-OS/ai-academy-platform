@@ -7,9 +7,8 @@ import java.time.LocalDate;
 /**
  * 培训计划列表的筛选条件（需求 11.8 P4-2）。
  *
- * <p>文档规定的四项筛选是：关联课程、培训负责人、计划状态、计划起止日期区间。灯色筛选属阶段 3，
- * 提前在这里算一遍会在阶段 3 落地时留下两份阈值逻辑，而其中一份不会被 13.9.2「阈值保存后实时
- * 重算」覆盖到。
+ * <p>文档规定的四项筛选是：关联课程、培训负责人、计划状态、计划起止日期区间。
+ * 灯色筛选走数据库 {@code calc_light}（阶段 3B），阈值来自 {@code cfg_warning_threshold}。
  *
  * <p>关键字不在文档的筛选清单里，但列表页要有一个搜索框才能用；它只匹配计划ID与计划名称两列，
  * 不扩到备注——备注是运营的自由文本，搜出一堆无关计划反而更难找。
@@ -17,6 +16,9 @@ import java.time.LocalDate;
 public class TrainingPlanQuery extends PageQuery {
 
     private String keyword;
+
+    /** 灯色筛选。取值 {@code BLUE}/{@code YELLOW}/{@code RED}/{@code NONE}。 */
+    private String light;
 
     private Long courseId;
 
@@ -39,6 +41,14 @@ public class TrainingPlanQuery extends PageQuery {
 
     public void setKeyword(String keyword) {
         this.keyword = keyword;
+    }
+
+    public String getLight() {
+        return light;
+    }
+
+    public void setLight(String light) {
+        this.light = light;
     }
 
     public Long getCourseId() {

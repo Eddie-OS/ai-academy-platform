@@ -171,8 +171,8 @@
 .lct-field-label {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -238,14 +238,15 @@
   margin-top: 16px;
 }
 
-/* 池子标题行与台账标题行都降到正文档：18px 的面板标题在 484px 里吃掉太多高度 */
-.lct-sub-title {
+/* 池子标题行与台账标题行都降到正文档：18px 的面板标题在 484px 里吃掉太多高度。
+   选择器带上 .panel-title / .panel-head 是为了压过 panel.css 里的通用面板样式 */
+.panel-title.lct-sub-title {
   font-size: var(--type-body-size);
   line-height: var(--type-body-line);
 }
 
-.lct-pool-head,
-.lct-ledger-head {
+.panel-head.lct-pool-head,
+.panel-head.lct-ledger-head {
   margin-bottom: var(--space-v2-2);
 }
 
@@ -303,14 +304,14 @@
 .lct-group-count {
   display: inline-flex;
   align-items: center;
-  height: 20px;
+  height: calc(var(--type-unit) * 20);
   padding: 0 6px;
   border-radius: var(--radius-tag);
   background: var(--brand-100);
   color: var(--brand-action);
-  font-size: 11px;
+  font-size: var(--fs-11);
   font-weight: var(--type-body-medium-weight);
-  line-height: 20px;
+  line-height: calc(var(--type-unit) * 20);
   font-variant-numeric: tabular-nums;
 }
 
@@ -337,11 +338,13 @@
  * 会<b>被压缩而不是溢出</b> —— 标签行从 20px 缩成 10px，界面上是标签被切掉半截，
  * 而区域断言与「内容不溢出区域」两条都照样通过。所以下面每一段都写了 flex-basis。
  */
+/* 卡高与卡内三笔预算（标签 20 / 指标区 64 / 每行 16）一起按 --type-unit 计价：
+   只放大字号会让标签行先被压扁，正是上面这段账警告过的那种切半截 */
 .lct-card {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: 158px;
+  height: calc(var(--type-unit) * 158);
   padding: var(--space-v2-3);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-control);
@@ -379,8 +382,8 @@
 .lct-card-dept {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -389,7 +392,7 @@
 .lct-card-domains {
   display: flex;
   gap: var(--space-v2-1);
-  flex: 0 0 20px;
+  flex: 0 0 calc(var(--type-unit) * 20);
   margin-top: var(--space-v2-1);
   overflow: hidden;
 }
@@ -400,13 +403,13 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  height: 20px;
+  height: calc(var(--type-unit) * 20);
   padding: 0 6px;
   border-radius: var(--radius-tag);
   background: var(--brand-50);
   color: var(--brand-action);
-  font-size: 11px;
-  line-height: 20px;
+  font-size: var(--fs-11);
+  line-height: calc(var(--type-unit) * 20);
   white-space: nowrap;
 }
 
@@ -418,7 +421,7 @@
 .lct-card-metrics {
   display: flex;
   flex-direction: column;
-  flex: 0 0 64px;
+  flex: 0 0 calc(var(--type-unit) * 64);
   margin-top: var(--space-v2-1);
 }
 
@@ -427,10 +430,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-v2-1);
-  flex: 0 0 16px;
-  height: 16px;
-  font-size: 11px;
-  line-height: 16px;
+  flex: 0 0 calc(var(--type-unit) * 16);
+  height: calc(var(--type-unit) * 16);
+  font-size: var(--fs-11);
+  line-height: calc(var(--type-unit) * 16);
 }
 
 .lct-metric dt {
@@ -472,14 +475,14 @@
 .lct-badge-warn {
   display: inline-flex;
   align-items: center;
-  height: 16px;
+  height: calc(var(--type-unit) * 16);
   padding: 0 4px;
   border-radius: var(--radius-tag);
   background: var(--warning-bg);
   color: var(--warning);
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: var(--type-body-medium-weight);
-  line-height: 16px;
+  line-height: calc(var(--type-unit) * 16);
 }
 
 .lct-metric-bar dd {
@@ -551,7 +554,7 @@
 }
 
 .lct-table th {
-  height: 26px;
+  height: 24px;
   border-bottom: var(--border-v2);
   color: var(--text-tertiary);
   font-weight: var(--type-body-medium-weight);
@@ -559,10 +562,10 @@
 }
 
 .lct-table td {
-  height: 22px;
+  height: calc(var(--type-unit) * 20);
   border-bottom: 1px solid var(--border-light);
   color: var(--text-secondary);
-  line-height: 20px;
+  line-height: calc(var(--type-unit) * 20);
   white-space: nowrap;
 }
 
@@ -793,8 +796,8 @@
 .lct-round-date {
   flex: 0 0 auto;
   color: var(--text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
   font-variant-numeric: tabular-nums;
 }
 
@@ -832,20 +835,21 @@
   text-overflow: ellipsis;
 }
 
-/* 场次、日期、评分三列定宽，课程名吃剩下的宽度并在需要时截断 */
+/* 场次、日期、评分三列定宽，课程名吃剩下的宽度并在需要时截断。
+   三个列宽按 --type-unit 计价 —— 锁死像素时字号一放大，日期列先截掉年份 */
 .lct-teaching-table th:nth-child(2),
 .lct-teaching-table td:nth-child(2) {
-  width: 64px;
+  width: calc(var(--type-unit) * 64);
 }
 
 .lct-teaching-table th:nth-child(3),
 .lct-teaching-table td:nth-child(3) {
-  width: 88px;
+  width: calc(var(--type-unit) * 88);
 }
 
 .lct-teaching-table th:nth-child(4),
 .lct-teaching-table td:nth-child(4) {
-  width: 64px;
+  width: calc(var(--type-unit) * 64);
   text-align: right;
 }
 

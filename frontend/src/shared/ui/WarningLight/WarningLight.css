@@ -1,0 +1,162 @@
+/*
+ * 三色灯汇总卡。字号一律取 --fs-* / --lh-*，由 --type-unit 计价。
+ *
+ * 紧凑档曾经在 JSX 里写死 11 / 15 / 24 / 30。那一档只在 1586×992 画布上刚好，
+ * 窗口变大时预警区按 282 的 flex 权重长高，字还停在 11px，面板越大文字看着越小。
+ * 产品模式 --type-unit 随窗口 contain 比例在 1px～1.5px 之间走，这里跟着走。
+ * 回归模式 --type-unit 锁 1px，画布原值不变，L1 基线不用重拍。
+ *
+ * 颜色不进本文件：浅底与「浅底上的字色」按灯色由组件写成 --wsc-bg / --wsc-ink /
+ * --wsc-solid，避免在 CSS 里再抄一份 tokens。
+ */
+
+.wsc {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: var(--card-pad);
+  border-radius: var(--radius-card);
+  background: var(--wsc-bg);
+  box-shadow: var(--shadow-card);
+  gap: var(--space-v2-2);
+}
+
+.wsc--compact {
+  padding: var(--card-pad-compact);
+  gap: var(--space-v2-1);
+}
+
+.wsc-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  color: var(--wsc-ink);
+  font-size: var(--type-body-size);
+  line-height: var(--type-caption-line);
+}
+
+.wsc--compact .wsc-label {
+  font-size: var(--type-caption-size);
+}
+
+.wsc-count {
+  color: var(--wsc-ink);
+  font-size: var(--type-kpi-size);
+  line-height: var(--type-kpi-line);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 紧凑档不用 --type-kpi-size（28/36）：150px 宽的卡里 28px 数字加上七块内容
+ * 会超出 207px 的卡高。24/30 是画布上能同时容下七块的最大一档。
+ */
+.wsc--compact .wsc-count {
+  font-size: var(--fs-24);
+  line-height: var(--lh-30);
+}
+
+.wsc-caption {
+  color: var(--color-neutral-600);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.wsc--compact .wsc-caption {
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
+}
+
+.wsc-samples {
+  /* 2px 是画布上七块内容之间的余量，不在 V2 间距阶梯里；改成 4px 会把按钮顶出卡外 */
+  margin-top: 2px;
+  min-height: 0;
+}
+
+.wsc-samples-title {
+  margin-bottom: 2px;
+  color: var(--color-neutral-600);
+  font-size: var(--fs-11);
+  line-height: var(--lh-15);
+}
+
+.wsc-sample {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  color: var(--color-neutral-700);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+}
+
+.wsc-sample-id {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wsc-sample-type {
+  flex: 0 0 auto;
+  color: var(--wsc-solid);
+}
+
+.wsc-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+}
+
+.wsc-more.ant-btn {
+  align-self: flex-start;
+  height: auto;
+  padding: 0;
+  color: var(--wsc-solid);
+  font-size: var(--fs-11);
+}
+
+.wsc-urge.ant-btn {
+  height: calc(var(--type-unit) * 28);
+  border-color: var(--wsc-solid);
+  background: transparent;
+  color: var(--wsc-solid);
+  font-size: var(--type-table-size);
+}
+
+.wsc--compact .wsc-urge.ant-btn {
+  height: calc(var(--type-unit) * 24);
+  font-size: var(--fs-11);
+}
+
+.wsc-drill.ant-btn {
+  align-self: flex-start;
+  height: auto;
+  padding: 0;
+}
+
+/*
+ * 产品模式把紧凑档的辅文案抬一档。11px 是画布上硬塞七块的下限，
+ * 产品行高已经按 282 的权重随窗口长高，再锁 11px 就是「字太小」。
+ * 回归模式不进这一节，L1 仍是画布原值。
+ */
+html:not([data-regression]) .wsc--compact .wsc-label {
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+html:not([data-regression]) .wsc--compact .wsc-caption,
+html:not([data-regression]) .wsc--compact .wsc-samples-title,
+html:not([data-regression]) .wsc--compact .wsc-sample,
+html:not([data-regression]) .wsc--compact .wsc-more.ant-btn,
+html:not([data-regression]) .wsc--compact .wsc-urge.ant-btn {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+html:not([data-regression]) .wsc--compact .wsc-urge.ant-btn {
+  height: var(--control-compact-h);
+}

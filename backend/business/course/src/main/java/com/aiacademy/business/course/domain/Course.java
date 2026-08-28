@@ -37,7 +37,7 @@ public class Course {
     /** 内部端到端课程 / 周边领域课程。由线下评审会判定后录入，允许中途修改（议题 8）。 */
     private String reviewTrack;
 
-    /** 所属领域，取作战单元字典的编码。 */
+    /** 所属领域，与需求同一套现场口径（零售／MKT 等）；历史行可能仍是作战单元编码。 */
     private String domainCode;
 
     /**
@@ -62,6 +62,198 @@ public class Course {
     private BigDecimal classHours;
 
     private String categoryCode;
+
+    /** 课程来源（立项时录入）。 */
+    private String source;
+
+    /** 课程备注。 */
+    private String remark;
+
+    /** 立项单号。与 {@link #courseNo} 独立，详情「立项」页展示。 */
+    private String initiationNo;
+
+    /** 业务背景与痛点。 */
+    private String businessPain;
+
+    /** 课程目标。 */
+    private String courseGoal;
+
+    /** 课程价值（ROI）。 */
+    private String courseValue;
+
+    /** 初步大纲摘要。 */
+    private String outlineSummary;
+
+    /** 预估开发工时，单位天。 */
+    private BigDecimal estimateDevDays;
+
+    /** 立项评审责任人／评委姓名，手工录入。 */
+    private String reviewJudges;
+
+    /** 立项评审时间。纯日期。 */
+    private LocalDate initiationReviewDate;
+
+    /** 立项评审结论，存字典编码。 */
+    private String initiationReviewConclusion;
+
+    /** 立项评审意见。 */
+    private String initiationReviewOpinion;
+
+    /**
+     * 立项状态，存字典编码。
+     *
+     * <p><b>不是课程主状态。</b>主状态仍由状态机写入；这里只记录规格里的待立项／立项中／已立项。
+     */
+    private String initiationStatus;
+
+    /** 计划课件初稿完成时间。纯日期，给进度预警与延期判断用。 */
+    private LocalDate planDraftDate;
+
+    /** 实际课件初稿完成时间。纯日期，给开发周期与计划达成率用。 */
+    private LocalDate actualDraftDate;
+
+    /**
+     * 是否进入课程自检环节，存「是」／「否」。
+     *
+     * <p><b>不写开发状态。</b>选「是」后由前端走状态机「进入自检」，本列只留痕。
+     */
+    private String enterSelfCheck;
+
+    /** 自检人。 */
+    private String selfcheckCheckerNo;
+
+    /** 自检完成时间。纯日期。 */
+    private LocalDate selfcheckCompletedDate;
+
+    /** 自检总体结论，存字典编码。 */
+    private String selfcheckConclusion;
+
+    /**
+     * 自检页手选记录状态，存字典编码。
+     *
+     * <p><b>不是课程自检子状态。</b>子状态仍由状态机写入。
+     */
+    private String selfcheckRecordStatus;
+
+    /** 是否提交专家评审，存「是」／「否」。 */
+    private String submitExpertReview;
+
+    /** 规格 8 项是否符合要求，JSON 文本。 */
+    private String selfcheckSpecAnswers;
+
+    /** 评审页手选轮数，第 1～5 轮。不是自动建档的 {@code round_no}。 */
+    private String reviewRoundLabel;
+
+    /** 评审完成时间。纯日期。 */
+    private LocalDate reviewCompletedDate;
+
+    /**
+     * 当前评审阶段，存字典编码。
+     *
+     * <p><b>不是状态机。</b>课程主状态仍由评审结论驱动。
+     */
+    private String reviewLedgerPhase;
+
+    /**
+     * 评审页手选台账状态，存字典编码。
+     *
+     * <p><b>不是评审记录状态。</b>官方记录状态仍是待录入结论／已完成。
+     */
+    private String reviewLedgerStatus;
+
+    /**
+     * 是否进入试讲环节，存「是」／「否」。
+     *
+     * <p><b>不写课程主状态。</b>正式进入试讲仍须录入本轮评审结论＝通过。
+     */
+    private String enterTrial;
+
+    private String prelimRoundLabel;
+
+    private String prelimReviewers;
+
+    private LocalDate prelimReviewDate;
+
+    private LocalDate prelimCompletedDate;
+
+    /** 初步评审结论，存字典编码。 */
+    private String prelimConclusion;
+
+    private String prelimOpinion;
+
+    /**
+     * 是否进入上会评审环节，存「是」／「否」。
+     *
+     * <p>一期没有上会状态机，本列只留痕。
+     */
+    private String enterMeeting;
+
+    /** 上会评审轮数，第 1～5 轮。 */
+    private String meetingRoundLabel;
+
+    /** 上会评审人员。 */
+    private String meetingReviewers;
+
+    /** 实际上会时间。纯日期。 */
+    private LocalDate meetingActualDate;
+
+    /**
+     * 上会最终结论，存字典编码。
+     *
+     * <p><b>不是官方评审记录结论。</b>驱动主状态仍须在下方录入结论。
+     */
+    private String meetingConclusion;
+
+    /** 上会评审意见。 */
+    private String meetingOpinion;
+
+    /** 试讲页授课讲师工号。 */
+    private String trialLecturerNo;
+
+    /** 试讲当前阶段，存字典编码。不是试讲子状态。 */
+    private String trialCurrentPhase;
+
+    /** 试讲页手选台账状态，存字典编码。不是试讲子状态。 */
+    private String trialLedgerStatus;
+
+    /** 试讲轮数，第 1～5 轮。不是自动建档的 round_no。 */
+    private String trialRoundLabel;
+
+    /** 试讲预定时间。纯日期。 */
+    private LocalDate trialScheduledDate;
+
+    /** 试讲面向学员群体。 */
+    private String trialAudienceGroup;
+
+    /** 试讲面向学员人数。文本。 */
+    private String trialAudienceCount;
+
+    /** 试讲时长，单位小时。 */
+    private java.math.BigDecimal trialHours;
+
+    /** 试讲形式，存字典编码。 */
+    private String trialFormat;
+
+    /** 整体满意度。 */
+    private String trialSatisfaction;
+
+    /** 优化建议。 */
+    private String trialOptimizeAdvice;
+
+    /** 试讲验收结果，存字典编码。不是官方试讲结论。 */
+    private String trialAcceptanceResult;
+
+    /** 课程是否满足发布要求，是／否。 */
+    private String trialReadyToPublish;
+
+    /** 讲师试讲是否合格，是／否。只留痕。 */
+    private String trialLecturerQualified;
+
+    /** 试讲结论录入时间。纯日期。 */
+    private LocalDate trialConclusionDate;
+
+    /** 试讲结论备注。 */
+    private String trialRemark;
 
     /** 3 个月 / 6 个月 / 12 个月 / 长期有效（C07）。立项时即需选定，可随时修改。 */
     private String validityPeriod;
@@ -209,6 +401,446 @@ public class Course {
 
     public void setCategoryCode(String categoryCode) {
         this.categoryCode = categoryCode;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public String getInitiationNo() {
+        return initiationNo;
+    }
+
+    public void setInitiationNo(String initiationNo) {
+        this.initiationNo = initiationNo;
+    }
+
+    public String getBusinessPain() {
+        return businessPain;
+    }
+
+    public void setBusinessPain(String businessPain) {
+        this.businessPain = businessPain;
+    }
+
+    public String getCourseGoal() {
+        return courseGoal;
+    }
+
+    public void setCourseGoal(String courseGoal) {
+        this.courseGoal = courseGoal;
+    }
+
+    public String getCourseValue() {
+        return courseValue;
+    }
+
+    public void setCourseValue(String courseValue) {
+        this.courseValue = courseValue;
+    }
+
+    public String getOutlineSummary() {
+        return outlineSummary;
+    }
+
+    public void setOutlineSummary(String outlineSummary) {
+        this.outlineSummary = outlineSummary;
+    }
+
+    public BigDecimal getEstimateDevDays() {
+        return estimateDevDays;
+    }
+
+    public void setEstimateDevDays(BigDecimal estimateDevDays) {
+        this.estimateDevDays = estimateDevDays;
+    }
+
+    public String getReviewJudges() {
+        return reviewJudges;
+    }
+
+    public void setReviewJudges(String reviewJudges) {
+        this.reviewJudges = reviewJudges;
+    }
+
+    public LocalDate getInitiationReviewDate() {
+        return initiationReviewDate;
+    }
+
+    public void setInitiationReviewDate(LocalDate initiationReviewDate) {
+        this.initiationReviewDate = initiationReviewDate;
+    }
+
+    public String getInitiationReviewConclusion() {
+        return initiationReviewConclusion;
+    }
+
+    public void setInitiationReviewConclusion(String initiationReviewConclusion) {
+        this.initiationReviewConclusion = initiationReviewConclusion;
+    }
+
+    public String getInitiationReviewOpinion() {
+        return initiationReviewOpinion;
+    }
+
+    public void setInitiationReviewOpinion(String initiationReviewOpinion) {
+        this.initiationReviewOpinion = initiationReviewOpinion;
+    }
+
+    public String getInitiationStatus() {
+        return initiationStatus;
+    }
+
+    public void setInitiationStatus(String initiationStatus) {
+        this.initiationStatus = initiationStatus;
+    }
+
+    public LocalDate getPlanDraftDate() {
+        return planDraftDate;
+    }
+
+    public void setPlanDraftDate(LocalDate planDraftDate) {
+        this.planDraftDate = planDraftDate;
+    }
+
+    public LocalDate getActualDraftDate() {
+        return actualDraftDate;
+    }
+
+    public void setActualDraftDate(LocalDate actualDraftDate) {
+        this.actualDraftDate = actualDraftDate;
+    }
+
+    public String getEnterSelfCheck() {
+        return enterSelfCheck;
+    }
+
+    public void setEnterSelfCheck(String enterSelfCheck) {
+        this.enterSelfCheck = enterSelfCheck;
+    }
+
+    public String getSelfcheckCheckerNo() {
+        return selfcheckCheckerNo;
+    }
+
+    public void setSelfcheckCheckerNo(String selfcheckCheckerNo) {
+        this.selfcheckCheckerNo = selfcheckCheckerNo;
+    }
+
+    public LocalDate getSelfcheckCompletedDate() {
+        return selfcheckCompletedDate;
+    }
+
+    public void setSelfcheckCompletedDate(LocalDate selfcheckCompletedDate) {
+        this.selfcheckCompletedDate = selfcheckCompletedDate;
+    }
+
+    public String getSelfcheckConclusion() {
+        return selfcheckConclusion;
+    }
+
+    public void setSelfcheckConclusion(String selfcheckConclusion) {
+        this.selfcheckConclusion = selfcheckConclusion;
+    }
+
+    public String getSelfcheckRecordStatus() {
+        return selfcheckRecordStatus;
+    }
+
+    public void setSelfcheckRecordStatus(String selfcheckRecordStatus) {
+        this.selfcheckRecordStatus = selfcheckRecordStatus;
+    }
+
+    public String getSubmitExpertReview() {
+        return submitExpertReview;
+    }
+
+    public void setSubmitExpertReview(String submitExpertReview) {
+        this.submitExpertReview = submitExpertReview;
+    }
+
+    public String getSelfcheckSpecAnswers() {
+        return selfcheckSpecAnswers;
+    }
+
+    public void setSelfcheckSpecAnswers(String selfcheckSpecAnswers) {
+        this.selfcheckSpecAnswers = selfcheckSpecAnswers;
+    }
+
+    public String getReviewRoundLabel() {
+        return reviewRoundLabel;
+    }
+
+    public void setReviewRoundLabel(String reviewRoundLabel) {
+        this.reviewRoundLabel = reviewRoundLabel;
+    }
+
+    public LocalDate getReviewCompletedDate() {
+        return reviewCompletedDate;
+    }
+
+    public void setReviewCompletedDate(LocalDate reviewCompletedDate) {
+        this.reviewCompletedDate = reviewCompletedDate;
+    }
+
+    public String getReviewLedgerPhase() {
+        return reviewLedgerPhase;
+    }
+
+    public void setReviewLedgerPhase(String reviewLedgerPhase) {
+        this.reviewLedgerPhase = reviewLedgerPhase;
+    }
+
+    public String getReviewLedgerStatus() {
+        return reviewLedgerStatus;
+    }
+
+    public void setReviewLedgerStatus(String reviewLedgerStatus) {
+        this.reviewLedgerStatus = reviewLedgerStatus;
+    }
+
+    public String getEnterTrial() {
+        return enterTrial;
+    }
+
+    public void setEnterTrial(String enterTrial) {
+        this.enterTrial = enterTrial;
+    }
+
+    public String getPrelimRoundLabel() {
+        return prelimRoundLabel;
+    }
+
+    public void setPrelimRoundLabel(String prelimRoundLabel) {
+        this.prelimRoundLabel = prelimRoundLabel;
+    }
+
+    public String getPrelimReviewers() {
+        return prelimReviewers;
+    }
+
+    public void setPrelimReviewers(String prelimReviewers) {
+        this.prelimReviewers = prelimReviewers;
+    }
+
+    public LocalDate getPrelimReviewDate() {
+        return prelimReviewDate;
+    }
+
+    public void setPrelimReviewDate(LocalDate prelimReviewDate) {
+        this.prelimReviewDate = prelimReviewDate;
+    }
+
+    public LocalDate getPrelimCompletedDate() {
+        return prelimCompletedDate;
+    }
+
+    public void setPrelimCompletedDate(LocalDate prelimCompletedDate) {
+        this.prelimCompletedDate = prelimCompletedDate;
+    }
+
+    public String getPrelimConclusion() {
+        return prelimConclusion;
+    }
+
+    public void setPrelimConclusion(String prelimConclusion) {
+        this.prelimConclusion = prelimConclusion;
+    }
+
+    public String getPrelimOpinion() {
+        return prelimOpinion;
+    }
+
+    public void setPrelimOpinion(String prelimOpinion) {
+        this.prelimOpinion = prelimOpinion;
+    }
+
+    public String getEnterMeeting() {
+        return enterMeeting;
+    }
+
+    public void setEnterMeeting(String enterMeeting) {
+        this.enterMeeting = enterMeeting;
+    }
+
+    public String getMeetingRoundLabel() {
+        return meetingRoundLabel;
+    }
+
+    public void setMeetingRoundLabel(String meetingRoundLabel) {
+        this.meetingRoundLabel = meetingRoundLabel;
+    }
+
+    public String getMeetingReviewers() {
+        return meetingReviewers;
+    }
+
+    public void setMeetingReviewers(String meetingReviewers) {
+        this.meetingReviewers = meetingReviewers;
+    }
+
+    public LocalDate getMeetingActualDate() {
+        return meetingActualDate;
+    }
+
+    public void setMeetingActualDate(LocalDate meetingActualDate) {
+        this.meetingActualDate = meetingActualDate;
+    }
+
+    public String getMeetingConclusion() {
+        return meetingConclusion;
+    }
+
+    public void setMeetingConclusion(String meetingConclusion) {
+        this.meetingConclusion = meetingConclusion;
+    }
+
+    public String getMeetingOpinion() {
+        return meetingOpinion;
+    }
+
+    public void setMeetingOpinion(String meetingOpinion) {
+        this.meetingOpinion = meetingOpinion;
+    }
+
+    public String getTrialLecturerNo() {
+        return trialLecturerNo;
+    }
+
+    public void setTrialLecturerNo(String trialLecturerNo) {
+        this.trialLecturerNo = trialLecturerNo;
+    }
+
+    public String getTrialCurrentPhase() {
+        return trialCurrentPhase;
+    }
+
+    public void setTrialCurrentPhase(String trialCurrentPhase) {
+        this.trialCurrentPhase = trialCurrentPhase;
+    }
+
+    public String getTrialLedgerStatus() {
+        return trialLedgerStatus;
+    }
+
+    public void setTrialLedgerStatus(String trialLedgerStatus) {
+        this.trialLedgerStatus = trialLedgerStatus;
+    }
+
+    public String getTrialRoundLabel() {
+        return trialRoundLabel;
+    }
+
+    public void setTrialRoundLabel(String trialRoundLabel) {
+        this.trialRoundLabel = trialRoundLabel;
+    }
+
+    public LocalDate getTrialScheduledDate() {
+        return trialScheduledDate;
+    }
+
+    public void setTrialScheduledDate(LocalDate trialScheduledDate) {
+        this.trialScheduledDate = trialScheduledDate;
+    }
+
+    public String getTrialAudienceGroup() {
+        return trialAudienceGroup;
+    }
+
+    public void setTrialAudienceGroup(String trialAudienceGroup) {
+        this.trialAudienceGroup = trialAudienceGroup;
+    }
+
+    public String getTrialAudienceCount() {
+        return trialAudienceCount;
+    }
+
+    public void setTrialAudienceCount(String trialAudienceCount) {
+        this.trialAudienceCount = trialAudienceCount;
+    }
+
+    public java.math.BigDecimal getTrialHours() {
+        return trialHours;
+    }
+
+    public void setTrialHours(java.math.BigDecimal trialHours) {
+        this.trialHours = trialHours;
+    }
+
+    public String getTrialFormat() {
+        return trialFormat;
+    }
+
+    public void setTrialFormat(String trialFormat) {
+        this.trialFormat = trialFormat;
+    }
+
+    public String getTrialSatisfaction() {
+        return trialSatisfaction;
+    }
+
+    public void setTrialSatisfaction(String trialSatisfaction) {
+        this.trialSatisfaction = trialSatisfaction;
+    }
+
+    public String getTrialOptimizeAdvice() {
+        return trialOptimizeAdvice;
+    }
+
+    public void setTrialOptimizeAdvice(String trialOptimizeAdvice) {
+        this.trialOptimizeAdvice = trialOptimizeAdvice;
+    }
+
+    public String getTrialAcceptanceResult() {
+        return trialAcceptanceResult;
+    }
+
+    public void setTrialAcceptanceResult(String trialAcceptanceResult) {
+        this.trialAcceptanceResult = trialAcceptanceResult;
+    }
+
+    public String getTrialReadyToPublish() {
+        return trialReadyToPublish;
+    }
+
+    public void setTrialReadyToPublish(String trialReadyToPublish) {
+        this.trialReadyToPublish = trialReadyToPublish;
+    }
+
+    public String getTrialLecturerQualified() {
+        return trialLecturerQualified;
+    }
+
+    public void setTrialLecturerQualified(String trialLecturerQualified) {
+        this.trialLecturerQualified = trialLecturerQualified;
+    }
+
+    public LocalDate getTrialConclusionDate() {
+        return trialConclusionDate;
+    }
+
+    public void setTrialConclusionDate(LocalDate trialConclusionDate) {
+        this.trialConclusionDate = trialConclusionDate;
+    }
+
+    public String getTrialRemark() {
+        return trialRemark;
+    }
+
+    public void setTrialRemark(String trialRemark) {
+        this.trialRemark = trialRemark;
     }
 
     public String getValidityPeriod() {

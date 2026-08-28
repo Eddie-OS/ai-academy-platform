@@ -28,6 +28,18 @@ public final class CaseStateMachines {
     public static final String ACTION_AUDIT_PASS = "AUDIT_PASS";
     public static final String ACTION_AUDIT_REJECT = "AUDIT_REJECT";
 
+    /**
+     * 案例状态值的具名引用，供需要按状态过滤的只读查询使用（如待催办清单的案例维度计数）。
+     *
+     * <p><b>状态值只应出现在这个模块里</b>（出口准则 E2-6）。调用方引用常量并作为参数传给 SQL，
+     * 不在 Mapper 的 SQL 文本里写死——转换表改了状态名，写死的那一份不会报错，只会静默地少算。
+     * 常量与转换表的一致性由 {@code StateLiteralGuardTest} 断言。
+     */
+    public static final String STATE_PENDING_ORGANIZE = "待整理";
+    public static final String STATE_ORGANIZING = "整理中";
+    public static final String STATE_PENDING_AUDIT = "待审核";
+    public static final String STATE_PUBLISHED = "已上架";
+
     private CaseStateMachines() {
     }
 

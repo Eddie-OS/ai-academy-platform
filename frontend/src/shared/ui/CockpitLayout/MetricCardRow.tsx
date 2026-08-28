@@ -39,6 +39,13 @@ export interface MetricCardSpec {
   icon?: ReactNode;
   /** 需求文档里的指标编号或章节号，验收时按它回查 */
   source?: string;
+  /** 环比文案，如「↑ 8.3%」或「—」 */
+  delta?: string;
+  /** 环比基准说明，默认「月度环比（较上月）」 */
+  deltaLabel?: string;
+  /** 点卡筛列表时高亮当前卡 */
+  selected?: boolean;
+  onClick?: () => void;
 }
 
 interface MetricCardRowProps {
@@ -75,8 +82,13 @@ function MetricCard({
   hint,
   icon,
   source,
+  delta,
+  deltaLabel,
+  selected,
+  onClick,
 }: Omit<MetricCardSpec, 'key'> & { cardKey: string }) {
   const pending = value === undefined;
+  const clickable = Boolean(onClick);
 
   return (
     <Card
@@ -84,12 +96,29 @@ function MetricCard({
       data-testid="metric-card"
       data-metric={cardKey}
       data-pending={pending}
+      data-selected={selected ? 'true' : undefined}
+      hoverable={clickable}
+      onClick={onClick}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-pressed={clickable ? Boolean(selected) : undefined}
+      onKeyDown={
+        clickable
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
       styles={{ body: { padding: space.md } }}
       style={{
         borderRadius: radius.lg,
         boxShadow: elevation[1],
+        cursor: clickable ? 'pointer' : undefined,
         // 未接入的卡片不加边框强调，避免它在一排里比真实指标更抢眼
-        borderColor: neutral[200],
+        borderColor: selected ? brand[600] : neutral[200],
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: space.xs }}>
@@ -128,7 +157,11 @@ function MetricCard({
           </div>
 
           <Text style={{ fontSize: fontSize.caption, color: neutral[500] }}>
-            {pending ? `阶段 3 接入${source ? ` · ${source}` : ''}` : (source ?? '\u00a0')}
+            {pending
+              ? `阶段 3 接入${source ? ` · ${source}` : ''}`
+              : delta !== undefined
+                ? `${delta} · ${deltaLabel ?? '月度环比（较上月）'}`
+                : (source ?? '\u00a0')}
           </Text>
         </div>
 

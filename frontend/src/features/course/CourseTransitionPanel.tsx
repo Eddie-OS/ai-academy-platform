@@ -8,6 +8,7 @@ import { ActionGuard } from '@/shared/ui/ActionGuard';
 import { useIsOperator } from '@/shared/store/authStore';
 import { neutral, space } from '@/shared/theme/designTokens';
 import { COURSE_STATE_FIELDS } from './courseMeta';
+import { invalidateCourseListAndMetrics } from './courseFilters';
 
 const { Text } = Typography;
 
@@ -42,7 +43,7 @@ export function CourseTransitionPanel({ course }: CourseTransitionPanelProps) {
   });
 
   const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['courses'] });
+    invalidateCourseListAndMetrics(queryClient);
   };
 
   const transit = useMutation({

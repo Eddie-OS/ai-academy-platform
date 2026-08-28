@@ -1,7 +1,10 @@
 package com.aiacademy.app.web.controller;
 
+import com.aiacademy.aggregate.warning.domain.WarningLightView;
 import com.aiacademy.app.application.TrainingApplicationService;
+import com.aiacademy.app.web.WarningLightAssembler;
 import com.aiacademy.app.web.dto.TrainingPlanVO;
+import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
 import com.aiacademy.business.training.domain.TrainingPlanForm;
 import com.aiacademy.business.training.domain.TrainingPlanListItem;
 import com.aiacademy.business.training.domain.TrainingPlanQuery;
@@ -37,10 +40,13 @@ public class TrainingPlanController {
 
     private final TrainingPlanService plans;
     private final TrainingApplicationService application;
+    private final WarningLightAssembler warningLights;
 
-    public TrainingPlanController(TrainingPlanService plans, TrainingApplicationService application) {
+    public TrainingPlanController(TrainingPlanService plans, TrainingApplicationService application,
+                                  WarningLightAssembler warningLights) {
         this.plans = plans;
         this.application = application;
+        this.warningLights = warningLights;
     }
 
     /** 新建培训计划（需求 5.7 第 1 行）。返回主键，前端据此跳详情页。 */
@@ -75,9 +81,14 @@ public class TrainingPlanController {
         PageResult<TrainingPlanListItem> page = plans.page(query);
         Map<Long, String> courseNames =
                 application.courseNamesOf(page.records(), TrainingPlanListItem::getCourseId);
+        Map<Long, WarningLightView> lights = warningLights.index(
+                TrainingStateMachines.PLAN_OBJECT_TYPE,
+                page.records().stream().map(TrainingPlanListItem::getId).toList());
         return R.ok(new PageResult<>(
                 page.records().stream()
-                        .map(p -> TrainingPlanVO.of(p, courseNames.get(p.getCourseId())))
+                        .map(p -> TrainingPlanVO.of(p, courseNames.get(p.getCourseId()),
+                                lights.getOrDefault(p.getId(), WarningLightView.none(
+                                        TrainingStateMachines.PLAN_OBJECT_TYPE, p.getId()))))
                         .toList(),
                 page.total(), page.pageNum(), page.pageSize()));
     }
@@ -87,6 +98,7 @@ public class TrainingPlanController {
         TrainingPlanListItem plan = plans.get(id);
         return R.ok(TrainingPlanVO.of(plan,
                 application.courseNames(java.util.List.of(plan.getCourseId()))
-                        .get(plan.getCourseId())));
+                        .get(plan.getCourseId()),
+                warningLights.one(TrainingStateMachines.PLAN_OBJECT_TYPE, id)));
     }
 }

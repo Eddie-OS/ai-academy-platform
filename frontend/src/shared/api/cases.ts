@@ -51,6 +51,7 @@ export interface CaseInfo {
   lastStateChangedAt: string | null;
   updatedAt: string;
   updatedBy: string | null;
+  /* 没有 light／lightDays／lightReason：案例已退出三色灯范围（业务改版 V-70） */
   version: number;
   /** 本次打开所记的浏览记录主键。<b>只有详情接口会填</b>，供离开页面时回报停留时长 */
   viewId: number | null;

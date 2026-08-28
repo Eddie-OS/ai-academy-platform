@@ -1,4 +1,5 @@
 import { FIELD_ENUM_KEYS } from '@/shared/api/meta';
+import { BUSINESS_DOMAIN_VALUES, useBusinessDomains, useDomainLabel } from '@/shared/meta/domains';
 import {
   DICT_KEYS,
   selectOptions,
@@ -7,6 +8,7 @@ import {
   useFieldEnums,
   useMachines,
   useStates,
+  useTerminalStates,
 } from '@/shared/meta/metaHooks';
 
 /**
@@ -34,20 +36,54 @@ export const DEMAND_STATE_FIELDS = {
 } as const;
 
 /**
- * 两个分流出口（需求 5.2.2）。
+ * 分流出口（需求 5.2.2 + 现场口径 D-20）。
  *
- * <p>界面要按出口决定显示哪一组字段（需求 8.3.3 的界面动态显示规则：出口一显示 21–23，
- * 出口二显示 24–27），因此前端必须能区分这两个值。<b>按下标取而不是按字面量比较</b>——
- * 下发数组的顺序即后端 {@code DemandEnums.OUTLETS} 的定义顺序，出口一在前、出口二在后。
- * 把「用现有工具输出解决方案」这十一个字抄进前端，等于在前端建了第二处枚举定义（STK-1）。
+ * <p>界面要按出口决定显示哪一组字段（需求 8.3.3：出口一显示 21–23，出口二显示 24–27；
+ * 出口三「需求驳回」两组都不显示）。<b>按下标取而不是按字面量比较</b>——
+ * 下发数组的顺序即后端 {@code DemandEnums.OUTLETS}：出口一、出口二、需求驳回。
  *
- * <p>数据还没到时两个值都是 undefined，此时与任何出口都不相等，界面按「出口为空」渲染——
+ * <p>数据还没到时三个值都是 undefined，此时与任何出口都不相等，界面按「出口为空」渲染——
  * 这正是想要的：宁可少显示一组字段，也不要在元数据到位前把出口二的字段显示成出口一的。
  */
-export function useOutlets(): { solution?: string; development?: string } {
+/**
+ * 需求所属领域（现场口径 D-21），与后端 {@code DemandEnums.DOMAINS} 同序。
+ *
+ * <p>优先用 {@code /api/meta/field-enums} 的「需求所属领域」。旧进程还没下发这个键时，
+ * 表单不能只剩「手动输入」——那是哨兵，不是领域。
+ */
+export const DEMAND_DOMAIN_VALUES = BUSINESS_DOMAIN_VALUES;
+
+export function useDemandDomains(): string[] {
+  return useBusinessDomains();
+}
+
+export function useOutlets(): { solution?: string; development?: string; reject?: string } {
   const enums = useFieldEnums();
   const values = enums.data?.[FIELD_ENUM_KEYS.demandOutlet] ?? [];
-  return { solution: values[0], development: values[1] };
+  return { solution: values[0], development: values[1], reject: values[2] };
+}
+
+/**
+ * 评审结论下拉。顺序与分流出口相同：解决方案 / 需求开发 / 驳回。
+ *
+ * <p>旧数据的结论文案是自由文本，表单用出口按下标反推当前结论，避免手写三值。
+ */
+export function reviewConclusionValue(
+  stored: string | null | undefined,
+  outlet: string | null | undefined,
+  conclusions: string[] | undefined,
+  outlets: { solution?: string; development?: string; reject?: string },
+): string | undefined {
+  if (stored && conclusions?.includes(stored)) {
+    return stored;
+  }
+  if (!outlet || !conclusions?.length) {
+    return undefined;
+  }
+  if (outlet === outlets.solution) return conclusions[0];
+  if (outlet === outlets.development) return conclusions[1];
+  if (outlet === outlets.reject) return conclusions[2];
+  return undefined;
 }
 
 export {
@@ -55,8 +91,10 @@ export {
   FIELD_ENUM_KEYS,
   selectOptions,
   useDicts,
+  useDomainLabel,
   useEmployees,
   useFieldEnums,
   useMachines,
   useStates,
+  useTerminalStates,
 };

@@ -40,6 +40,7 @@ public final class TrainingStateMachines {
      * 不要在自己那边再写一遍字符串——转换表改了状态名，写死的那一份不会报错，只会静默地不再匹配。
      * 常量与转换表的一致性由 {@code StateLiteralGuardTest} 断言。
      */
+    public static final String SESSION_PENDING = "待开课";
     public static final String SESSION_OPENED = "已开课";
     public static final String SESSION_FINISHED = "已结束";
     public static final String SESSION_ARCHIVED = "已归档";

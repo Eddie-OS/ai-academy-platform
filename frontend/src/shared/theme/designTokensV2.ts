@@ -185,6 +185,9 @@ export const ASSETS = {
   A05: '/assets/illustrations/a05_mobile_learning.png',
   A06: '/assets/illustrations/a06_data_analysis.png',
   A07: '/assets/illustrations/a07_collaboration.png',
+  P03_OVERVIEW: '/assets/illustrations/p03_overview.png',
+  // 裁掉四周留白的版本：CTA 条高度固定 96px，原图留白会把有效画面压到 40px 以下
+  P05_CTA: '/assets/illustrations/p05_cta_tight.png',
   A08: '/assets/illustrations/a08_data_operations.png',
   A09: '/assets/illustrations/a09_profile.png',
   A10: '/assets/illustrations/a10_messaging.png',

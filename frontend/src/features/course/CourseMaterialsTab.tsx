@@ -1,54 +1,102 @@
-import { useState } from 'react';
-import { App, Alert, Button, Card, Modal, Progress, Select, Space, Table, Tag, Typography, Upload } from 'antd';
+import { useEffect, useState } from 'react';
+import { App, Alert, Button, Col, DatePicker, Form, Input, Modal, Row, Select, Space, Table, Tag, Typography, Upload } from 'antd';
 import type { UploadFile } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { ApiError } from '@/shared/api/client';
 import { attachmentApi, uploadAttachment } from '@/shared/api/attachments';
-import { courseApi, type CourseMaterial, type CourseMaterialVersion } from '@/shared/api/courses';
+import {
+  courseApi,
+  type Course,
+  type CourseMaterialVersion,
+  type CourseMaterialVersionFile,
+} from '@/shared/api/courses';
+import type { MaterialTypeMeta } from '@/shared/api/meta';
 import { useIsOperator } from '@/shared/store/authStore';
+import { EM_DASH, formatDateTime } from '@/shared/format';
 import { space } from '@/shared/theme/designTokens';
-import { formatDateTime } from '@/shared/format';
-import { useMaterialTypes } from './courseMeta';
+import { FIELD_ENUM_KEYS, useEmployees, useFieldEnums, useMaterialTypes } from './courseMeta';
+import { CourseTabEditBar, useCourseTabEditing } from './CourseTabEditBar';
+import './CourseMaterialsTab.css';
 
-const { Text } = Typography;
-
-/**
- * 详情页「课程材料与版本」页签（需求 9.5）。
- *
- * <p>分两区：上区当前材料可增删，下区版本历史只读。<b>版本没有删除入口</b>——删掉一个版本，
- * 绑定它的评审记录就指向了不存在的材料，「评审看的是哪一版」这条线（规则 R7）当场断掉。
- *
- * <p>单文件上限按材料类型区分，取自 {@code /api/meta/material-types}（规则 F1）。上限在前端抄一份
- * 的后果是：规则调整后界面还允许选，直到保存那一刻才被拒。
- */
+const ATTACHMENT_OWNER_TYPE = 'COURSE';
+const PPT_ACCEPT = '.ppt,.pptx,.pdf';
 
 interface CourseMaterialsTabProps {
-  courseId: number;
+  course: Course;
 }
 
-/** 附件归属类型，与后端 {@code AttachmentOwnerType} 一致；它只决定文件落在哪个子目录。 */
-const ATTACHMENT_OWNER_TYPE = 'COURSE';
+interface LedgerValues {
+  versionLabel?: string;
+  versionStatus?: string;
+  ownerNo?: string;
+  updatedDate?: Dayjs | null;
+  coursewareUrl?: string;
+  recordingUrl?: string;
+  remark?: string;
+}
 
-export function CourseMaterialsTab({ courseId }: CourseMaterialsTabProps) {
+/**
+ * 详情页「材料与版本」（需求 9.5）。
+ *
+ * <p>三栏：版本列表（突出当前版本）→ 所选版本的材料清单 → 版本说明／变更记录。
+ * 版本没有删除入口——删掉会让绑定它的评审记录断档（规则 R7）。
+ *
+ * <p>课件走官方三类材料里的「课件」；试讲／授课录屏只填外链，平台不上传视频（N22／D10）。
+ */
+export function CourseMaterialsTab({ course }: CourseMaterialsTabProps) {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const isOperator = useIsOperator();
   const materialTypes = useMaterialTypes();
+  const employees = useEmployees();
+  const fieldEnums = useFieldEnums();
+  const versionStatuses = fieldEnums.data?.[FIELD_ENUM_KEYS.versionStatus] ?? [];
+  const [form] = Form.useForm<LedgerValues>();
+  const { editing, setEditing } = useCourseTabEditing(course.id);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [uploadType, setUploadType] = useState<string | null>(null);
   const [percent, setPercent] = useState<number | null>(null);
-  const [openedVersion, setOpenedVersion] = useState<CourseMaterialVersion | null>(null);
+  const [selfcheckVersion, setSelfcheckVersion] = useState<CourseMaterialVersion | null>(null);
 
   const materials = useQuery({
-    queryKey: ['courses', courseId, 'materials'],
-    queryFn: () => courseApi.materials(courseId),
+    queryKey: ['courses', course.id, 'materials'],
+    queryFn: () => courseApi.materials(course.id),
   });
   const versions = useQuery({
-    queryKey: ['courses', courseId, 'versions'],
-    queryFn: () => courseApi.versions(courseId),
+    queryKey: ['courses', course.id, 'versions'],
+    queryFn: () => courseApi.versions(course.id),
   });
 
-  const selectedType = materialTypes.data?.find((item) => item.materialType === uploadType);
+  const selected = (versions.data ?? []).find((item) => item.id === selectedId) ?? versions.data?.[0] ?? null;
+  const isCurrent = selected !== null && selected.versionNo === course.currentMaterialVersion;
+  const showWorkspace = selected === null || isCurrent;
+  const selectedType = (materialTypes.data ?? []).find((item) => item.materialType === uploadType);
+
+  const detail = useQuery({
+    queryKey: ['courses', course.id, 'versions', selected?.id, 'files'],
+    queryFn: () => courseApi.versionDetail(course.id, selected!.id),
+    enabled: selected !== null && !showWorkspace,
+  });
+
+  const fill = () => {
+    if (!selected) {
+      form.resetFields();
+      return;
+    }
+    form.setFieldsValue({
+      versionLabel: selected.versionLabel ?? undefined,
+      versionStatus: selected.versionStatus ?? undefined,
+      ownerNo: selected.ownerNo ?? undefined,
+      updatedDate: selected.updatedDate ? dayjs(selected.updatedDate) : null,
+      coursewareUrl: selected.coursewareUrl ?? undefined,
+      recordingUrl: selected.recordingUrl ?? undefined,
+      remark: selected.remark ?? undefined,
+    });
+  };
+
+  useEffect(fill, [selected, form]);
 
   const attach = useMutation({
     mutationFn: async (file: File) => {
@@ -65,12 +113,12 @@ export function CourseMaterialsTab({ courseId }: CourseMaterialsTabProps) {
       }
       setPercent(0);
       const attachment = await uploadAttachment(file, selectedType.scene, ATTACHMENT_OWNER_TYPE, setPercent);
-      return courseApi.attachMaterials(courseId, selectedType.materialType, [attachment.id]);
+      return courseApi.attachMaterials(course.id, selectedType.materialType, [attachment.id]);
     },
     onSuccess: () => {
       message.success('材料已上传');
       setPercent(null);
-      void queryClient.invalidateQueries({ queryKey: ['courses', courseId, 'materials'] });
+      void queryClient.invalidateQueries({ queryKey: ['courses', course.id, 'materials'] });
     },
     onError: (e) => {
       setPercent(null);
@@ -79,107 +127,267 @@ export function CourseMaterialsTab({ courseId }: CourseMaterialsTabProps) {
   });
 
   const detach = useMutation({
-    mutationFn: (materialId: number) => courseApi.detachMaterial(courseId, materialId),
+    mutationFn: (materialId: number) => courseApi.detachMaterial(course.id, materialId),
     onSuccess: () => {
       message.success('材料已移除');
-      void queryClient.invalidateQueries({ queryKey: ['courses', courseId, 'materials'] });
+      void queryClient.invalidateQueries({ queryKey: ['courses', course.id, 'materials'] });
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '移除失败，请重试'),
   });
 
   const snapshot = useMutation({
-    mutationFn: () => courseApi.snapshot(courseId, null),
+    mutationFn: () => courseApi.snapshot(course.id, null),
     onSuccess: (version) => {
       message.success(`已生成版本 ${version.versionNo}`);
-      void queryClient.invalidateQueries({ queryKey: ['courses', courseId, 'versions'] });
+      setSelectedId(version.id);
+      void queryClient.invalidateQueries({ queryKey: ['courses', course.id] });
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '生成版本失败，请重试'),
   });
 
+  const save = useMutation({
+    mutationFn: (values: LedgerValues) => {
+      if (!selected) {
+        throw new ApiError('PARAM_INVALID', '还没有版本可保存', null, null);
+      }
+      return courseApi.saveVersionLedger(course.id, selected.id, {
+        versionLabel: values.versionLabel || null,
+        versionStatus: values.versionStatus || null,
+        ownerNo: values.ownerNo || null,
+        updatedDate: values.updatedDate ? values.updatedDate.format('YYYY-MM-DD') : null,
+        coursewareUrl: values.coursewareUrl || null,
+        recordingUrl: values.recordingUrl || null,
+        remark: values.remark || null,
+      });
+    },
+    onSuccess: () => {
+      message.success('版本信息已保存');
+      setEditing(false);
+      void queryClient.invalidateQueries({ queryKey: ['courses', course.id, 'versions'] });
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
+  });
+
+  const employeeName = (ownerNo: string | null | undefined) => {
+    const hit = (employees.data?.records ?? []).find((item) => item.employeeNo === ownerNo);
+    return hit ? hit.employeeName : ownerNo;
+  };
+
+  const workspaceFiles = materials.data ?? [];
+  const snapshotFiles = detail.data?.files ?? [];
+  const listFiles: Array<{
+    key: string;
+    name: string;
+    type: string;
+    href?: string;
+    deleted?: boolean;
+    materialId?: number;
+  }> = showWorkspace
+    ? workspaceFiles.map((row) => ({
+        key: `m-${row.id}`,
+        name: row.fileName,
+        type: row.materialType,
+        href: attachmentApi.downloadUrl(row.attachmentId),
+        materialId: row.id,
+      }))
+    : snapshotFiles.map((row) => ({
+        key: `f-${row.id}`,
+        name: row.fileNameSnapshot,
+        type: row.materialType,
+        href: row.attachmentDeleted ? undefined : attachmentApi.downloadUrl(row.attachmentId),
+        deleted: row.attachmentDeleted,
+      }));
+
   return (
-    <Space direction="vertical" size={space.lg} style={{ width: '100%' }}>
-      <Card
-        size="small"
-        title="当前材料"
-        extra={
-          isOperator && (
-            <Space size={space.xs}>
+    <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
+      <Alert
+        type="info"
+        showIcon
+        message="版本只增不删，提交评审时自动快照"
+        description="系统会在提交评审时给当前材料建档并绑定该轮评审。之后再改材料不影响已评过的版本。删掉版本会让评审记录指向不存在的材料。"
+      />
+
+      {isOperator && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <CourseTabEditBar
+            editing={editing}
+            saving={save.isPending}
+            saveDisabled={!selected}
+            onEdit={() => {
+              fill();
+              setEditing(true);
+            }}
+            onCancel={() => {
+              fill();
+              setEditing(false);
+            }}
+            onSave={() => form.submit()}
+          />
+        </div>
+      )}
+
+      <Form
+        form={form}
+        layout="vertical"
+        disabled={!isOperator || !editing}
+        onFinish={(values) => void save.mutateAsync(values)}
+      >
+        <Row gutter={[16, 0]}>
+          <Col span={12}>
+            <Form.Item label="关联课程ID" extra="绑定对应课程，只读追溯">
+              <Input value={course.courseNo} disabled />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="课程名称">
+              <Input value={course.courseName} disabled />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="课程版本号"
+              name="versionLabel"
+              extra={selected ? `官方编号 ${selected.versionNo}，由系统自动递增` : '提交评审后会自动生成版本'}
+            >
+              <Input placeholder="如 V1.0 初稿、V1.1 整改" disabled={!selected || !isOperator} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="版本状态" name="versionStatus" extra="台账标记，不写流转日志">
               <Select
                 allowClear
-                placeholder="材料类型"
-                style={{ width: 160 }}
-                value={uploadType}
-                loading={materialTypes.isLoading}
-                options={(materialTypes.data ?? []).map((item) => ({
-                  value: item.materialType,
-                  label: `${item.materialType}（≤${item.maxSizeText}）`,
-                }))}
-                onChange={(value) => setUploadType(value ?? null)}
+                placeholder="请选择版本状态"
+                disabled={!selected || !isOperator}
+                options={versionStatuses.map((value) => ({ value, label: value }))}
               />
-              <Upload
-                showUploadList={false}
-                disabled={!uploadType || attach.isPending}
-                beforeUpload={(file) => {
-                  void attach.mutateAsync(file as unknown as File);
-                  return Upload.LIST_IGNORE;
-                }}
-                fileList={[] as UploadFile[]}
-              >
-                <Button icon={<UploadIcon size={14} />} disabled={!uploadType} loading={attach.isPending}>
-                  上传材料
-                </Button>
-              </Upload>
-              <Button onClick={() => snapshot.mutate()} loading={snapshot.isPending}>
-                生成版本快照
-              </Button>
-            </Space>
-          )
-        }
-      >
-        <Space direction="vertical" size={space.sm} style={{ width: '100%' }}>
-          {percent !== null && <Progress percent={percent} size="small" />}
-          <Table<CourseMaterial>
-            size="small"
-            rowKey={(row) => String(row.id)}
-            dataSource={materials.data ?? []}
-            loading={materials.isLoading}
-            pagination={false}
-            locale={{ emptyText: '还没有上传材料' }}
-            columns={[
-              { title: '材料类型', dataIndex: 'materialType', width: 140 },
-              { title: '文件名', dataIndex: 'fileName' },
-              {
-                title: '大小',
-                dataIndex: 'fileSize',
-                width: 120,
-                align: 'right',
-                render: (size: number) => formatSize(size),
-              },
-              { title: '上传时间', dataIndex: 'createdAt', width: 160, render: formatDateTime },
-              {
-                title: '操作',
-                key: 'actions',
-                width: 140,
-                align: 'right',
-                render: (_, row) => (
-                  <Space size={space.sm}>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="版本更新负责人" name="ownerNo">
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="请选择负责人"
+                disabled={!selected || !isOperator}
+                options={(employees.data?.records ?? []).map((item) => ({
+                  value: item.employeeNo,
+                  label: `${item.employeeName}（${item.employeeNo}）`,
+                }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="版本更新时间" name="updatedDate">
+              <DatePicker style={{ width: '100%' }} disabled={!selected || !isOperator} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="课件 PPT"
+              name="coursewareUrl"
+              extra="可填外链；文件请上传到下方材料清单，与开发页课件同一批"
+              rules={[{ pattern: /^$|^https?:\/\/.+/, message: '链接需以 http:// 或 https:// 开头' }]}
+            >
+              <Input placeholder="https://" disabled={!selected || !isOperator} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="试讲／授课录屏"
+              name="recordingUrl"
+              extra="只填外链，平台不上传视频文件"
+              rules={[{ pattern: /^$|^https?:\/\/.+/, message: '链接需以 http:// 或 https:// 开头' }]}
+            >
+              <Input placeholder="https://" disabled={!selected || !isOperator} />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item label="版本说明" name="remark">
+              <Input.TextArea rows={3} maxLength={500} showCount disabled={!selected || !isOperator} />
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
+
+      <div className="crs-mat-board" data-testid="version-block">
+        <div className="crs-mat-col">
+          <h3 className="crs-mat-heading">版本列表</h3>
+          {(versions.data ?? []).length === 0 ? (
+            <p className="crs-mat-empty">还没有生成过版本</p>
+          ) : (
+            <ul className="crs-mat-list">
+              {(versions.data ?? []).map((item) => {
+                const current = item.versionNo === course.currentMaterialVersion;
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="crs-mat-version"
+                      data-testid="course-version"
+                      data-current={current}
+                      data-selected={item.id === selected?.id}
+                      onClick={() => setSelectedId(item.id)}
+                    >
+                      <div className="crs-mat-version-top">
+                        <span className="crs-mat-version-no">{item.versionLabel || item.versionNo}</span>
+                        {current && <span className="crs-mat-tag">当前版本</span>}
+                      </div>
+                      <span className="crs-mat-version-meta">
+                        {item.updatedDate ?? formatDateTime(item.createdAt)}
+                      </span>
+                      <span className="crs-mat-version-meta">
+                        {employeeName(item.ownerNo) || item.createdBy || EM_DASH}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {isOperator && (
+            <Button
+              size="small"
+              style={{ marginTop: space.sm }}
+              onClick={() => snapshot.mutate()}
+              loading={snapshot.isPending}
+            >
+              手动生成快照
+            </Button>
+          )}
+        </div>
+
+        <div className="crs-mat-col">
+          <h3 className="crs-mat-heading">
+            材料清单{selected ? `（${selected.versionLabel || selected.versionNo}）` : ''}
+          </h3>
+          {listFiles.length === 0 ? (
+            <p className="crs-mat-empty">{showWorkspace ? '还没有上传材料' : '该版本没有材料文件'}</p>
+          ) : (
+            <ul className="crs-mat-list">
+              {listFiles.map((file, index) => (
+                <li className="crs-mat-file" key={file.key} data-tone={index % 3}>
+                  <span className="crs-mat-file-icon" aria-hidden />
+                  <span className="crs-mat-file-body">
+                    <span className="crs-mat-file-name">{file.name}</span>
+                    <span className="crs-mat-file-type">{file.type}</span>
+                  </span>
+                  {file.deleted ? (
+                    <Tag>附件已删除</Tag>
+                  ) : (
+                    <Button type="link" size="small" href={file.href} icon={<Download size={13} />}>
+                      下载
+                    </Button>
+                  )}
+                  {showWorkspace && isOperator && file.materialId !== undefined && (
                     <Button
                       type="link"
                       size="small"
-                      style={{ padding: 0 }}
-                      icon={<Download size={13} />}
-                      href={attachmentApi.downloadUrl(row.attachmentId)}
-                    >
-                      下载
-                    </Button>
-                    {isOperator && (
-                      <Button
-                        type="link"
-                        size="small"
-                        danger
-                        style={{ padding: 0 }}
-                        icon={<Trash2 size={13} />}
-                        onClick={() =>
+                      danger
+                      icon={<Trash2 size={13} />}
+                      onClick={() => {
+                        const row = workspaceFiles.find((item) => item.id === file.materialId);
+                        if (row) {
                           modal.confirm({
                             title: `从当前材料移除「${row.fileName}」`,
                             content: '只解除关联，文件本身不删——已生成的版本快照里仍然能下载到它。',
@@ -187,67 +395,138 @@ export function CourseMaterialsTab({ courseId }: CourseMaterialsTabProps) {
                             okButtonProps: { danger: true },
                             cancelText: '取消',
                             onOk: () => detach.mutateAsync(row.id),
-                          })
+                          });
                         }
-                      >
-                        移除
-                      </Button>
-                    )}
-                  </Space>
-                ),
-              },
-            ]}
-          />
-        </Space>
-      </Card>
+                      }}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {selected?.coursewareUrl && (
+            <p className="crs-mat-note">
+              课件外链：<a href={selected.coursewareUrl}>{selected.coursewareUrl}</a>
+            </p>
+          )}
+          {selected?.recordingUrl && (
+            <p className="crs-mat-note">
+              录屏外链：<a href={selected.recordingUrl}>{selected.recordingUrl}</a>
+            </p>
+          )}
+          {showWorkspace && (
+            <WorkspaceUpload
+              materialTypes={materialTypes.data ?? []}
+              uploadType={uploadType}
+              percent={percent}
+              attaching={attach.isPending}
+              onTypeChange={setUploadType}
+              onUpload={(file) => void attach.mutateAsync(file)}
+              isOperator={isOperator}
+            />
+          )}
+          {!showWorkspace && (
+            <p className="crs-mat-note">该版本是提交时的快照，文件只读。改材料请回到当前版本。</p>
+          )}
+        </div>
 
-      <Card size="small" title="版本历史">
-        <Space direction="vertical" size={space.sm} style={{ width: '100%' }}>
-          <Alert
-            type="info"
-            showIcon
-            message="版本只增不删"
-            description="提交评审时自动生成一版并绑定该轮评审，之后再改材料不会影响已提交的评审看到的内容。删掉版本会让评审记录指向不存在的材料。"
-          />
-          <Table<CourseMaterialVersion>
-            size="small"
-            rowKey={(row) => String(row.id)}
-            dataSource={versions.data ?? []}
-            loading={versions.isLoading}
-            pagination={false}
-            locale={{ emptyText: '还没有生成过版本' }}
-            columns={[
-              { title: '版本号', dataIndex: 'versionNo', width: 100 },
-              { title: '生成方式', dataIndex: 'triggerType', width: 140 },
-              {
-                title: '绑定评审轮次',
-                dataIndex: 'boundReviewRound',
-                width: 130,
-                render: (round: number | null) => (round === null ? '—' : `第 ${round} 轮`),
-              },
-              { title: '变更说明', dataIndex: 'remark', render: (v: string | null) => v ?? '—' },
-              { title: '生成时间', dataIndex: 'createdAt', width: 160, render: formatDateTime },
-              {
-                title: '操作',
-                key: 'actions',
-                width: 100,
-                align: 'right',
-                render: (_, row) => (
-                  <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setOpenedVersion(row)}>
-                    查看内容
-                  </Button>
-                ),
-              },
-            ]}
-          />
-        </Space>
-      </Card>
+        <div className="crs-mat-col">
+          <h3 className="crs-mat-heading">版本说明</h3>
+          <p className="crs-mat-summary">{selected?.remark?.trim() ? selected.remark : '暂无版本说明'}</p>
+          <h3 className="crs-mat-heading">变更记录</h3>
+          {selected ? (
+            <ul className="crs-mat-list">
+              <li className="crs-mat-change">
+                <span className="crs-mat-change-dot" aria-hidden />
+                <span>
+                  <span className="crs-mat-change-text">生成版本 {selected.versionNo}（{selected.triggerType}）</span>
+                  <br />
+                  <span className="crs-mat-change-at">
+                    {formatDateTime(selected.createdAt)} · {selected.createdBy}
+                  </span>
+                </span>
+              </li>
+              {selected.boundReviewRound !== null && (
+                <li className="crs-mat-change">
+                  <span className="crs-mat-change-dot" aria-hidden />
+                  <span className="crs-mat-change-text">绑定评审第 {selected.boundReviewRound} 轮</span>
+                </li>
+              )}
+            </ul>
+          ) : (
+            <p className="crs-mat-empty">提交评审时由系统自动快照</p>
+          )}
+          {selected && (
+            <Button type="link" size="small" style={{ padding: 0, marginTop: space.xs }} onClick={() => setSelfcheckVersion(selected)}>
+              查看该版本自检快照
+            </Button>
+          )}
+          <p className="crs-mat-note">材料版本在提交评审时由系统自动快照，不支持删除</p>
+        </div>
+      </div>
 
       <VersionDetailModal
-        courseId={courseId}
-        version={openedVersion}
-        onClose={() => setOpenedVersion(null)}
+        courseId={course.id}
+        version={selfcheckVersion}
+        onClose={() => setSelfcheckVersion(null)}
       />
+    </Space>
+  );
+}
+
+function WorkspaceUpload({
+  materialTypes,
+  uploadType,
+  percent,
+  attaching,
+  onTypeChange,
+  onUpload,
+  isOperator,
+}: {
+  materialTypes: MaterialTypeMeta[];
+  uploadType: string | null;
+  percent: number | null;
+  attaching: boolean;
+  onTypeChange: (value: string | null) => void;
+  onUpload: (file: File) => void;
+  isOperator: boolean;
+}) {
+  if (!isOperator) {
+    return null;
+  }
+  const courseware = materialTypes.find((item) => item.scene === 'COURSEWARE');
+  return (
+    <Space direction="vertical" size={space.xs} style={{ width: '100%', marginTop: space.sm }}>
+      <Space size={space.xs} wrap>
+        <Select
+          allowClear
+          placeholder="材料类型"
+          style={{ width: 180 }}
+          value={uploadType}
+          options={materialTypes.map((item) => ({
+            value: item.materialType,
+            label: `${item.materialType}（≤${item.maxSizeText}）`,
+          }))}
+          onChange={(value) => onTypeChange(value ?? null)}
+        />
+        <Upload
+          showUploadList={false}
+          disabled={!uploadType || attaching}
+          accept={uploadType === courseware?.materialType ? PPT_ACCEPT : undefined}
+          beforeUpload={(file) => {
+            onUpload(file as unknown as File);
+            return Upload.LIST_IGNORE;
+          }}
+          fileList={[] as UploadFile[]}
+        >
+          <Button icon={<UploadIcon size={14} />} disabled={!uploadType} loading={attaching}>
+            上传材料
+          </Button>
+        </Upload>
+      </Space>
+      {percent !== null && <Typography.Text type="secondary">上传中 {percent}%</Typography.Text>}
     </Space>
   );
 }
@@ -268,9 +547,9 @@ function VersionDetailModal({
   });
 
   return (
-    <Modal open={version !== null} title={`版本 ${version?.versionNo ?? ''} 的内容`} footer={null} width={760} onCancel={onClose}>
+    <Modal open={version !== null} title={`版本 ${version?.versionNo ?? ''} 的自检快照`} footer={null} width={760} onCancel={onClose}>
       <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
-        <Table
+        <Table<CourseMaterialVersionFile>
           size="small"
           rowKey={(row) => String(row.id)}
           dataSource={detail.data?.files ?? []}
@@ -285,8 +564,7 @@ function VersionDetailModal({
               render: (name: string, row) => (
                 <Space size={4}>
                   {name}
-                  {/* 附件被删了仍显示快照文件名：这一版当时确实包含它，抹掉会让历史失真 */}
-                  {row.attachmentDeleted && <Tag color="default">附件已删除</Tag>}
+                  {row.attachmentDeleted && <Tag>附件已删除</Tag>}
                 </Space>
               ),
             },
@@ -297,57 +575,39 @@ function VersionDetailModal({
               align: 'right',
               render: (_, row) =>
                 row.attachmentDeleted ? (
-                  <Text type="secondary">不可下载</Text>
+                  <Typography.Text type="secondary">不可下载</Typography.Text>
                 ) : (
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{ padding: 0 }}
-                    href={attachmentApi.downloadUrl(row.attachmentId)}
-                  >
+                  <Button type="link" size="small" href={attachmentApi.downloadUrl(row.attachmentId)}>
                     下载
                   </Button>
                 ),
             },
           ]}
         />
-        <Card size="small" title="该版本的自检快照">
-          {(detail.data?.selfcheck ?? []).length === 0 ? (
-            <Text type="secondary">这一版没有自检快照。</Text>
-          ) : (
-            <Table
-              size="small"
-              // 快照行是 SQL 直出的 Map，没有主键列；顺序即展示顺序，用下标做行键
-              rowKey={(_, index) => String(index)}
-              dataSource={detail.data?.selfcheck ?? []}
-              pagination={false}
-              columns={[
-                { title: '检查项', dataIndex: 'item_text_snapshot' },
-                {
-                  title: '勾选',
-                  dataIndex: 'checked',
-                  width: 80,
-                  render: (checked: boolean) => (checked ? '已勾选' : '未勾选'),
-                },
-                { title: '说明', dataIndex: 'note', render: (v: string | null) => v ?? '—' },
-              ]}
-            />
-          )}
-        </Card>
+        {(detail.data?.selfcheck ?? []).length === 0 ? (
+          <Typography.Text type="secondary">这一版没有自检快照。</Typography.Text>
+        ) : (
+          <Table
+            size="small"
+            rowKey={(_, index) => String(index)}
+            dataSource={detail.data?.selfcheck ?? []}
+            pagination={false}
+            columns={[
+              { title: '检查项', dataIndex: 'item_text_snapshot' },
+              {
+                title: '勾选',
+                dataIndex: 'checked',
+                width: 80,
+                render: (checked: boolean) => (checked ? '已勾选' : '未勾选'),
+              },
+              { title: '说明', dataIndex: 'note', render: (v: string | null) => v ?? EM_DASH },
+            ]}
+          />
+        )}
       </Space>
     </Modal>
   );
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/** 日期时间不显示秒（设计规范 3.3）。实现已移到 {@code shared/format}，需求驾驶舱用的是同一份。 */
+/** 日期时间不显示秒（设计规范 3.3）。实现已移到 {@code shared/format}。 */
 export { formatDateTime };
