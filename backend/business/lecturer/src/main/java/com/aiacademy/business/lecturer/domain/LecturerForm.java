@@ -4,20 +4,19 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 讲师的新建与编辑表单（需求 10.3 中「可编辑 = 仅运营」的那几项）。
+ * 讲师的新建与编辑表单。
  *
- * <p><b>不含入池方式与入池时间。</b>它们是「首次入池」的事实（需求 10.4），由入池路径本身决定：
- * 手动添加写「运营手动添加」，导入写「批量导入」，课程负责人自动入池写第三个值。做成可填字段
- * 会让入池方式与真实来源脱节，而 10.4 的三种方式正是用来回答「这个人怎么进来的」。
+ * <p>业务确认后，可填项按「基础档案」截图表：简介、头像、等级、能力标签、可授课时间、
+ * 上岗状态、排课限制、建档时间、档案维护人、备注。工号仍要——人员台账关联靠它。
  *
- * <p><b>不含试讲合格标记与首次试讲合格时间。</b>它们只能由试讲结论录入产生（副作用
- * {@code UPDATE_LECTURER_TRIAL_FLAG}）。允许手填等于允许伪造一条不存在的试讲。
+ * <p><b>不含入池方式。</b>由入池路径本身决定。试讲合格标记只能由试讲结论产生。
  *
- * <p><b>培养状态在表单里。</b>它是自由选择的枚举（TS1），与在池状态一样属于普通字段——
- * 这也是它与状态机字段的唯一区别：状态机字段一律走转换接口，不出现在任何表单里。
+ * <p>{@code trainingState} 仍接收：旧调用方只传培养状态。有 {@code dutyState} 时以它为准，
+ * 培养状态按 {@link LecturerEnums#trainingStateOf} 对齐。
  */
 public record LecturerForm(
         @NotBlank(message = "请填写讲师姓名")
@@ -32,20 +31,44 @@ public record LecturerForm(
         @Size(max = 50, message = "来源部门不超过 50 字")
         String sourceDept,
 
-        @NotEmpty(message = "请至少选择一个擅长领域")
+        @NotEmpty(message = "请填写擅长领域")
         List<String> expertiseDomains,
 
-        @NotBlank(message = "请填写授课方向")
-        @Size(max = 500, message = "授课方向不超过 500 字")
+        @NotBlank(message = "请填写讲师简介")
+        @Size(max = 500, message = "讲师简介不超过 500 字")
         String teachingDirection,
 
-        @NotBlank(message = "请选择讲师培养状态")
         String trainingState,
 
         @NotBlank(message = "请选择在池状态")
         String poolState,
 
-        /** 在池状态为「已移出」时必填，跨字段校验在 {@code LecturerService} 里做。 */
         @Size(max = 500, message = "移出原因不超过 500 字")
-        String removedReason) {
+        String removedReason,
+
+        Long avatarAttachmentId,
+
+        @Size(max = 16, message = "头像预设标识不超过 16 字")
+        String avatarPreset,
+
+        String lecturerLevel,
+
+        @Size(max = 500, message = "能力标签不超过 500 字")
+        String capabilityTags,
+
+        @Size(max = 200, message = "可授课时间不超过 200 字")
+        String availableTime,
+
+        String dutyState,
+
+        @Size(max = 200, message = "排课限制说明不超过 200 字")
+        String scheduleLimit,
+
+        LocalDate joinedDate,
+
+        @Size(max = 50, message = "档案维护人不超过 50 字")
+        String profileMaintainer,
+
+        @Size(max = 500, message = "备注不超过 500 字")
+        String remark) {
 }

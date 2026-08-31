@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# 前端类型门禁。
+#
+# 起因：总看板白屏一次，原因是 count 在接口回数前是 null，而组件声明的是 number。
+# tsc 早就报了这一条——它和另外 18 条同类错误一起躺在那儿好几天，因为没人跑 tsc。
+# dev server 不做类型检查，vite build 才会，而本地开发根本不走 build。
+# 于是「类型系统已经发现了这个 bug」和「这个 bug 上了线」同时成立。
+#
+# 这个钩子只做一件事：改了前端就必须让 tsc 干净。它不跑单测——单测在 npm run verify 里，
+# 提交前跑全套太慢，慢到一定会被 --no-verify 绕过，那就又回到没有门禁的状态。
+#
+# 启用方式（clone 后执行一次）：
+#   git config core.hooksPath ai-academy-platform/scripts/git-hooks
+
+set -e
+
+changed=$(git diff --cached --name-only --diff-filter=ACM)
+
+if ! echo "$changed" | grep -q '^ai-academy-platform/frontend/'; then
+  exit 0
+fi
+
+cd ai-academy-platform/frontend
+
+if [ ! -d node_modules ]; then
+  echo "pre-commit：frontend/node_modules 不存在，跳过类型检查。请先 npm install。" >&2
+  exit 0
+fi
+
+echo "pre-commit：检查前端类型（tsc --noEmit）……"
+
+if ! npm run --silent lint; then
+  cat >&2 <<'EOF'
+
+提交被拦下：前端类型检查未通过。
+
+上面每一条都是运行时的真实缺陷，不是格式问题。一条 number/null 不匹配
+就足以让整个驾驶舱白屏——这个门禁就是为那次白屏加的。
+
+修完再提交。确有原因需要跳过时用 git commit --no-verify，
+但请同时在 docs/文档待修清单.md 里记一条，别让它无声地烂在那儿。
+EOF
+  exit 1
+fi

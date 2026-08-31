@@ -112,11 +112,11 @@ abstract class ImportTestBase extends IntegrationTest {
         return jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        initiation_no, main_state, created_by)
+                                        main_state, created_by)
                 VALUES (?, '导入测试用课程', '内部端到端课程', 'COURSE', ?, CURRENT_DATE,
-                        CURRENT_DATE + 30, '长期有效', ?, '立项', 'OPS')
+                        CURRENT_DATE + 30, '长期有效', '立项', 'OPS')
                 RETURNING id
-                """, Long.class, "KC" + System.nanoTime(), ownerNo, "LI" + System.nanoTime());
+                """, Long.class, "KC" + System.nanoTime(), ownerNo);
     }
 
     protected long 造讲师(String employeeNo, String name, String trainingState) {

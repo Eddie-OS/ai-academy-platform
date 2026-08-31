@@ -75,6 +75,11 @@ describe('WarningLight（三色灯）', () => {
     expect(screen.getByTestId('warning-summary-card')).toHaveTextContent('2,133');
   });
 
+  it('接口未回时 count 为 null 显示「—」，不抛错', () => {
+    render(<WarningSummaryCard color="BLUE" count={null} caption="距预计完成时间 3 天以上" />);
+    expect(screen.getByTestId('warning-summary-card')).toHaveTextContent('—');
+  });
+
   it('无灯态不可下钻——给了 onDrillDown 也不渲染「查看明细」', () => {
     render(<WarningSummaryCard color="NONE" count={128} caption="无预计完成时间" onDrillDown={() => {}} />);
     expect(screen.queryByText('查看明细')).toBeNull();

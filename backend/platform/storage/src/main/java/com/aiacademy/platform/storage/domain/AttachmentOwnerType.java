@@ -22,7 +22,9 @@ public enum AttachmentOwnerType {
     TRAINING_PLAN("training_plan"),
     TRAINING_SESSION("training_session"),
     CASE("case"),
-    TASK("task");
+    TASK("task"),
+    /** 讲师没有状态机，但头像要挂附件。词表比状态机对象多这一项，见 AttachmentOwnerTypeTest。 */
+    LECTURER("lecturer");
 
     private final String directory;
 

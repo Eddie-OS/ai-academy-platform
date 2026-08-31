@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { usesFixtureData } from '@/app/fixtureSource';
+import { isRegressionMode } from '@/app/regressionMode';
 import { ActionGuard } from '@/shared/ui/ActionGuard';
 import { redLightReasonOf, WarningLight } from '@/shared/ui/WarningLight';
 import { space } from '@/shared/theme/designTokens';
@@ -47,6 +48,7 @@ import {
   useMachines,
 } from '@/features/course/courseMeta';
 import {
+  boardCardsToCourses,
   courseToBoardCard,
   EMPTY_COURSE_FILTER,
   filterForCourseKpi,
@@ -108,7 +110,8 @@ import './CourseV2Page.css';
 const COURSE_PAGE_SIZE = 20;
 
 export function CourseV2Page() {
-  const regression = usesFixtureData();
+  const regression = isRegressionMode();
+  const fixture = usesFixtureData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<CourseWorkbenchFilter>(EMPTY_COURSE_FILTER);
@@ -116,23 +119,24 @@ export function CourseV2Page() {
   const [selectedId, setSelectedId] = useState(COURSE_SELECTED_ID);
   const [opened, setOpened] = useState<CourseCard | null>(null);
   const [creating, setCreating] = useState(false);
+  const fixtureCourses = boardCardsToCourses();
 
   const live = useQuery({
     queryKey: ['courses', 'v2', 'page', filters, pageNum, COURSE_PAGE_SIZE],
     queryFn: () => courseApi.page(toCourseApiFilter(filters), pageNum, COURSE_PAGE_SIZE),
-    enabled: !regression,
+    enabled: !fixture,
   });
 
   const quantity = useQuery({
     queryKey: ['metrics', 'quantity', 'courses'],
     queryFn: () => metricsApi.quantity('courses'),
-    enabled: !regression,
+    enabled: !fixture,
   });
 
   const selectedKpi = selectedCourseKpiId(filters);
 
   useEffect(() => {
-    if (regression) return;
+    if (regression || fixture) return;
     const records = live.data?.records ?? [];
     if (records.length === 0) return;
     setSelectedId((current) =>
@@ -190,8 +194,8 @@ export function CourseV2Page() {
           />
         ) : (
           <CourseTablePanel
-            courses={live.data?.records ?? []}
-            total={live.data?.total ?? 0}
+            courses={fixture ? fixtureCourses : (live.data?.records ?? [])}
+            total={fixture ? fixtureCourses.length : (live.data?.total ?? 0)}
             pageNum={pageNum}
             pageSize={COURSE_PAGE_SIZE}
             selectedId={selectedId}
@@ -261,14 +265,15 @@ function KpiRow({
   selectedId: CourseKpiId;
   onSelect: (id: CourseKpiId) => void;
 }) {
-  const regression = usesFixtureData();
+  const frozen = isRegressionMode();
+  const fixture = usesFixtureData();
   const fixtureValues = courseKpiValues(createCourseBoardState());
   return (
     <section className="crs-kpis" data-region="R3" aria-label="课程指标概览">
       {COURSE_KPIS.map((kpi) => {
         const fixtureValue = fixtureValues[kpi.id].toLocaleString('en-US');
         const delta = formatKpiDelta(kpi.deltaPercent);
-        if (regression) {
+        if (frozen) {
           return (
             <article className="crs-kpi" key={kpi.id} data-testid="course-kpi" data-kpi={kpi.id}>
               <p className="crs-kpi-label">{kpi.label}</p>
@@ -281,7 +286,7 @@ function KpiRow({
         }
         const Icon = COURSE_KPI_ICONS[kpi.id];
         const tone = COURSE_KPI_TONES[kpi.id];
-        const liveValue = formatMetricInt(quantity?.[kpi.id]);
+        const liveValue = fixture ? fixtureValue : formatMetricInt(quantity?.[kpi.id]);
         const selected = selectedId === kpi.id;
         return (
           <article
@@ -1463,7 +1468,7 @@ function CourseDetailModal({
         <button className="crs-modal-close" type="button" aria-label="关闭课程详情" onClick={onClose}>
           <X size={16} aria-hidden />
         </button>
-        <DetailPanel card={card} regression={regression} />
+        <DetailPanel card={card} regression={regression || usesFixtureData()} />
       </div>
     </div>
   );

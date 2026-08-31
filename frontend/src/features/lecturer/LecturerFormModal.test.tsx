@@ -24,21 +24,25 @@ import type { Lecturer } from '@/shared/api/lecturers';
 const POOL_IN = '在池';
 const POOL_OUT = '已移出';
 
+const FIELD_ENUMS = {
+  [FIELD_ENUM_KEYS.lecturerTrainingState]: ['待培养', '培养中', '可上岗'],
+  [FIELD_ENUM_KEYS.lecturerDutyState]: ['可上岗', '暂停授课', '已下线'],
+  [FIELD_ENUM_KEYS.lecturerLevel]: ['L0', 'L1', 'L2', 'L3'],
+  // 顺序即后端 LecturerEnums.POOL_STATES 的定义顺序，组件按下标取「已移出」
+  [FIELD_ENUM_KEYS.lecturerPoolState]: [POOL_IN, POOL_OUT],
+  [FIELD_ENUM_KEYS.lecturerJoinType]: ['课程开发人员自动入池', '运营手动添加', '批量导入'],
+};
+
 vi.mock('./lecturerMeta', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./lecturerMeta')>();
   return {
     ...actual,
     useFieldEnums: () => ({
-      data: {
-        [FIELD_ENUM_KEYS.lecturerTrainingState]: ['待培养', '培养中', '可上岗'],
-        // 顺序即后端 LecturerEnums.POOL_STATES 的定义顺序，组件按下标取「已移出」
-        [FIELD_ENUM_KEYS.lecturerPoolState]: [POOL_IN, POOL_OUT],
-        [FIELD_ENUM_KEYS.lecturerJoinType]: ['课程开发人员自动入池', '运营手动添加', '批量导入'],
-      },
+      data: FIELD_ENUMS,
       isLoading: false,
     }),
-    useExpertiseDomains: () => ['客服中心', '风控'],
-    useSourceDepts: () => ({ data: ['客服中心'], isLoading: false }),
+    useExpertiseDomains: () => ['零售', '服务'],
+    useSourceDepts: () => ({ data: ['零售'], isLoading: false }),
     useEmployees: () => ({
       data: {
         records: [
@@ -66,8 +70,8 @@ function lecturer(overrides: Partial<Lecturer>): Lecturer {
     lecturerNo: 'JS0001',
     lecturerName: '张三',
     employeeNo: 'E001',
-    sourceDept: '客服中心',
-    expertiseDomains: ['客服中心'],
+    sourceDept: '零售',
+    expertiseDomains: ['大模型应用落地'],
     teachingDirection: '大模型应用落地',
     joinType: '运营手动添加',
     joinedDate: '2026-07-01',
@@ -80,6 +84,15 @@ function lecturer(overrides: Partial<Lecturer>): Lecturer {
     poolState: POOL_IN,
     removedReason: null,
     importBatchNo: null,
+    avatarAttachmentId: null,
+    avatarPreset: null,
+    lecturerLevel: 'L0',
+    capabilityTags: null,
+    availableTime: null,
+    dutyState: '可上岗',
+    scheduleLimit: null,
+    profileMaintainer: '运营',
+    remark: null,
     createdAt: '2026-07-01T10:00:00+08:00',
     updatedAt: '2026-07-01T10:00:00+08:00',
     updatedBy: 'operator',
@@ -114,6 +127,7 @@ describe('讲师表单', () => {
     renderModal(lecturer({ poolState: POOL_IN }));
 
     expect(await screen.findByText('讲师姓名')).toBeTruthy();
+    expect(document.querySelector('.lecturer-form-modal')).toBeTruthy();
     expect(screen.queryByText('移出原因')).toBeNull();
   });
 
@@ -128,9 +142,23 @@ describe('讲师表单', () => {
   it('入池方式与试讲合格标记不是可填字段', async () => {
     renderModal(lecturer({}));
 
-    expect(await screen.findByText('培养状态')).toBeTruthy();
+    expect(await screen.findByText('上岗状态')).toBeTruthy();
+    expect(screen.getByText('讲师简介')).toBeTruthy();
+    expect(screen.getByText('讲师等级')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '工号' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '擅长领域' })).toBeTruthy();
+    expect(screen.queryByText('培养状态')).toBeNull();
     expect(screen.queryByText('入池方式')).toBeNull();
-    expect(screen.queryByText('入池时间')).toBeNull();
     expect(screen.queryByText('试讲合格标记')).toBeNull();
+  });
+
+  it('头像区同时提供上传与 60 张现成图', async () => {
+    renderModal(lecturer({}));
+
+    expect(await screen.findByText(/从现有 60 张中选择/)).toBeTruthy();
+    expect(screen.getByTestId('avatar-preset-male_01')).toBeTruthy();
+    expect(screen.getByTestId('avatar-preset-female_30')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('avatar-preset-female_14'));
+    expect(screen.getByTestId('avatar-preset-female_14').getAttribute('aria-selected')).toBe('true');
   });
 });

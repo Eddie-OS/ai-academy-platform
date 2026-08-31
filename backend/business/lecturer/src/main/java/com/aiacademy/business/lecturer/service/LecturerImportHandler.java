@@ -12,7 +12,6 @@ import com.aiacademy.platform.dataimport.domain.ImportTemplateSpec;
 import com.aiacademy.platform.dataimport.domain.ImportType;
 import com.aiacademy.platform.dataimport.domain.PlannedRow;
 import com.aiacademy.platform.dataimport.domain.RowOp;
-import com.aiacademy.platform.dict.domain.BusinessDomains;
 import com.aiacademy.platform.dict.service.DictQuery;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeImportSupport;
@@ -81,8 +80,8 @@ public class LecturerImportHandler implements ImportHandler {
                 ImportColumn.required(COL_EMPLOYEE, 50, "≤50 字符，须在人员台账中存在，唯一键", "E0001"),
                 ImportColumn.required(COL_NAME, 50, "≤50 字，以工号带出为准", "张三"),
                 ImportColumn.required(COL_DEPT, 50, "≤50 字，自由文本", "客服中心"),
-                ImportColumn.required(COL_DOMAINS, 200, "多值用「;」分隔，取值与需求所属领域相同",
-                        "零售;服务"),
+                ImportColumn.required(COL_DOMAINS, 200, "多值用「;」分隔，每个值须在作战单元字典中存在",
+                        "课程;培训"),
                 ImportColumn.required(COL_DIRECTION, 500, "≤500 字", "客服场景下的大模型应用"),
                 ImportColumn.requiredWithDefault(COL_TRAINING_STATE, DEFAULT_TRAINING_STATE,
                         "待培养 / 培养中 / 可上岗，留空按「待培养」处理", "待培养"),
@@ -99,8 +98,7 @@ public class LecturerImportHandler implements ImportHandler {
                 existing.put(key.employeeNo(), key.id());
             }
         }
-        Set<String> allowed = new HashSet<>(BusinessDomains.NAMES);
-        allowed.addAll(dict.enabledNameSet(DictQuery.TYPE_COMBAT_UNIT));
+        Set<String> combatUnits = dict.enabledNameSet(DictQuery.TYPE_COMBAT_UNIT);
         Set<String> seenInFile = new HashSet<>();
         ImportPlan plan = new ImportPlan();
 
@@ -120,10 +118,9 @@ public class LecturerImportHandler implements ImportHandler {
 
             List<String> domains = splitDomains(row.text(COL_DOMAINS));
             for (String domain : domains) {
-                if (!allowed.contains(domain)) {
+                if (!combatUnits.contains(domain)) {
                     problems.error(row, COL_DOMAINS, domain,
-                            "「%s」不在所属领域可选值中。当前可选：%s"
-                                    .formatted(domain, String.join("、", BusinessDomains.NAMES)));
+                            "「%s」不在作战单元字典中。当前可选：%s".formatted(domain, String.join("、", combatUnits)));
                     valid = false;
                 }
             }
@@ -147,7 +144,7 @@ public class LecturerImportHandler implements ImportHandler {
             // 需求 14.5 B 列：姓名以工号带出为准，文件里的姓名只作参考
             LecturerWrite write = new LecturerWrite(employeeNo, employee.getEmployeeName(),
                     row.text(COL_DEPT), toJsonArray(domains), row.text(COL_DIRECTION),
-                    trainingState, poolState);
+                    trainingState, poolState, LecturerEnums.dutyStateOf(trainingState));
             Long id = existing.get(employeeNo);
             if (id == null) {
                 plan.insert(row, write);
@@ -174,19 +171,21 @@ public class LecturerImportHandler implements ImportHandler {
                 writer.insert(planned.rowNo(), TABLE, () -> mapper.insertLecturer(
                         lecturerNo, write.lecturerName(), write.employeeNo(), write.sourceDept(),
                         write.expertiseDomainsJson(), write.teachingDirection(), today,
-                        write.trainingState(), write.poolState(), writer.batchNo(), writer.operator()));
+                        write.trainingState(), write.poolState(), write.dutyState(),
+                        LecturerEnums.LEVELS.get(0), writer.batchNo(), writer.operator()));
             } else if (planned.op() == RowOp.UPDATE) {
                 writer.update(planned.rowNo(), TABLE, planned.targetId(),
                         () -> mapper.updateLecturer(planned.targetId(), write.lecturerName(),
                                 write.sourceDept(), write.expertiseDomainsJson(), write.teachingDirection(),
-                                write.trainingState(), write.poolState(), writer.batchNo(), writer.operator()));
+                                write.trainingState(), write.poolState(), write.dutyState(),
+                                writer.batchNo(), writer.operator()));
             }
         }
     }
 
     private record LecturerWrite(String employeeNo, String lecturerName, String sourceDept,
                                  String expertiseDomainsJson, String teachingDirection,
-                                 String trainingState, String poolState) {
+                                 String trainingState, String poolState, String dutyState) {
     }
 
     private static List<String> splitDomains(String raw) {

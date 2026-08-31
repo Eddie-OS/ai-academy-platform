@@ -41,12 +41,43 @@ public final class LecturerEnums {
     public static final List<String> JOIN_TYPES =
             List.of(JOIN_AUTO_COURSE_OWNER, JOIN_MANUAL, JOIN_IMPORT);
 
+    /** 讲师等级（业务确认的建档口径）。 */
+    public static final List<String> LEVELS = List.of("L0", "L1", "L2", "L3");
+
+    /** 上岗状态。新建表单用这一列；「可上岗」与培养状态同名，保存时两列对齐。 */
+    public static final String DUTY_READY = "可上岗";
+    public static final String DUTY_PAUSED = "暂停授课";
+    public static final String DUTY_OFFLINE = "已下线";
+
+    public static final List<String> DUTY_STATES = List.of(DUTY_READY, DUTY_PAUSED, DUTY_OFFLINE);
+
+    /**
+     * 上岗状态 → 培养状态。排课校验一仍读培养状态，所以保存时必须同步，
+     * 否则表单改了上岗、排课下拉还按旧的培养状态过滤。
+     */
+    public static String trainingStateOf(String dutyState) {
+        if (DUTY_READY.equals(dutyState)) {
+            return TRAINING_QUALIFIED;
+        }
+        if (DUTY_OFFLINE.equals(dutyState)) {
+            return TRAINING_PENDING;
+        }
+        return TRAINING_IN_PROGRESS;
+    }
+
+    /** 培养状态 → 上岗状态。旧接口只传培养状态时补一列，避免 duty_state 落成默认「暂停授课」。 */
+    public static String dutyStateOf(String trainingState) {
+        return TRAINING_QUALIFIED.equals(trainingState) ? DUTY_READY : DUTY_PAUSED;
+    }
+
     /** 各枚举的对外形态，供 {@code /api/meta/field-enums} 下发（纪律 STK-1）。 */
     public static Map<String, List<String>> forMetaApi() {
         Map<String, List<String>> map = new LinkedHashMap<>();
         map.put("讲师培养状态", TRAINING_STATES);
         map.put("讲师在池状态", POOL_STATES);
         map.put("讲师入池方式", JOIN_TYPES);
+        map.put("讲师等级", LEVELS);
+        map.put("讲师上岗状态", DUTY_STATES);
         return Map.copyOf(map);
     }
 

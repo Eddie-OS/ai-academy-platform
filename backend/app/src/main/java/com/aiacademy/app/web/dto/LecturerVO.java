@@ -42,30 +42,40 @@ public record LecturerVO(
         String poolState,
         String removedReason,
         String importBatchNo,
+        Long avatarAttachmentId,
+        String avatarPreset,
+        String lecturerLevel,
+        String capabilityTags,
+        String availableTime,
+        String dutyState,
+        String scheduleLimit,
+        String profileMaintainer,
+        String remark,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String updatedBy) {
 
     public static LecturerVO of(LecturerListItem l) {
-        return new LecturerVO(
-                l.getId(), l.getLecturerNo(), l.getLecturerName(), l.getEmployeeNo(),
-                l.getSourceDept(), JsonArrays.toList(l.getExpertiseDomains()),
-                l.getTeachingDirection(), l.getJoinType(), l.getJoinedDate(),
-                l.getTrainingState(), l.getTrialQualified(), l.getFirstQualifiedDate(),
-                l.getTeachingCount(), l.getAttendeeCount(), l.getAvgScore(),
-                l.getPoolState(), l.getRemovedReason(), l.getImportBatchNo(),
-                l.getCreatedAt(), l.getUpdatedAt(), l.getUpdatedBy());
+        return from(l, l.getTeachingCount(), l.getAttendeeCount(), l.getAvgScore());
     }
 
     /** 没有统计口径的场合（例如刚创建完回读一次）用这个，三项累计留空。 */
     public static LecturerVO of(Lecturer l) {
+        return from(l, null, null, null);
+    }
+
+    private static LecturerVO from(Lecturer l, Integer teachingCount, Integer attendeeCount,
+                                   BigDecimal avgScore) {
         return new LecturerVO(
                 l.getId(), l.getLecturerNo(), l.getLecturerName(), l.getEmployeeNo(),
                 l.getSourceDept(), JsonArrays.toList(l.getExpertiseDomains()),
                 l.getTeachingDirection(), l.getJoinType(), l.getJoinedDate(),
                 l.getTrainingState(), l.getTrialQualified(), l.getFirstQualifiedDate(),
-                null, null, null,
+                teachingCount, attendeeCount, avgScore,
                 l.getPoolState(), l.getRemovedReason(), l.getImportBatchNo(),
+                l.getAvatarAttachmentId(), l.getAvatarPreset(), l.getLecturerLevel(), l.getCapabilityTags(),
+                l.getAvailableTime(), l.getDutyState(), l.getScheduleLimit(),
+                l.getProfileMaintainer(), l.getRemark(),
                 l.getCreatedAt(), l.getUpdatedAt(), l.getUpdatedBy());
     }
 }

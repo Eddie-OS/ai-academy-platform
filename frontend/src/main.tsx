@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { antdTheme } from '@/shared/theme/antdTheme';
 import { AppRoutes } from '@/app/AppRoutes';
 import { DemoBanner } from '@/app/DemoBanner';
+import { ErrorBoundary } from '@/app/ErrorBoundary';
 import { PageState } from '@/shared/ui/PageState';
 import { useAuthStore } from '@/shared/store/authStore';
 import { applyRegressionMode } from '@/app/regressionMode';
@@ -70,7 +71,10 @@ createRoot(document.getElementById('root')!).render(
       <AntdApp>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
-            <Bootstrap />
+            {/* 壳层自身崩掉时的最后一道：内容区那道屏障也一起没了，只能整页降级 */}
+            <ErrorBoundary fullscreen>
+              <Bootstrap />
+            </ErrorBoundary>
           </BrowserRouter>
         </QueryClientProvider>
       </AntdApp>

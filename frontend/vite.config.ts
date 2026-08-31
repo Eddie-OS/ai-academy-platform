@@ -35,9 +35,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    // 单个用例的上限要高于 setup.ts 里放宽的 asyncUtilTimeout，
-    // 否则等待还没走完用例就先被判超时，报出来的原因会指错地方
-    testTimeout: 15000,
     // tests/visual 是 Playwright 的视觉回归 spec。它们 import 的是 @playwright/test，
     // 在 jsdom 里跑不了也没意义 —— 视觉回归要真实浏览器渲染。走 npm run test:visual
     exclude: ['node_modules/**', 'dist/**', 'tests/visual/**'],

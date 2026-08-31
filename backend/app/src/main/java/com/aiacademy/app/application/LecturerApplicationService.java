@@ -13,6 +13,8 @@ import com.aiacademy.common.api.PageResult;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
+import com.aiacademy.platform.storage.domain.AttachmentOwnerType;
+import com.aiacademy.platform.storage.service.AttachmentService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,12 +47,14 @@ public class LecturerApplicationService {
     private final LecturerService lecturers;
     private final LecturerBoardMapper board;
     private final TrialLedgerMapper trialLedger;
+    private final AttachmentService attachments;
 
     public LecturerApplicationService(LecturerService lecturers, LecturerBoardMapper board,
-                                      TrialLedgerMapper trialLedger) {
+                                      TrialLedgerMapper trialLedger, AttachmentService attachments) {
         this.lecturers = lecturers;
         this.board = board;
         this.trialLedger = trialLedger;
+        this.attachments = attachments;
     }
 
     // -------------------------------------------------------------------------
@@ -80,12 +84,22 @@ public class LecturerApplicationService {
 
     @Transactional
     public long createManually(LecturerForm form) {
-        return lecturers.createManually(form);
+        long id = lecturers.createManually(form);
+        linkAvatar(id, form.avatarAttachmentId());
+        return id;
     }
 
     @Transactional
     public void update(long id, LecturerForm form) {
         lecturers.update(id, form);
+        linkAvatar(id, form.avatarAttachmentId());
+    }
+
+    private void linkAvatar(long lecturerId, Long attachmentId) {
+        if (attachmentId == null) {
+            return;
+        }
+        attachments.link(attachmentId, AttachmentOwnerType.LECTURER, lecturerId, "avatar", 0);
     }
 
     /**

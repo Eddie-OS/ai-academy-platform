@@ -25,6 +25,8 @@ public interface LecturerMapper {
             id, lecturer_no, lecturer_name, employee_no, source_dept, expertise_domains,
             teaching_direction, join_type, joined_date, training_state, trial_qualified,
             first_qualified_date, pool_state, removed_reason, import_batch_no,
+            avatar_attachment_id, avatar_preset, lecturer_level, capability_tags, available_time,
+            duty_state, schedule_limit, profile_maintainer, remark,
             created_at, created_by, updated_at, updated_by
             """;
 
@@ -63,10 +65,14 @@ public interface LecturerMapper {
             INSERT INTO biz_lecturer (lecturer_no, lecturer_name, employee_no, source_dept,
                                       expertise_domains, teaching_direction, join_type, joined_date,
                                       training_state, trial_qualified, pool_state, removed_reason,
+                                      avatar_attachment_id, avatar_preset, lecturer_level, capability_tags, available_time,
+                                      duty_state, schedule_limit, profile_maintainer, remark,
                                       created_by, updated_by)
             VALUES (#{l.lecturerNo}, #{l.lecturerName}, #{l.employeeNo}, #{l.sourceDept},
                     #{l.expertiseDomains}::jsonb, #{l.teachingDirection}, #{l.joinType}, #{l.joinedDate},
                     #{l.trainingState}, FALSE, #{l.poolState}, #{l.removedReason},
+                    #{l.avatarAttachmentId}, #{l.avatarPreset}, #{l.lecturerLevel}, #{l.capabilityTags}, #{l.availableTime},
+                    #{l.dutyState}, #{l.scheduleLimit}, #{l.profileMaintainer}, #{l.remark},
                     #{operator}, #{operator})
             RETURNING id
             """)
@@ -75,9 +81,9 @@ public interface LecturerMapper {
     /**
      * 编辑讲师。
      *
-     * <p><b>不更新入池方式、入池时间、试讲合格标记、首次试讲合格时间。</b>前两个是「首次入池」的
-     * 事实，后两个只能由试讲结论录入产生。它们不在表单里，这里也就不该出现——列写死在 SQL 里，
-     * 让「编辑顺手改掉了试讲合格标记」在语法上就不可能发生。
+     * <p><b>不更新入池方式、试讲合格标记、首次试讲合格时间。</b>入池方式是「怎么进来的」事实；
+     * 后两个只能由试讲结论录入产生。建档时间（{@code joined_date}）按新口径可改。
+     * 列写死在 SQL 里，让「编辑顺手改掉了试讲合格标记」在语法上就不可能发生。
      */
     @Update("""
             UPDATE biz_lecturer
@@ -89,6 +95,16 @@ public interface LecturerMapper {
                    training_state = #{l.trainingState},
                    pool_state = #{l.poolState},
                    removed_reason = #{l.removedReason},
+                   avatar_attachment_id = #{l.avatarAttachmentId},
+                   avatar_preset = #{l.avatarPreset},
+                   lecturer_level = #{l.lecturerLevel},
+                   capability_tags = #{l.capabilityTags},
+                   available_time = #{l.availableTime},
+                   duty_state = #{l.dutyState},
+                   schedule_limit = #{l.scheduleLimit},
+                   joined_date = #{l.joinedDate},
+                   profile_maintainer = #{l.profileMaintainer},
+                   remark = #{l.remark},
                    updated_at = NOW(),
                    updated_by = #{operator}
              WHERE id = #{l.id} AND deleted = FALSE

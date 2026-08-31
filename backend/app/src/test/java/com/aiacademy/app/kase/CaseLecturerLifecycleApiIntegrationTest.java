@@ -365,7 +365,7 @@ class CaseLecturerLifecycleApiIntegrationTest extends IntegrationTest {
         Map<String, Object> form = new LinkedHashMap<>();
         form.put("lecturerName", "权限用讲师");
         form.put("employeeNo", employeeNo);
-        form.put("sourceDept", "客服中心");
+        form.put("sourceDept", "零售");
         form.put("expertiseDomains", List.of(启用中的作战单元名称()));
         form.put("teachingDirection", "查看账号写不进来的授课方向");
         form.put("trainingState", trainingState);

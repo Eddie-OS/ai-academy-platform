@@ -93,19 +93,20 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("需求 10.3 第 5 项：擅长领域必须取自作战单元字典，且存的是名称不是编码")
-    void 擅长领域取自字典() {
+    @DisplayName("来源部门取现场口径七类；擅长领域是自由文本")
+    void 来源部门取自现场口径_擅长领域自由填写() {
         String employeeNo = 造人员("领域讲师", "客服中心");
 
         assertThatThrownBy(() -> lecturers.createManually(
-                表单("领域讲师", employeeNo).领域("凭空捏造的领域").build()))
+                表单("领域讲师", employeeNo).部门("凭空捏造的部门").build()))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("擅长领域只能是");
+                .hasMessageContaining("来源部门只能是");
 
-        long id = lecturers.createManually(表单("领域讲师", employeeNo).领域(启用中的作战单元()).build());
+        long id = lecturers.createManually(
+                表单("领域讲师", employeeNo).部门("零售").领域("大模型应用落地").build());
+        assertThat(lecturers.detail(id).getSourceDept()).isEqualTo("零售");
         assertThat(lecturers.detail(id).getExpertiseDomains())
-                .describedAs("与讲师导入存法一致，否则同一个筛选条件下两批讲师互相看不见")
-                .isEqualTo("[\"" + 启用中的作战单元() + "\"]");
+                .isEqualTo("[\"大模型应用落地\"]");
     }
 
     @Test
@@ -262,7 +263,7 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
     private static final class FormBuilder {
         private final String name;
         private final String employeeNo;
-        private String sourceDept = "客服中心";
+        private String sourceDept = "零售";
         private List<String> domains;
         private String trainingState = LecturerEnums.TRAINING_IN_PROGRESS;
         private String poolState = LecturerEnums.POOL_IN;
@@ -297,7 +298,8 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
 
         LecturerForm build() {
             return new LecturerForm(name, employeeNo, sourceDept, domains, "AI 应用",
-                    trainingState, poolState, removedReason);
+                    trainingState, poolState, removedReason,
+                    null, null, null, null, null, null, null, null, null, null);
         }
     }
 

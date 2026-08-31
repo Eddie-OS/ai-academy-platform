@@ -44,6 +44,8 @@ class FieldEnumConstraintTest {
             Map.entry("ck_lecturer_join_type", LecturerEnums.JOIN_TYPES),
             Map.entry("ck_lecturer_training_state", LecturerEnums.TRAINING_STATES),
             Map.entry("ck_lecturer_pool_state", LecturerEnums.POOL_STATES),
+            Map.entry("ck_lecturer_level", LecturerEnums.LEVELS),
+            Map.entry("ck_lecturer_duty_state", LecturerEnums.DUTY_STATES),
             Map.entry("ck_training_feedback_scene", TrainingEnums.FEEDBACK_SCENES),
             Map.entry("ck_case_review_result", CaseEnums.REVIEW_RESULTS),
             Map.entry("ck_case_report_generate_mode", CaseEnums.GENERATE_MODES));

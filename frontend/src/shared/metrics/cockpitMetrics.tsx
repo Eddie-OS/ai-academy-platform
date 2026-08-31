@@ -8,6 +8,7 @@ import {
   FileText,
   FolderCheck,
   Inbox,
+  LayoutGrid,
   Lightbulb,
   Megaphone,
   MessageSquare,
@@ -43,23 +44,13 @@ export const DEMAND_METRICS: MetricCardSpec[] = [
   { key: 'cycle', title: '需求平均评审周期', icon: <Lightbulb size={18} />, source: '需求 15.2 · E1' },
 ];
 
-/**
- * 驾驶舱二 · 课程工作台。
- *
- * <p>五张卡按工作台改版：累计值 + 月度环比。环比接口尚未下发时 delta 为「—」。
- * 「评审中」是卡名，计数取主状态「评审决策」（状态机里没有「评审中」这个值）。
- * 「待试讲」计数取主状态「试讲」——进入该状态时系统即置试讲子状态「待试讲」，入状态那一刻两者同值。
- *
- * <p><b>卡名与口径都要与 V2 复刻件（`fixtures/course.ts` 的 `COURSE_KPIS`）逐字一致。</b>
- * 两页一边叫「开发」一边叫「开发中」时，同一个数在两个页面上像是两个指标；
- * 口径写进 `hint`，鼠标停在问号上就能看见这张卡数的到底是哪个状态。
- */
+/** 驾驶舱二 · 课程工作台（需求 7.4 ②、15.2）。 */
 export const COURSE_METRICS: MetricCardSpec[] = [
-  { key: 'total', title: '课程总数', icon: <BookOpen size={18} />, source: '未删除课程（含终态）', hint: '七列存量 + 三个终态' },
-  { key: 'developing', title: '开发中', icon: <Rocket size={18} />, source: '主状态=开发', hint: '主状态=开发' },
-  { key: 'reviewing', title: '评审中', icon: <FileText size={18} />, source: '主状态=评审决策', hint: '主状态=评审决策' },
-  { key: 'pendingTrial', title: '待试讲', icon: <Presentation size={18} />, source: '主状态=试讲', hint: '主状态=试讲' },
-  { key: 'published', title: '已发布', icon: <Award size={18} />, source: '主状态=发布', hint: '主状态=发布' },
+  { key: 'total', title: '课程总数', icon: <BookOpen size={18} />, source: '需求 15.2' },
+  { key: 'developing', title: '课程开发中数', icon: <Rocket size={18} />, source: '需求 7.4 ②' },
+  { key: 'published', title: '课程已发布数', icon: <Rocket size={18} />, source: '需求 7.4 ②' },
+  { key: 'quality', title: '达精品课程数', icon: <Award size={18} />, source: '需求 7.4 ②' },
+  { key: 'cycle', title: '课程平均开发周期', icon: <LayoutGrid size={18} />, source: '需求 15.2 · E2' },
 ];
 
 /**
@@ -112,19 +103,6 @@ export function formatMetricInt(value: number | null | undefined): string {
 }
 
 /** 把数量类接口返回值填进指标卡；未返回的 key 保持 pending 形态。 */
-export const METRIC_DELTA_LABEL = '月度环比（较上月）';
-
-/**
- * 环比文案。百分比保留 1 位小数、整数也保留（设计规范 3.3）。
- *
- * <p>箭头必须跟着符号出：光靠颜色区分涨跌，在灰度打印与红绿色盲视野下就没有区别了
- * （WV1 同理 —— 色不做唯一载体）。所以 `↑ 8.3%` / `↓ 4.2%` 里的箭头是信息，不是装饰。
- */
-export function formatMetricDelta(percent: number | null | undefined): string {
-  if (percent == null || !Number.isFinite(percent)) return '—';
-  return `${percent < 0 ? '↓' : '↑'} ${Math.abs(percent).toFixed(1)}%`;
-}
-
 export function mergeMetricValues(
   specs: MetricCardSpec[],
   data?: Record<string, number> | null,
@@ -133,12 +111,7 @@ export function mergeMetricValues(
   return specs.map((spec) => {
     const raw = data[spec.key];
     if (raw === undefined) return spec;
-    return {
-      ...spec,
-      value: formatMetricInt(raw),
-      delta: spec.delta ?? '—',
-      deltaLabel: spec.deltaLabel ?? METRIC_DELTA_LABEL,
-    };
+    return { ...spec, value: formatMetricInt(raw) };
   });
 }
 

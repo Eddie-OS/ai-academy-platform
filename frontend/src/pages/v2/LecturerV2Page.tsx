@@ -1,3 +1,6 @@
+import { createContext, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BadgeCheck,
   ChevronDown,
@@ -6,9 +9,9 @@ import {
   ChevronUp,
   CircleCheck,
   CircleX,
-  MonitorPlay,
   Search,
   Star,
+  UserCheck,
   Users,
   X,
 } from 'lucide-react';
@@ -16,7 +19,10 @@ import type { LucideIcon } from 'lucide-react';
 import { Avatar } from '@/shared/ui/v2/Avatar';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
 import { isRegressionMode } from '@/app/regressionMode';
-import { useFocusedId } from '@/shared/hooks/useFocusParam';
+import { registerShellCreate } from '@/app/shell/shellCreate';
+import { LecturerFormModal } from '@/features/lecturer/LecturerFormModal';
+import { LecturerBasicInfo } from '@/features/lecturer/LecturerBasicInfo';
+import { useFocusedId, useFocusSelection } from '@/shared/hooks/useFocusParam';
 import {
   ATTENDEE_SCALE,
   GROWTH_ADVICE,
@@ -28,15 +34,26 @@ import {
   LECTURER_FILTERS,
   LECTURER_GROUPS,
   LECTURER_KPIS,
-  LECTURER_POOL_TOTAL,
+  LECTURER_POOL,
   LECTURER_SELECTED_ID,
   TEACHING_RECORDS,
   TRIAL_CONCLUSION_QUALIFIED,
   TRIAL_LEDGER,
   TRIAL_LEDGER_COLUMNS,
   TRIAL_TIMELINE,
+  lecturerArchiveOf,
+  lecturerBasicFieldsOf,
+  lecturerEvaluationsOf,
+  lecturerIsReadyToTeach,
+  lecturerTeachingOf,
+  lecturerTimelineOf,
+  lecturerTitleOf,
   type LecturerCard,
+  type LecturerDetailField,
   type LecturerGroup,
+  type StudentEvaluation,
+  type TeachingRecord,
+  type TrialTimelineItem,
 } from '@/fixtures/lecturer';
 import './LecturerV2Page.css';
 
@@ -53,30 +70,108 @@ import './LecturerV2Page.css';
  *
  * <p>字段口径与 V2.0 表面文字的出入逐条写在 {@link file://./../../fixtures/lecturer.ts} 头注里。
  * 核心三条：试讲结论只有 合格／不合格、讲师没有「信誉度」这个字段、成长建议属二期。
+ *
+ * <p>产品模式对齐课程工作台：KPI 用「标签 + 色底板 + 大数字 + 月度环比」；点讲师卡
+ * 右侧详情跟着换人；详情里每个字段可点开看完整取值。回归模式的 DOM 与几何不动。
  */
-export function LecturerV2Page() {
-  return (
-    <div className="lct v2-page">
-      <KpiRow />
 
-      <div className="lct-main">
-        <div className="lct-left">
-          <FilterBar />
-          <PoolPanel />
-          <LedgerPanel />
+type LecturerKpiId = (typeof LECTURER_KPIS)[number]['id'];
+
+interface FieldPeek {
+  title: string;
+  fields: LecturerDetailField[];
+}
+
+interface LecturerV2ContextValue {
+  regression: boolean;
+  selectedId: string;
+  selectLecturer: (id: string) => void;
+  kpiId: LecturerKpiId;
+  setKpiId: (id: LecturerKpiId) => void;
+  peek: FieldPeek | null;
+  openPeek: (peek: FieldPeek) => void;
+  closePeek: () => void;
+}
+
+const LecturerV2Context = createContext<LecturerV2ContextValue | null>(null);
+
+function useLecturerV2(): LecturerV2ContextValue {
+  const ctx = useContext(LecturerV2Context);
+  if (!ctx) throw new Error('LecturerV2Context missing');
+  return ctx;
+}
+
+export function LecturerV2Page() {
+  const regression = isRegressionMode();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = useFocusSelection(LECTURER_SELECTED_ID);
+  const [kpiId, setKpiId] = useState<LecturerKpiId>('poolSize');
+  const [peek, setPeek] = useState<FieldPeek | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (regression) return;
+    return registerShellCreate(() => setCreating(true));
+  }, [regression]);
+
+  const value = useMemo<LecturerV2ContextValue>(
+    () => ({
+      regression,
+      selectedId,
+      selectLecturer: setSelectedId,
+      kpiId,
+      setKpiId,
+      peek,
+      openPeek: setPeek,
+      closePeek: () => setPeek(null),
+    }),
+    [regression, selectedId, setSelectedId, kpiId, peek],
+  );
+
+  return (
+    <LecturerV2Context.Provider value={value}>
+      <div className="lct v2-page">
+        <KpiRow />
+
+        <div className="lct-main">
+          <div className="lct-left">
+            <FilterBar />
+            <PoolPanel />
+            <LedgerPanel />
+          </div>
+          <DetailPanel />
         </div>
-        <DetailPanel />
+        <FieldPeekModal />
+        <LecturerFormModal
+          open={creating}
+          onClose={() => setCreating(false)}
+          onCreated={(id) => {
+            setCreating(false);
+            void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
+            navigate(`/lecturers/${id}`);
+          }}
+        />
       </div>
-    </div>
+    </LecturerV2Context.Provider>
   );
 }
 
 const KPI_ICONS: Record<string, LucideIcon> = {
   Users,
   BadgeCheck,
-  MonitorPlay,
+  UserCheck,
   Star,
 };
+
+const KPI_TONES: Record<LecturerKpiId, string> = {
+  poolSize: '#5B82FF',
+  qualified: '#3FA9C9',
+  readyToTeach: '#7C6CF0',
+  avgScore: '#4E70DB',
+};
+
+const KPI_DELTA_BASELINE = '月度环比（较上月）';
 
 /**
  * R3 四张 KPI：252,64,1150,112。
@@ -84,35 +179,76 @@ const KPI_ICONS: Record<string, LucideIcon> = {
  * <p>1150 只在回归模式下写死。正文宽是 1310，其余三个区域（812 + 17 + 481）正好铺满，
  * 只有这一行短 160px —— 设计图上右上角确实是白的。产品模式拉满，理由见 CSS。
  *
- * <p>四个图标底板<b>统一用品牌浅蓝</b>。设计图第四张是玫红底的星，而 WV4 规定四个语义色
- * 不得出现在装饰图形里：一屏之内玫红底板与红灯同时出现时，两者的意思完全不同。
+ * <p>回归模式四个图标底板<b>统一用品牌浅蓝</b>。设计图第四张是玫红底的星，而 WV4 规定
+ * 四个语义色不得出现在装饰图形里。产品模式改成与课程工作台同一套：标签顶左、
+ * 28px 色底板顶右、大数字、脚注「↑ n% 月度环比（较上月）」。
  */
 function KpiRow() {
+  const { regression, kpiId, setKpiId } = useLecturerV2();
   return (
     <section className="lct-kpis" data-region="R3" aria-label="讲师指标概览">
       {LECTURER_KPIS.map((kpi) => {
         const Icon = KPI_ICONS[kpi.icon]!;
+        if (regression) {
+          return (
+            <article className="lct-kpi" key={kpi.id} data-testid="lecturer-kpi" data-kpi={kpi.id}>
+              <div className="lct-kpi-text">
+                <p className="lct-kpi-label">{kpi.label}</p>
+                <p className="lct-kpi-value">
+                  {kpi.value}
+                  {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
+                </p>
+                <p className="lct-kpi-delta">
+                  {kpi.delta}
+                  <span className="lct-kpi-period">较上月</span>
+                </p>
+              </div>
+              <span className="lct-kpi-plate" aria-hidden>
+                <Icon size={22} />
+              </span>
+            </article>
+          );
+        }
+        const tone = KPI_TONES[kpi.id];
+        const selected = kpiId === kpi.id;
         return (
-          <article className="lct-kpi" key={kpi.id} data-testid="lecturer-kpi" data-kpi={kpi.id}>
-            <div className="lct-kpi-text">
+          <article
+            className="lct-kpi"
+            key={kpi.id}
+            data-testid="lecturer-kpi"
+            data-kpi={kpi.id}
+            data-selected={selected ? 'true' : undefined}
+            role="button"
+            tabIndex={0}
+            aria-pressed={selected}
+            onClick={() => setKpiId(kpi.id)}
+            onKeyDown={(event) => activateOnKey(event, () => setKpiId(kpi.id))}
+          >
+            <div className="lct-kpi-top">
               <p className="lct-kpi-label">{kpi.label}</p>
-              <p className="lct-kpi-value">
-                {kpi.value}
-                {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
-              </p>
-              <p className="lct-kpi-delta">
-                {kpi.delta}
-                <span className="lct-kpi-period">较上月</span>
-              </p>
+              <span className="lct-kpi-plate" style={{ color: tone, background: `${tone}33` }} aria-hidden>
+                <Icon size={16} strokeWidth={1.8} />
+              </span>
             </div>
-            <span className="lct-kpi-plate" aria-hidden>
-              <Icon size={22} />
-            </span>
+            <p className="lct-kpi-value">
+              {kpi.value}
+              {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
+            </p>
+            <p className="lct-kpi-foot">
+              <span className="lct-kpi-delta">{kpi.delta}</span>
+              <span className="lct-kpi-baseline">{KPI_DELTA_BASELINE}</span>
+            </p>
           </article>
         );
       })}
     </section>
   );
+}
+
+function activateOnKey(event: KeyboardEvent, action: () => void): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  action();
 }
 
 /**
@@ -150,13 +286,26 @@ function FilterBar() {
   );
 }
 
+function matchesKpi(card: LecturerCard, kpiId: LecturerKpiId): boolean {
+  if (kpiId === 'qualified') return card.trialQualified;
+  if (kpiId === 'readyToTeach') return lecturerIsReadyToTeach(card);
+  return true;
+}
+
 /** R5 讲师池：252,264,812,484 */
 function PoolPanel() {
+  const { kpiId } = useLecturerV2();
+  const groups = LECTURER_GROUPS.map((group) => ({
+    ...group,
+    cards: group.cards.filter((card) => matchesKpi(card, kpiId)),
+  })).filter((group) => group.cards.length > 0);
+  const visibleTotal = LECTURER_POOL.filter((card) => matchesKpi(card, kpiId)).length;
+
   return (
     <section className="panel lct-pool" data-region="R5" aria-label="讲师池">
       <div className="panel-head lct-pool-head">
         <h2 className="panel-title lct-sub-title">讲师池</h2>
-        <span className="lct-pool-total">共 {LECTURER_POOL_TOTAL} 人</span>
+        <span className="lct-pool-total">共 {visibleTotal.toLocaleString('en-US')} 人</span>
 
         <span className="lct-pager">
           <button type="button" aria-label="上一页">
@@ -173,7 +322,7 @@ function PoolPanel() {
       </div>
 
       <div className="lct-pool-body">
-        {LECTURER_GROUPS.map((group) => (
+        {groups.map((group) => (
           <PoolGroup key={group.id} group={group} />
         ))}
       </div>
@@ -184,8 +333,8 @@ function PoolPanel() {
 /**
  * 按擅长领域分组。文档 8：默认展开人工智能基础与大模型应用，数据分析与可视化折叠。
  *
- * <p>分组依据是讲师字段 5「擅长领域」（多选枚举，作战单元字典）。一个讲师可以出现在
- * 多个组里 —— 所以<b>各组人数之和大于池子人数</b>是正常的，不要为了对上而去重。
+ * <p>分组依据是讲师字段 5「擅长领域」（多选枚举）。一个讲师只按第一个领域进一组，
+ * 所以各组人数之和等于池子人数。
  */
 function PoolGroup({ group }: { group: LecturerGroup }) {
   const Chevron = group.expanded ? ChevronUp : ChevronDown;
@@ -195,7 +344,7 @@ function PoolGroup({ group }: { group: LecturerGroup }) {
       <header className="lct-group-head">
         <Chevron size={14} color={colorV2.brandAction} aria-hidden />
         <span className="lct-group-name">{group.domain}</span>
-        <span className="lct-group-count">{group.count} 人</span>
+        <span className="lct-group-count">{group.cards.length} 人</span>
       </header>
 
       {group.expanded && (
@@ -210,7 +359,9 @@ function PoolGroup({ group }: { group: LecturerGroup }) {
 }
 
 function LecturerCardView({ card }: { card: LecturerCard }) {
-  const selected = card.id === useFocusedId(LECTURER_SELECTED_ID);
+  const { regression, selectedId, selectLecturer } = useLecturerV2();
+  const focused = useFocusedId(LECTURER_SELECTED_ID);
+  const selected = card.id === (regression ? focused : selectedId);
 
   return (
     <article
@@ -218,8 +369,11 @@ function LecturerCardView({ card }: { card: LecturerCard }) {
       data-testid="lecturer-card"
       data-lecturer={card.id}
       data-selected={selected}
-      // 15 组件矩阵：Card selected 用 aria-current，不是 aria-selected
       aria-current={selected ? 'true' : undefined}
+      role={regression ? undefined : 'button'}
+      tabIndex={regression ? undefined : 0}
+      onClick={regression ? undefined : () => selectLecturer(card.id)}
+      onKeyDown={regression ? undefined : (event) => activateOnKey(event, () => selectLecturer(card.id))}
     >
       <div className="lct-card-top">
         <Avatar name={card.name} size={40} />
@@ -240,7 +394,6 @@ function LecturerCardView({ card }: { card: LecturerCard }) {
       </div>
 
       <dl className="lct-card-metrics">
-        {/* 试讲合格标记是布尔字段（需求 10.3 字段 9），不是状态 —— 所以是勾／叉而不是标签 */}
         <div className="lct-metric" data-metric="trialQualified">
           <dt>试讲合格</dt>
           <dd>
@@ -294,6 +447,8 @@ function LecturerCardView({ card }: { card: LecturerCard }) {
  * 「必须照抄」，而这组数<b>自己是自洽的</b>（P03 的看板那组差 10px）。因此表格左右不留内边距。
  */
 function LedgerPanel() {
+  const { regression, selectLecturer, openPeek } = useLecturerV2();
+
   return (
     <section className="panel lct-ledger" data-region="R6" aria-label="试讲台账">
       <div className="panel-head lct-ledger-head">
@@ -322,19 +477,27 @@ function LedgerPanel() {
         </thead>
         <tbody>
           {TRIAL_LEDGER.map((row) => {
-            /*
-             * 「结论一致」由两列算出来，不从 fixture 读第三个字段。
-             * 存成第三列时会出现「两列写着不合格／合格、第三列写着一致」的自相矛盾数据，
-             * 而需求 5.6 要的只是一个<b>标记</b>，不是一份持久化的冗余布尔。
-             */
             const consistent = row.lecturerConclusion === row.courseConclusion;
+            const lecturer = LECTURER_POOL.find((card) => card.name === row.lecturer);
             return (
               <tr key={row.id} data-testid="ledger-row" data-consistent={consistent}>
                 <td className="lct-cell-course" title={row.course}>
                   {row.course}
                 </td>
                 <td>{row.round}</td>
-                <td>{row.lecturer}</td>
+                <td>
+                  {regression || !lecturer ? (
+                    row.lecturer
+                  ) : (
+                    <button
+                      className="lct-link-btn"
+                      type="button"
+                      onClick={() => selectLecturer(lecturer.id)}
+                    >
+                      {row.lecturer}
+                    </button>
+                  )}
+                </td>
                 <td>
                   <Conclusion value={row.lecturerConclusion} />
                 </td>
@@ -353,9 +516,31 @@ function LedgerPanel() {
                 </td>
                 <td>{row.reviewedAt}</td>
                 <td>
-                  <a className="lct-link" href={`/courses?trial=${row.id}`}>
-                    查看
-                  </a>
+                  {regression ? (
+                    <a className="lct-link" href={`/courses?trial=${row.id}`}>
+                      查看
+                    </a>
+                  ) : (
+                    <button
+                      className="lct-link-btn"
+                      type="button"
+                      onClick={() =>
+                        openPeek({
+                          title: `${row.course} · ${row.round}`,
+                          fields: [
+                            { label: '课程名称', value: row.course },
+                            { label: '轮次', value: row.round },
+                            { label: '讲师', value: row.lecturer },
+                            { label: '讲师结论', value: row.lecturerConclusion },
+                            { label: '课程结论', value: row.courseConclusion },
+                            { label: '评审日期', value: row.reviewedAt },
+                          ],
+                        })
+                      }
+                    >
+                      查看
+                    </button>
+                  )}
                 </td>
               </tr>
             );
@@ -382,40 +567,99 @@ function Conclusion({ value }: { value: string }) {
   );
 }
 
+function selectedCardOf(selectedId: string): LecturerCard | undefined {
+  return (
+    LECTURER_POOL.find((card) => card.id === selectedId) ??
+    LECTURER_POOL.find((card) => card.id === LECTURER_SELECTED_ID)
+  );
+}
+
 /** R7 讲师详情：1081,203,481,753 */
 function DetailPanel() {
+  const { regression, selectedId, selectLecturer, openPeek } = useLecturerV2();
   const focusedId = useFocusedId(LECTURER_SELECTED_ID);
   const cards = LECTURER_GROUPS.flatMap((group) => group.cards);
-  // 跳过来的编号可能不在讲师池样本里（模拟数据只覆盖了一部分），那就退回默认选中项，
-  // 否则整块详情空掉，看起来像跳转把页面打坏了
-  const selected = cards.find((card) => card.id === focusedId) ?? cards.find((card) => card.id === LECTURER_SELECTED_ID);
+  const selected = regression
+    ? (cards.find((card) => card.id === focusedId) ?? cards.find((card) => card.id === LECTURER_SELECTED_ID))
+    : selectedCardOf(selectedId);
+  const [activeTab, setActiveTab] = useState<(typeof LECTURER_DETAIL_TABS)[number]>(
+    regression ? LECTURER_DETAIL_TABS[LECTURER_DETAIL_ACTIVE_TAB]! : '基本信息',
+  );
+
+  useEffect(() => {
+    if (!regression) setActiveTab('基本信息');
+  }, [selectedId, regression]);
+
+  const title = regression ? LECTURER_DETAIL_TITLE : lecturerTitleOf(selected?.name ?? '');
+  const domains = regression ? LECTURER_DETAIL_DOMAINS : (selected?.domains ?? []);
 
   return (
     <section className="panel lct-detail" data-region="R7" aria-label="讲师详情">
       <header className="lct-detail-head">
-        <Avatar name={selected?.name ?? ''} size={56} />
+        {regression ? (
+          <>
+            <Avatar name={selected?.name ?? ''} size={56} />
+            <div className="lct-detail-identity">
+              <p className="lct-detail-name">
+                {selected?.name}
+                {selected?.trialQualified && <span className="lct-badge-ok">试讲合格</span>}
+              </p>
+              <p className="lct-detail-title">{title}</p>
+            </div>
+          </>
+        ) : (
+          <button
+            className="lct-detail-identity-btn"
+            type="button"
+            onClick={() =>
+              selected &&
+              openPeek({
+                title: selected.name,
+                fields: lecturerBasicFieldsOf(selected),
+              })
+            }
+          >
+            <Avatar name={selected?.name ?? ''} size={56} />
+            <div className="lct-detail-identity">
+              <p className="lct-detail-name">
+                {selected?.name}
+                {selected?.trialQualified && <span className="lct-badge-ok">试讲合格</span>}
+              </p>
+              <p className="lct-detail-title">{title}</p>
+            </div>
+          </button>
+        )}
 
-        <div className="lct-detail-identity">
-          <p className="lct-detail-name">
-            {selected?.name}
-            {selected?.trialQualified && <span className="lct-badge-ok">试讲合格</span>}
-          </p>
-          <p className="lct-detail-title">{LECTURER_DETAIL_TITLE}</p>
-        </div>
-
-        <button className="lct-detail-close" type="button" aria-label="关闭详情">
+        <button
+          className="lct-detail-close"
+          type="button"
+          aria-label="关闭详情"
+          onClick={() => {
+            if (!regression) selectLecturer(LECTURER_SELECTED_ID);
+          }}
+        >
           <X size={16} color={colorV2.textTertiary} aria-hidden />
         </button>
       </header>
 
       <div className="lct-detail-domains">
-        {LECTURER_DETAIL_DOMAINS.map((domain) => (
-          <span className="lct-tag" key={domain}>
-            {domain}
-          </span>
-        ))}
-        {/* 折叠计数，不是第五个领域名 */}
-        <span className="lct-tag lct-tag-more">+ {LECTURER_DETAIL_DOMAINS_MORE}</span>
+        {regression
+          ? domains.map((domain) => (
+              <span className="lct-tag" key={domain}>
+                {domain}
+              </span>
+            ))
+          : domains.map((domain) => (
+              <button
+                className="lct-tag"
+                key={domain}
+                type="button"
+                onClick={() => openPeek({ title: '擅长领域', fields: [{ label: '擅长领域', value: domain }] })}
+              >
+                {domain}
+              </button>
+            ))}
+        {regression && <span className="lct-tag lct-tag-more">+ {LECTURER_DETAIL_DOMAINS_MORE}</span>}
       </div>
 
       <nav className="lct-tabs" aria-label="讲师详情页签">
@@ -425,28 +669,59 @@ function DetailPanel() {
             key={tab}
             type="button"
             data-testid="lecturer-tab"
-            data-active={index === LECTURER_DETAIL_ACTIVE_TAB}
+            data-active={regression ? index === LECTURER_DETAIL_ACTIVE_TAB : tab === activeTab}
+            onClick={regression ? undefined : () => setActiveTab(tab)}
           >
             {tab}
           </button>
         ))}
       </nav>
 
-      <TrialTimeline />
-      <TeachingBlock />
-      <GrowthAdvice />
+      {regression ? (
+        <>
+          <TrialTimeline items={TRIAL_TIMELINE} />
+          <TeachingBlock records={TEACHING_RECORDS} />
+          <GrowthAdvice />
+        </>
+      ) : (
+        selected && <LiveDetailBody tab={activeTab} card={selected} />
+      )}
     </section>
   );
 }
 
-/** 试讲记录时间线。三轮由新到旧，与试讲台账里李玥那条（第 3 轮 · 合格）对得上 */
-function TrialTimeline() {
+function LiveDetailBody({
+  tab,
+  card,
+}: {
+  tab: (typeof LECTURER_DETAIL_TABS)[number];
+  card: LecturerCard;
+}) {
+  if (tab === '基本信息') return <BasicInfoBlock card={card} />;
+  if (tab === '试讲记录') return <TrialTimeline items={lecturerTimelineOf(card)} />;
+  if (tab === '授课记录') return <TeachingBlock records={lecturerTeachingOf(card)} />;
+  return <EvaluationBlock items={lecturerEvaluationsOf(card)} />;
+}
+
+function BasicInfoBlock({ card }: { card: LecturerCard }) {
+  const { openPeek } = useLecturerV2();
+  return (
+    <LecturerBasicInfo
+      profile={lecturerArchiveOf(card)}
+      interactive
+      onFieldClick={(field) => openPeek({ title: field.label, fields: [field] })}
+    />
+  );
+}
+
+function TrialTimeline({ items }: { items: TrialTimelineItem[] }) {
+  const { regression, openPeek } = useLecturerV2();
   return (
     <div className="lct-block lct-timeline" data-testid="trial-timeline">
-      {TRIAL_TIMELINE.map((item) => {
+      {items.map((item) => {
         const positive = item.conclusion === TRIAL_CONCLUSION_QUALIFIED;
-        return (
-          <div className="lct-round" key={item.round} data-testid="trial-round" data-positive={positive}>
+        const body = (
+          <>
             <span className="lct-round-dot" aria-hidden />
             <div className="lct-round-body">
               <p className="lct-round-head">
@@ -455,20 +730,48 @@ function TrialTimeline() {
                 </span>
                 <span className="lct-round-date">{item.date}</span>
               </p>
-              {/* 设计稿把这一行标成「结论」，但结论只有两个值，这段文字是专家意见 */}
               <p className="lct-round-line">专家意见：{item.opinion}</p>
-              {/* 一期没有「评审人」字段，试讲记录上的是参与人 */}
               <p className="lct-round-line">参与人：{item.participants}</p>
             </div>
-          </div>
+          </>
+        );
+        if (regression) {
+          return (
+            <div className="lct-round" key={item.round} data-testid="trial-round" data-positive={positive}>
+              {body}
+            </div>
+          );
+        }
+        return (
+          <button
+            className="lct-round lct-round-btn"
+            key={item.round}
+            type="button"
+            data-testid="trial-round"
+            data-positive={positive}
+            onClick={() =>
+              openPeek({
+                title: `${item.round}（${item.conclusion}）`,
+                fields: [
+                  { label: '轮次', value: item.round },
+                  { label: '结论', value: item.conclusion },
+                  { label: '评审日期', value: item.date },
+                  { label: '专家意见', value: item.opinion },
+                  { label: '参与人', value: item.participants },
+                ],
+              })
+            }
+          >
+            {body}
+          </button>
         );
       })}
     </div>
   );
 }
 
-/** 近期授课记录。评分口径是「本场平均评分」（需求 10.5），不是讲师的平均评分 */
-function TeachingBlock() {
+function TeachingBlock({ records }: { records: TeachingRecord[] }) {
+  const { regression, openPeek } = useLecturerV2();
   return (
     <div className="lct-block lct-teaching" data-testid="teaching-block">
       <h3 className="lct-block-title">近期授课记录</h3>
@@ -483,8 +786,43 @@ function TeachingBlock() {
           </tr>
         </thead>
         <tbody>
-          {TEACHING_RECORDS.map((record) => (
-            <tr key={record.session} data-testid="teaching-row">
+          {records.map((record) => (
+            <tr
+              key={record.session}
+              data-testid="teaching-row"
+              role={regression ? undefined : 'button'}
+              tabIndex={regression ? undefined : 0}
+              onClick={
+                regression
+                  ? undefined
+                  : () =>
+                      openPeek({
+                        title: record.course,
+                        fields: [
+                          { label: '课程名称', value: record.course },
+                          { label: '场次', value: record.session },
+                          { label: '授课日期', value: record.taughtOn },
+                          { label: '本场评分', value: record.score },
+                        ],
+                      })
+              }
+              onKeyDown={
+                regression
+                  ? undefined
+                  : (event) =>
+                      activateOnKey(event, () =>
+                        openPeek({
+                          title: record.course,
+                          fields: [
+                            { label: '课程名称', value: record.course },
+                            { label: '场次', value: record.session },
+                            { label: '授课日期', value: record.taughtOn },
+                            { label: '本场评分', value: record.score },
+                          ],
+                        }),
+                      )
+              }
+            >
               <td title={record.course}>{record.course}</td>
               <td>{record.session}</td>
               <td>{record.taughtOn}</td>
@@ -494,6 +832,8 @@ function TeachingBlock() {
         </tbody>
       </table>
 
+      {records.length === 0 && <p className="lct-empty">暂无授课记录</p>}
+
       <a className="panel-action lct-teaching-more" href="/lecturers">
         查看全部授课记录
         <ChevronRight size={14} aria-hidden />
@@ -502,13 +842,43 @@ function TeachingBlock() {
   );
 }
 
-/**
- * 讲师成长建议。<b>只在回归模式渲染。</b>
- *
- * <p>需求 N6 与 10.1：讲师能力评估与培养建议随二期上线。产品模式渲染出来就是
- * 「平台会给培养建议」的承诺，而它背后没有任何模型 —— 一期连能力标签都没有。
- * 保留回归模式是为了 R7 的 753px 版式能对上像素。裁决口径与 P06 的组织覆盖区（V-8）一致。
- */
+function EvaluationBlock({ items }: { items: StudentEvaluation[] }) {
+  const { openPeek } = useLecturerV2();
+  return (
+    <div className="lct-block lct-evals" data-testid="evaluation-block">
+      <h3 className="lct-block-title">学员评价</h3>
+      {items.length === 0 ? (
+        <p className="lct-empty">暂无学员评价</p>
+      ) : (
+        items.map((item) => (
+          <button
+            className="lct-eval"
+            key={`${item.student}-${item.session}`}
+            type="button"
+            onClick={() =>
+              openPeek({
+                title: `${item.student} · ${item.session}`,
+                fields: [
+                  { label: '学员', value: item.student },
+                  { label: '场次', value: item.session },
+                  { label: '评分', value: item.score },
+                  { label: '评价', value: item.comment },
+                ],
+              })
+            }
+          >
+            <p className="lct-eval-head">
+              <span>{item.student}</span>
+              <span>{item.score} / 5</span>
+            </p>
+            <p className="lct-eval-body">{item.comment}</p>
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
+
 function GrowthAdvice() {
   if (!isRegressionMode()) return null;
 
@@ -531,3 +901,45 @@ function GrowthAdvice() {
     </div>
   );
 }
+
+function FieldPeekModal() {
+  const { peek, closePeek } = useLecturerV2();
+
+  useEffect(() => {
+    if (!peek) return undefined;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') closePeek();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [peek, closePeek]);
+
+  if (!peek) return null;
+
+  return (
+    <div className="crs-modal-mask" role="presentation" onClick={closePeek}>
+      <div
+        className="lct-peek"
+        role="dialog"
+        aria-modal="true"
+        aria-label={peek.title}
+        data-testid="lecturer-field-peek"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button className="crs-modal-close" type="button" aria-label="关闭字段详情" onClick={closePeek}>
+          <X size={16} aria-hidden />
+        </button>
+        <h2 className="lct-peek-title">{peek.title}</h2>
+        <dl className="lct-peek-fields">
+          {peek.fields.map((field) => (
+            <div className="lct-peek-row" key={field.label}>
+              <dt>{field.label}</dt>
+              <dd>{field.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
+

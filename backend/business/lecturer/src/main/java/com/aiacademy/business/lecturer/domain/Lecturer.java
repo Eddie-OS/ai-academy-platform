@@ -66,6 +66,25 @@ public class Lecturer {
 
     private String importBatchNo;
 
+    private Long avatarAttachmentId;
+
+    /** 平台现成头像 male_01～30 / female_01～30，与附件头像互斥。 */
+    private String avatarPreset;
+
+    private String lecturerLevel;
+
+    private String capabilityTags;
+
+    private String availableTime;
+
+    private String dutyState;
+
+    private String scheduleLimit;
+
+    private String profileMaintainer;
+
+    private String remark;
+
     private OffsetDateTime createdAt;
 
     private String createdBy;
@@ -192,6 +211,78 @@ public class Lecturer {
 
     public void setImportBatchNo(String importBatchNo) {
         this.importBatchNo = importBatchNo;
+    }
+
+    public Long getAvatarAttachmentId() {
+        return avatarAttachmentId;
+    }
+
+    public void setAvatarAttachmentId(Long avatarAttachmentId) {
+        this.avatarAttachmentId = avatarAttachmentId;
+    }
+
+    public String getAvatarPreset() {
+        return avatarPreset;
+    }
+
+    public void setAvatarPreset(String avatarPreset) {
+        this.avatarPreset = avatarPreset;
+    }
+
+    public String getLecturerLevel() {
+        return lecturerLevel;
+    }
+
+    public void setLecturerLevel(String lecturerLevel) {
+        this.lecturerLevel = lecturerLevel;
+    }
+
+    public String getCapabilityTags() {
+        return capabilityTags;
+    }
+
+    public void setCapabilityTags(String capabilityTags) {
+        this.capabilityTags = capabilityTags;
+    }
+
+    public String getAvailableTime() {
+        return availableTime;
+    }
+
+    public void setAvailableTime(String availableTime) {
+        this.availableTime = availableTime;
+    }
+
+    public String getDutyState() {
+        return dutyState;
+    }
+
+    public void setDutyState(String dutyState) {
+        this.dutyState = dutyState;
+    }
+
+    public String getScheduleLimit() {
+        return scheduleLimit;
+    }
+
+    public void setScheduleLimit(String scheduleLimit) {
+        this.scheduleLimit = scheduleLimit;
+    }
+
+    public String getProfileMaintainer() {
+        return profileMaintainer;
+    }
+
+    public void setProfileMaintainer(String profileMaintainer) {
+        this.profileMaintainer = profileMaintainer;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
     }
 
     public OffsetDateTime getCreatedAt() {

@@ -61,6 +61,8 @@ vi.mock('@/features/lecturer/lecturerMeta', async (importOriginal) => {
     useFieldEnums: () => ({
       data: {
         [FIELD_ENUM_KEYS.lecturerTrainingState]: ['待培养', '培养中', '可上岗'],
+        [FIELD_ENUM_KEYS.lecturerDutyState]: ['可上岗', '暂停授课', '已下线'],
+        [FIELD_ENUM_KEYS.lecturerLevel]: ['L0', 'L1', 'L2', 'L3'],
         [FIELD_ENUM_KEYS.lecturerPoolState]: ['在池', '已移出'],
         [FIELD_ENUM_KEYS.lecturerJoinType]: ['课程开发人员自动入池', '运营手动添加', '批量导入'],
         [FIELD_ENUM_KEYS.trialConclusion]: ['合格', '不合格'],
@@ -94,6 +96,15 @@ function lecturer(overrides: Partial<Lecturer>): Lecturer {
     poolState: '在池',
     removedReason: null,
     importBatchNo: null,
+    avatarAttachmentId: null,
+    avatarPreset: null,
+    lecturerLevel: 'L0',
+    capabilityTags: null,
+    availableTime: null,
+    dutyState: '可上岗',
+    scheduleLimit: null,
+    profileMaintainer: '运营',
+    remark: null,
     createdAt: '2026-07-01T10:00:00+08:00',
     updatedAt: '2026-07-01T10:00:00+08:00',
     updatedBy: 'operator',
@@ -150,9 +161,10 @@ describe('讲师驾驶舱', () => {
     renderPage(`/lecturers/${NO_SCORE_ID}`);
 
     const panel = await screen.findByTestId('cockpit-detail-panel');
-    expect(await within(panel).findByText('李四')).toBeTruthy();
+    const basic = await within(panel).findByTestId('lecturer-basic');
+    expect(basic).toHaveTextContent('李四');
     // 累计授课 0 次照常显示 0，只有「没有数据」才是 em dash
-    expect(within(panel).getByText('0 次')).toBeTruthy();
+    expect(within(basic).getByText('0 次')).toBeTruthy();
     expect(within(panel).queryByText('0.0 / 5')).toBeNull();
     expect(within(panel).queryByText('0 / 5')).toBeNull();
   });

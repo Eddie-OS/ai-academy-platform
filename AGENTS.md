@@ -42,3 +42,31 @@
 
 开新驾驶舱直接用 `shared/ui/CockpitLayout`，并在 `app/navigation.ts` 的 `CockpitDef.views` 里
 登记这一屏装了需求文档的哪几页——验收按编号回查靠的就是这份登记。口径见待修清单 D-17、D-18、P-5。
+
+## 前端提交门禁：改了 frontend 就必须 tsc 干净
+
+clone 后执行一次，装上版本化的 `pre-commit` 钩子：
+
+```
+git config core.hooksPath ai-academy-platform/scripts/git-hooks
+```
+
+暂存区里有 `frontend/` 改动时它跑一遍 `tsc --noEmit`，不过不让提交。提交前跑全套用
+`npm run verify`（tsc + vitest）。
+
+加它的原因是一次真实事故：总看板的预警卡在接口回数之前拿到 `count === null`，组件却声明成
+`number`，一句 `toLocaleString()` 让整屏变白，运营侧只看到「系统坏了」。**`tsc` 早就报了这一条**
+——它和另外 18 条同类错误一起躺了好几天。dev server 不做类型检查，只有 `vite build` 做，
+而本地开发不走 build。类型系统发现了缺陷，缺的只是有人跑它。
+
+配套的另外三道，都是为同一次事故加的，别删：
+
+- **`src/app/ErrorBoundary.tsx`** 挂在 `AppShellV2` 的 Outlet 外层与 `main.tsx` 根节点。
+  再有组件抛错也只塌一个内容区：侧栏可用、能切别的驾驶舱、错误摘要可念给管理员。
+  **单个组件的缺陷不该有整页的爆炸半径。**
+- **`src/shared/fieldEnumGuard.test.ts`** 拿后端 `forMetaApi()` 里真实 put 的键交叉验证
+  `FIELD_ENUM_KEYS`。这两张表靠中文串对齐，对不上时 TypeScript 看不见——只是下拉框
+  安静地空掉。上面那 18 条错误就是这么来的（后端补了 13 个字段枚举，前端这张表没跟上）。
+- **`src/test/setup.ts` 的 `asyncUtilTimeout: 5000`**。40 个文件并行跑时，`findBy*` 的默认 1s
+  窗口会随机扑空一两个，且每次不是同一个。随机发红的套件等于没有套件：人会先学会忽略红色，
+  再在某次真实回归时继续忽略。

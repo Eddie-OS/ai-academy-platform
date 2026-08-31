@@ -275,12 +275,23 @@
   cursor: pointer;
 }
 
+/*
+ * 七个领域组、60 张卡，装不进 R5 的 484px —— 多出来的部分在这里滚。
+ *
+ * 与 P01 待办区（待办清单 V-71）同一套做法：区域外框仍是设计稿的固定高度，
+ * 内容溢出交给滚动容器。视觉断言按裁切盒收口，滚动内容不算「越过区域下沿」。
+ *
+ * overflow-y 用 auto 不用 scroll：一旦有人把筛选收窄到只剩几个讲师，
+ * scroll 会留一条永远滚不动的空滑轨，看起来像还有内容没加载出来。
+ */
 .lct-pool-body {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  /* 横向仍然裁死：卡片栅格按容器宽算，横向滚动只会是布局出错的征兆 */
+  overflow-x: hidden;
 }
 
 .lct-group + .lct-group {
@@ -405,12 +416,18 @@
   flex: 0 0 auto;
   height: calc(var(--type-unit) * 20);
   padding: 0 6px;
+  border: 0;
   border-radius: var(--radius-tag);
   background: var(--brand-50);
   color: var(--brand-action);
+  font: inherit;
   font-size: var(--fs-11);
   line-height: calc(var(--type-unit) * 20);
   white-space: nowrap;
+}
+
+button.lct-tag {
+  cursor: pointer;
 }
 
 .lct-tag-more {
@@ -619,6 +636,15 @@
   text-decoration: none;
 }
 
+.lct-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-action);
+  font: inherit;
+  cursor: pointer;
+}
+
 /* ===========================================================================
  * R7 讲师详情：1081,203,481,753
  * =========================================================================== */
@@ -634,6 +660,19 @@
   display: flex;
   align-items: center;
   gap: var(--space-v2-3);
+}
+
+.lct-detail-identity-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-3);
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
 }
 
 .lct-detail-identity {
@@ -715,6 +754,110 @@
   border-bottom-color: var(--brand-action);
   color: var(--brand-action);
   font-weight: var(--type-body-medium-weight);
+}
+
+.lct-basic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-3);
+  flex: 1;
+  min-height: 0;
+  margin: var(--space-v2-3) 0 0;
+  overflow-y: auto;
+}
+
+.lct-round-btn {
+  display: flex;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lct-empty {
+  margin: var(--space-v2-2) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-eval {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-v2-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lct-eval-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.lct-eval-body {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-peek {
+  position: relative;
+  box-sizing: border-box;
+  width: min(480px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  padding: var(--card-pad);
+  overflow: auto;
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+}
+
+.lct-peek-title {
+  margin: 0 28px 0 0;
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+}
+
+.lct-peek-fields {
+  margin: var(--space-v2-4) 0 0;
+}
+
+.lct-peek-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: var(--space-v2-3);
+  padding: var(--space-v2-2) 0;
+  border-bottom: var(--border-v2);
+}
+
+.lct-peek-row:last-child {
+  border-bottom: 0;
+}
+
+.lct-peek-row dt {
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-peek-row dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+  word-break: break-all;
 }
 
 .lct-block {
@@ -933,8 +1076,73 @@ html:not([data-regression]) .lct {
 html:not([data-regression]) .lct-kpis {
   width: auto;
   height: auto;
-  flex: 112 1 0;
-  min-height: 112px;
+  flex: 0 0 auto;
+  min-height: 108px;
+}
+
+/*
+ * 产品模式 KPI 对齐课程工作台／需求驾驶舱：
+ * 标签顶左 + 28px 色底板顶右 + 大数字 + 「↑ n% 月度环比（较上月）」。
+ * 高度钉在 108，不再跟着窗口被拉开。
+ */
+html:not([data-regression]) .lct-kpi {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  min-height: 108px;
+  padding: var(--card-pad-compact);
+  cursor: pointer;
+}
+
+html:not([data-regression]) .lct-kpi[data-selected='true'] {
+  border-color: var(--brand-action);
+}
+
+html:not([data-regression]) .lct-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+}
+
+html:not([data-regression]) .lct-kpi-label {
+  color: var(--text-secondary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+html:not([data-regression]) .lct-kpi-plate {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+}
+
+html:not([data-regression]) .lct-kpi-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-v2-2);
+}
+
+html:not([data-regression]) .lct-kpi-baseline {
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .lct-card {
+  cursor: pointer;
+}
+
+html:not([data-regression]) .lct-card:hover {
+  border-color: var(--brand-action);
+}
+
+html:not([data-regression]) .lct-card:focus-visible {
+  outline: 2px solid var(--brand-action);
+  outline-offset: 2px;
 }
 
 html:not([data-regression]) .lct-main {
@@ -962,13 +1170,19 @@ html:not([data-regression]) .panel.lct-ledger {
 }
 
 html:not([data-regression]) .panel.lct-detail {
+  display: flex;
+  flex-direction: column;
   height: auto;
 }
 
 /* 时间线吃掉成长建议腾出来的高度。给授课记录会让三行表格中间拉出大片空白 */
-html:not([data-regression]) .lct-timeline {
+html:not([data-regression]) .lct-timeline,
+html:not([data-regression]) .lct-basic {
   flex: 1;
   min-height: 0;
+}
+
+html:not([data-regression]) .lct-timeline {
   overflow: hidden;
 }
 

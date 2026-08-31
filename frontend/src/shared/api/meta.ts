@@ -62,8 +62,8 @@ export const metaApi = {
 export const FIELD_ENUM_KEYS = {
   demandSource: '需求来源',
   demandType: '需求类型',
-  demandPriority: '需求优先级',
   demandDomain: '需求所属领域',
+  demandPriority: '需求优先级',
   demandOutlet: '需求分流出口',
   demandReviewConclusion: '需求评审结论',
   demandAcceptanceResult: '需求验收结论',
@@ -90,6 +90,8 @@ export const FIELD_ENUM_KEYS = {
   lecturerTrainingState: '讲师培养状态',
   lecturerPoolState: '讲师在池状态',
   lecturerJoinType: '讲师入池方式',
+  lecturerLevel: '讲师等级',
+  lecturerDutyState: '讲师上岗状态',
   caseAuditResult: '案例审核结论',
   caseQualityMark: '案例精品标注',
   caseBoardSort: '案例看板排序',

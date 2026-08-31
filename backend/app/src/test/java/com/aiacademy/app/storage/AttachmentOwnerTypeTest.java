@@ -36,9 +36,8 @@ class AttachmentOwnerTypeTest {
                 .toList();
 
         assertThat(附件的)
-                .describedAs("两份词表来源相同（需求 5.11），必须逐字一致。"
-                        + "新增一类业务对象时，这个测试会提醒你附件那边也要加")
-                .isEqualTo(状态机的);
+                .describedAs("状态机对象必须都能挂附件。讲师没有状态机，但头像要挂附件，所以附件词表可以多 LECTURER")
+                .containsAll(状态机的);
     }
 
     @Test

@@ -1,0 +1,131 @@
+/*
+ * 讲师详情「基本信息」：分组卡 + 双列字段，与新建表单同一套信息。
+ * 右栏约 480px，默认两列；更窄收成一列，展开后三列。
+ */
+
+.lct-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-3);
+  container-type: inline-size;
+}
+
+.lct-profile-card {
+  padding: var(--space-v2-3) var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+}
+
+.lct-profile-card h4 {
+  margin: 0 0 var(--space-v2-3);
+  padding-bottom: var(--space-v2-2);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+.lct-profile-tags li {
+  padding: 0 var(--space-v2-2);
+  border-radius: var(--radius-tag);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-20);
+}
+
+.lct-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-v2-4) var(--space-v2-4);
+  margin: 0;
+}
+
+@container (max-width: 360px) {
+  .lct-profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (min-width: 720px) {
+  .lct-profile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.lct-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+}
+
+.lct-profile-field[data-span='full'] {
+  grid-column: 1 / -1;
+}
+
+button.lct-profile-field {
+  cursor: pointer;
+}
+
+button.lct-profile-field:hover dt,
+button.lct-profile-field:hover dd {
+  color: var(--brand-action);
+}
+
+.lct-profile-field dt {
+  color: var(--text-tertiary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+}
+
+.lct-profile-field dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  word-break: break-word;
+}
+
+.lct-profile-field[data-mono='true'] dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.lct-profile-empty {
+  color: var(--text-placeholder);
+}
+
+.lct-profile-prose {
+  margin-top: var(--space-v2-4);
+}
+
+.lct-profile-prose p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lct-profile-prose p[data-empty='true'] {
+  color: var(--text-placeholder);
+  white-space: nowrap;
+}
+
+.lct-profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-v2-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

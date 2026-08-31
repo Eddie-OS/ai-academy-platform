@@ -54,9 +54,6 @@ public final class DemandStateMachines {
      */
     public static final String ACTION_MARK_DELIVERED = "MARK_DELIVERED";
 
-    /** 开始验收（待验收 → 验收中）。现场表单进度，不写验收结论。 */
-    public static final String ACTION_START_ACCEPTANCE = "START_ACCEPTANCE";
-
     /** 录入验收结论＝通过（待验收 → 验收通过）。 */
     public static final String ACTION_RECORD_ACCEPTANCE_PASS = "RECORD_ACCEPTANCE_PASS";
 
@@ -131,14 +128,9 @@ public final class DemandStateMachines {
         return new SimpleStateMachineDef("需求业务验收状态", OBJECT_TYPE, FIELD_ACCEPTANCE_STATE, List.of(
                 of(null, ACTION_MARK_DELIVERED, "标记交付使用", "待验收",
                         Effect.SET_DELIVERED_AT, Effect.deriveTask("业务验收")),
-                of("待验收", ACTION_START_ACCEPTANCE, "开始验收", "验收中"),
                 of("待验收", ACTION_RECORD_ACCEPTANCE_PASS, "录入验收结论=通过", "验收通过",
                         Effect.RECORD_ACCEPTANCE),
                 of("待验收", ACTION_RECORD_ACCEPTANCE_REJECT, "录入验收结论=不通过", "验收不通过",
-                        Effect.RECORD_ACCEPTANCE, Effect.REVERT_BY_OUTLET),
-                of("验收中", ACTION_RECORD_ACCEPTANCE_PASS, "录入验收结论=通过", "验收通过",
-                        Effect.RECORD_ACCEPTANCE),
-                of("验收中", ACTION_RECORD_ACCEPTANCE_REJECT, "录入验收结论=不通过", "验收不通过",
                         Effect.RECORD_ACCEPTANCE, Effect.REVERT_BY_OUTLET),
                 of("验收不通过", "RESUBMIT_ACCEPTANCE", "重新提交验收", "待验收",
                         Effect.INCREMENT_ACCEPTANCE_ROUND)));

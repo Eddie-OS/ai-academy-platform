@@ -1,0 +1,164 @@
+/*
+ * 课程详情「基本信息」：分组卡 + 三列字段，不再用单列 Descriptions 拉一条长清单。
+ * 弹窗约 1100px，窄栏（业务页右栏）用 auto-fill 自动收成两列或一列。
+ */
+
+.crs-basic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-3);
+  container-type: inline-size;
+}
+
+.crs-basic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+}
+
+.crs-basic-head h3,
+.crs-basic-card h4 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+.crs-basic-card {
+  padding: var(--space-v2-3) var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+}
+
+.crs-basic-card h4 {
+  margin-bottom: var(--space-v2-3);
+  padding-bottom: var(--space-v2-2);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.crs-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-v2-4) var(--space-v2-6);
+  margin: 0;
+}
+
+@container (max-width: 640px) {
+  .crs-basic-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.crs-basic-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-1);
+  min-width: 0;
+  margin: 0;
+}
+
+.crs-basic-field[data-span='full'] {
+  grid-column: 1 / -1;
+}
+
+.crs-basic-field dt {
+  color: var(--text-tertiary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+}
+
+.crs-basic-field dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  word-break: break-word;
+}
+
+.crs-basic-field[data-emphasize='true'] dd {
+  font-weight: var(--type-body-medium-weight);
+}
+
+.crs-basic-field[data-mono='true'] dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.crs-basic-empty {
+  color: var(--text-placeholder);
+}
+
+.crs-basic-prose-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-v2-4) var(--space-v2-6);
+  margin-top: var(--space-v2-4);
+}
+
+@container (max-width: 640px) {
+  .crs-basic-prose-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.crs-basic-prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-1);
+}
+
+.crs-basic-prose span {
+  color: var(--text-tertiary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-18);
+}
+
+.crs-basic-prose p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.crs-basic-prose p[data-empty='true'] {
+  color: var(--text-placeholder);
+  white-space: nowrap;
+}
+
+.crs-basic-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-v2-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crs-basic-tags li {
+  padding: 0 var(--space-v2-2);
+  border-radius: var(--radius-tag);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: var(--lh-20);
+}
+
+.crs-basic-link {
+  color: var(--brand-action);
+  word-break: break-all;
+}
+
+.crs-basic-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-3);
+}
+
+.crs-basic-form .ant-form-item {
+  margin-bottom: var(--space-v2-4);
+}

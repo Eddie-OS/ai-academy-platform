@@ -23,6 +23,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ASSETS } from '@/shared/theme/designTokensV2';
 import { useAuthStore } from '@/shared/store/authStore';
 import { isRegressionMode } from '@/app/regressionMode';
+import { ErrorBoundary } from '@/app/ErrorBoundary';
 import { PENDING_ESCALATION_TOTAL, PENDING_TASK_TOTAL } from '@/fixtures/shell';
 import {
   DEFAULT_DATE_RANGE,
@@ -32,6 +33,7 @@ import {
   resolveDocumentTitle,
   resolvePageKey,
 } from './shellNav';
+import { requestShellCreate } from './shellCreate';
 import './AppShellV2.css';
 
 /**
@@ -246,7 +248,11 @@ export function AppShellV2() {
         {/* tabIndex=-1 是跳过导航能生效的前提：<main> 默认不可聚焦，
             光有 id 时回车只滚动页面、焦点仍留在链接上，下一次 Tab 又回到侧栏 */}
         <main className="shell-content" id={MAIN_CONTENT_ID} tabIndex={-1}>
-          <Outlet />
+          {/* 屏障放在正文里而不是壳层外：某一页崩了，侧栏与顶栏仍可用，
+              运营能直接切到别的驾驶舱。resetKey 传 pathname，换页即自动恢复 */}
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
@@ -357,7 +363,7 @@ function ShellIconAction({
 /** 顶部新建按钮，固定 78×38、左图标 16px（2.4 组件固定尺寸） */
 function ShellCreateButton() {
   return (
-    <button type="button" className="shell-create">
+    <button type="button" className="shell-create" onClick={requestShellCreate}>
       <CirclePlus size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       <span>新建</span>
     </button>

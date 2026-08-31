@@ -10,7 +10,6 @@ import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.common.json.JsonArrays;
 import com.aiacademy.platform.dict.domain.BusinessDomains;
-import com.aiacademy.platform.dict.service.DictQuery;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeService;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 讲师主表的读写（需求 10.3、10.4）。
@@ -35,14 +34,16 @@ public class LecturerService {
     /** 需求 10.4 末段的「待补充」标记。列是 NOT NULL，占位文本比空串更能说明它需要人来填。 */
     private static final String TO_BE_FILLED = "待补充";
 
+    /** 平台现成 60 张：male_01～30 / female_01～30。 */
+    private static final Pattern AVATAR_PRESET =
+            Pattern.compile("^(male|female)_(0[1-9]|[12][0-9]|30)$");
+
     private final LecturerMapper mapper;
     private final EmployeeService employees;
-    private final DictQuery dicts;
 
-    public LecturerService(LecturerMapper mapper, EmployeeService employees, DictQuery dicts) {
+    public LecturerService(LecturerMapper mapper, EmployeeService employees) {
         this.mapper = mapper;
         this.employees = employees;
-        this.dicts = dicts;
     }
 
     /**
@@ -53,15 +54,14 @@ public class LecturerService {
      */
     @Transactional
     public long createManually(LecturerForm form) {
-        return create(form, LecturerEnums.JOIN_MANUAL, form.trainingState());
+        return create(form, LecturerEnums.JOIN_MANUAL);
     }
 
-    private long create(LecturerForm form, String joinType, String trainingState) {
+    private long create(LecturerForm form, String joinType) {
         validate(form, null);
 
         Lecturer lecturer = new Lecturer();
         applyForm(lecturer, form);
-        lecturer.setTrainingState(trainingState);
         return insert(lecturer, joinType);
     }
 
@@ -104,6 +104,8 @@ public class LecturerService {
         lecturer.setExpertiseDomains("[]");
         lecturer.setTeachingDirection(TO_BE_FILLED);
         lecturer.setTrainingState(LecturerEnums.TRAINING_IN_PROGRESS);
+        lecturer.setDutyState(LecturerEnums.DUTY_PAUSED);
+        lecturer.setLecturerLevel(LecturerEnums.LEVELS.get(0));
         lecturer.setPoolState(LecturerEnums.POOL_IN);
         insert(lecturer, LecturerEnums.JOIN_AUTO_COURSE_OWNER);
     }
@@ -112,18 +114,26 @@ public class LecturerService {
         mapper.lockLecturerNoSequence();
         lecturer.setLecturerNo(mapper.nextLecturerNo());
         lecturer.setJoinType(joinType);
-        lecturer.setJoinedDate(LocalDate.now());
+        if (lecturer.getJoinedDate() == null) {
+            lecturer.setJoinedDate(LocalDate.now());
+        }
+        if (lecturer.getProfileMaintainer() == null || lecturer.getProfileMaintainer().isBlank()) {
+            lecturer.setProfileMaintainer(operator());
+        }
         return mapper.insert(lecturer, operator());
     }
 
     @Transactional
     public void update(long id, LecturerForm form) {
         validate(form, id);
-        requireExisting(id);
+        Lecturer existing = requireExisting(id);
 
         Lecturer lecturer = new Lecturer();
         applyForm(lecturer, form);
         lecturer.setId(id);
+        if (lecturer.getJoinedDate() == null) {
+            lecturer.setJoinedDate(existing.getJoinedDate());
+        }
         if (mapper.update(lecturer, operator()) == 0) {
             throw new NotFoundException("讲师不存在或已删除：" + id);
         }
@@ -167,9 +177,19 @@ public class LecturerService {
         lecturer.setSourceDept(form.sourceDept().trim());
         lecturer.setExpertiseDomains(JsonArrays.toJson(form.expertiseDomains()));
         lecturer.setTeachingDirection(form.teachingDirection().trim());
-        lecturer.setTrainingState(form.trainingState());
         lecturer.setPoolState(form.poolState());
         lecturer.setRemovedReason(blankToNull(form.removedReason()));
+        applyAvatar(lecturer, form);
+        lecturer.setLecturerLevel(blankToDefaultLevel(form.lecturerLevel()));
+        lecturer.setCapabilityTags(blankToNull(form.capabilityTags()));
+        lecturer.setAvailableTime(blankToNull(form.availableTime()));
+        String duty = resolveDutyState(form);
+        lecturer.setDutyState(duty);
+        lecturer.setTrainingState(LecturerEnums.trainingStateOf(duty));
+        lecturer.setScheduleLimit(blankToNull(form.scheduleLimit()));
+        lecturer.setJoinedDate(form.joinedDate());
+        lecturer.setProfileMaintainer(blankToNull(form.profileMaintainer()));
+        lecturer.setRemark(blankToNull(form.remark()));
     }
 
     /**
@@ -189,9 +209,18 @@ public class LecturerService {
             throw new BizException(ErrorCode.BIZ_RULE_VIOLATED,
                     "工号「%s」已在讲师池中，同一个人不能重复入池".formatted(employeeNo));
         }
-        if (!LecturerEnums.TRAINING_STATES.contains(form.trainingState())) {
+        String duty = resolveDutyState(form);
+        if (!LecturerEnums.DUTY_STATES.contains(duty)) {
             throw new BizException(ErrorCode.PARAM_INVALID,
-                    "讲师培养状态只能是：" + String.join("／", LecturerEnums.TRAINING_STATES));
+                    "上岗状态只能是：" + String.join("／", LecturerEnums.DUTY_STATES));
+        }
+        String preset = blankToNull(form.avatarPreset());
+        if (preset != null && !AVATAR_PRESET.matcher(preset).matches()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "请从平台现有的 60 张头像中选择");
+        }
+        if (!LecturerEnums.LEVELS.contains(blankToDefaultLevel(form.lecturerLevel()))) {
+            throw new BizException(ErrorCode.PARAM_INVALID,
+                    "讲师等级只能是：" + String.join("／", LecturerEnums.LEVELS));
         }
         if (!LecturerEnums.POOL_STATES.contains(form.poolState())) {
             throw new BizException(ErrorCode.PARAM_INVALID,
@@ -201,23 +230,45 @@ public class LecturerService {
         if (LecturerEnums.POOL_OUT.equals(form.poolState()) && blankToNull(form.removedReason()) == null) {
             throw new BizException(ErrorCode.PARAM_INVALID, "移出讲师池时必须填写移出原因");
         }
-        validateDomains(form.expertiseDomains());
+        validateSourceDept(form.sourceDept(), excludeId);
+        List<String> domains = form.expertiseDomains() == null ? List.of() : form.expertiseDomains();
+        if (domains.stream().noneMatch(item -> item != null && !item.isBlank())) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "请填写擅长领域");
+        }
     }
 
     /**
-     * 擅长领域与需求同一套现场口径。历史行仍可能是作战单元名称，那些名称继续合法。
+     * 来源部门取现场口径七类（零售／服务／…）。擅长领域已改为自由文本。
      *
-     * <p>存的是名称而不是编码，与讲师导入（{@code LecturerImportHandler}）一致。
+     * <p>编辑时允许保留历史部门名（人员台账带出的三级部门），避免旧档案一保存就被拒。
      */
-    private void validateDomains(List<String> domains) {
-        Set<String> historical = dicts.enabledNameSet(DictQuery.TYPE_COMBAT_UNIT);
-        List<String> unknown = domains.stream()
-                .filter(d -> !BusinessDomains.contains(d) && !historical.contains(d))
-                .toList();
-        if (!unknown.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_INVALID,
-                    "擅长领域只能是：%s".formatted(String.join(" / ", BusinessDomains.NAMES)));
+    private void validateSourceDept(String sourceDept, Long excludeId) {
+        String value = sourceDept.trim();
+        if (BusinessDomains.contains(value)) {
+            return;
         }
+        if (excludeId != null) {
+            Lecturer existing = mapper.selectById(excludeId);
+            if (existing != null && value.equals(existing.getSourceDept())) {
+                return;
+            }
+        }
+        throw new BizException(ErrorCode.PARAM_INVALID,
+                "来源部门只能是：" + String.join(" / ", BusinessDomains.NAMES));
+    }
+
+    /**
+     * 上传优先：有附件就清掉预设，避免详情页两张脸。
+     */
+    private static void applyAvatar(Lecturer lecturer, LecturerForm form) {
+        Long attachmentId = form.avatarAttachmentId();
+        if (attachmentId != null) {
+            lecturer.setAvatarAttachmentId(attachmentId);
+            lecturer.setAvatarPreset(null);
+            return;
+        }
+        lecturer.setAvatarAttachmentId(null);
+        lecturer.setAvatarPreset(blankToNull(form.avatarPreset()));
     }
 
     private static String blankToNull(String value) {
@@ -226,6 +277,20 @@ public class LecturerService {
 
     private static String blankToDefault(String value) {
         return value == null || value.isBlank() ? TO_BE_FILLED : value;
+    }
+
+    private static String blankToDefaultLevel(String value) {
+        return value == null || value.isBlank() ? LecturerEnums.LEVELS.get(0) : value;
+    }
+
+    private static String resolveDutyState(LecturerForm form) {
+        if (form.dutyState() != null && !form.dutyState().isBlank()) {
+            return form.dutyState();
+        }
+        if (form.trainingState() != null && !form.trainingState().isBlank()) {
+            return LecturerEnums.dutyStateOf(form.trainingState());
+        }
+        return LecturerEnums.DUTY_PAUSED;
     }
 
     private static String operator() {

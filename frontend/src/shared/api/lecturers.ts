@@ -36,6 +36,16 @@ export interface Lecturer {
   poolState: string;
   removedReason: string | null;
   importBatchNo: string | null;
+  avatarAttachmentId: number | null;
+  /** 平台现成头像 male_01～30 / female_01～30，与附件头像互斥 */
+  avatarPreset: string | null;
+  lecturerLevel: string | null;
+  capabilityTags: string | null;
+  availableTime: string | null;
+  dutyState: string | null;
+  scheduleLimit: string | null;
+  profileMaintainer: string | null;
+  remark: string | null;
   createdAt: string;
   updatedAt: string;
   updatedBy: string | null;
@@ -46,11 +56,21 @@ export interface LecturerForm {
   employeeNo: string;
   sourceDept: string;
   expertiseDomains: string[];
+  /** 讲师简介。库列仍叫 teaching_direction，界面按建档口径展示 */
   teachingDirection: string;
-  trainingState: string;
+  trainingState?: string;
   poolState: string;
-  /** 在池状态为「已移出」时必填（需求 10.3 第 15 项），跨字段校验在后端 */
   removedReason?: string | null;
+  avatarAttachmentId?: number | null;
+  avatarPreset?: string | null;
+  lecturerLevel?: string | null;
+  capabilityTags?: string | null;
+  availableTime?: string | null;
+  dutyState?: string | null;
+  scheduleLimit?: string | null;
+  joinedDate?: string | null;
+  profileMaintainer?: string | null;
+  remark?: string | null;
 }
 
 export interface LecturerFilter {

@@ -1,0 +1,106 @@
+/**
+ * 与课程新建弹窗同一套锁视口：标题与底栏不跟着滚，只有表单区滚动。
+ */
+.lecturer-form-modal {
+  padding-bottom: 0;
+  max-height: calc(100vh - 48px);
+}
+
+.lecturer-form-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.lecturer-form-modal .ant-modal-header,
+.lecturer-form-modal .ant-modal-footer {
+  flex-shrink: 0;
+}
+
+.lecturer-form-modal .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.lecturer-form-lead {
+  margin: 0 0 16px;
+  color: var(--color-neutral-600);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.lecturer-avatar-field {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.lecturer-avatar-field .ant-upload.ant-upload-select,
+.lecturer-avatar-field .ant-upload-list-item-container {
+  width: 80px !important;
+  height: 80px !important;
+  margin-block: 0;
+  margin-inline-end: 0;
+}
+
+.lecturer-avatar-presets {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lecturer-avatar-presets-caption {
+  margin: 0 0 4px;
+  color: var(--color-neutral-600);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.lecturer-avatar-presets-scroll {
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.lecturer-avatar-preset-block + .lecturer-avatar-preset-block {
+  margin-top: 8px;
+}
+
+.lecturer-avatar-preset-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-neutral-700);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.lecturer-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 40px);
+  gap: 4px;
+}
+
+.lecturer-avatar-preset {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #fff;
+  line-height: 0;
+}
+
+.lecturer-avatar-preset[data-selected='true'] {
+  border-color: #4e70db;
+  box-shadow: 0 0 0 2px #4e70db;
+}
+
+.lecturer-avatar-preset img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  display: block;
+}

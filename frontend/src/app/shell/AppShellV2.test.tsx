@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { AppShellV2 } from './AppShellV2';
+import { registerShellCreate } from './shellCreate';
 import { SHELL_NAV_OPERATION } from './shellNav';
 import { useAuthStore } from '@/shared/store/authStore';
 import type { AccountInfo } from '@/shared/api/types';
@@ -85,5 +86,17 @@ describe('AppShellV2（壳层的写操作入口可见性）', () => {
       (page) => screen.queryByRole('link', { name: page.label }) !== null,
     ).map((page) => page.path);
     expect(visible.some((path) => operatorOnlyPaths.includes(path))).toBe(false);
+  });
+
+  it('点顶栏新建会通知当前页，没人登记时不报错', () => {
+    const seen = vi.fn();
+    const stop = registerShellCreate(seen);
+    renderShell(true);
+    fireEvent.click(screen.getByRole('button', { name: '新建' }));
+    expect(seen).toHaveBeenCalledTimes(1);
+    stop();
+
+    fireEvent.click(screen.getByRole('button', { name: '新建' }));
+    expect(seen).toHaveBeenCalledTimes(1);
   });
 });

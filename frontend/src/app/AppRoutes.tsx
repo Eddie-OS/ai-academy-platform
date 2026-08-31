@@ -38,8 +38,9 @@ import { useAuthStore } from '@/shared/store/authStore';
  *
  * <p>未登录一律跳登录页（错误码 UNAUTHENTICATED 的前端处理）。
  *
- * <p>V2.0 九页复刻件已齐：总看板、五个驾驶舱、三中心。五个驾驶舱主路径默认走复刻件，
- * {@code ?legacy=1} 回到业务页。三中心没有旧业务页双轨。导入中心与配置中心仍是阶段 1 业务页。
+ * <p>V2.0 九页复刻件已齐：总看板、五个驾驶舱、三中心。驾驶舱主路径默认走复刻件，
+ * {@code ?legacy=1} 回到阶段 2 业务页；三中心没有旧业务页双轨。
+ * 导入中心与配置中心仍是阶段 1 业务页。阶段 3／4 再把 fixtures 换成聚合接口。
  */
 
 /** 已实现的页面。占位页只发给还没做的那些，避免「做完了但路由还指着占位页」。 */
@@ -47,8 +48,11 @@ const IMPLEMENTED: Record<string, ComponentType> = {
   '/imports': ImportCenterPage,
   '/settings': SettingsPage,
   /*
-   * 双轨：五个驾驶舱主路径默认复刻件，?legacy=1 回到业务页。
-   * 详情深链（/demands/:id、/courses/:id）始终是业务页。
+   * 双轨：驾驶舱主路径默认渲染《设计文档 V2.0》的复刻件，?legacy=1 回到阶段 2 的业务页。
+   * 取舍见 replicaRoute 的注释——阶段 3 的聚合接口还不存在，业务页在没有后端时整页只有
+   * 「加载失败」，而复刻件读 fixtures，面板是按设计稿长齐的。
+   *
+   * 详情深链（/demands/:id）不分派，始终是业务页：深链进来的人要的是能改数据的那一轨。
    */
   '/demands': replicaRoute(DemandCockpitPage, DemandV2Page),
   '/demands/:id': DemandCockpitPage,

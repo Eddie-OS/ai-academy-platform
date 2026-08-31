@@ -3,9 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   App,
   Button,
-  Card,
   DatePicker,
-  Descriptions,
   Input,
   InputNumber,
   Popconfirm,
@@ -13,7 +11,6 @@ import {
   Space,
   Tabs,
   Tag,
-  Typography,
 } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Trash2, UserPlus } from 'lucide-react';
@@ -26,10 +23,11 @@ import { LECTURER_METRICS, mergeMetricValues } from '@/shared/metrics/cockpitMet
 import { metricsApi } from '@/shared/api/metrics';
 import { PageState } from '@/shared/ui/PageState';
 import { StatusTag } from '@/shared/ui/StatusTag';
-import { EM_DASH, formatDateTime } from '@/shared/format';
-import { fontSize, neutral, space } from '@/shared/theme/designTokens';
+import { formatDateTime } from '@/shared/format';
+import { space } from '@/shared/theme/designTokens';
 import { useIsOperator } from '@/shared/store/authStore';
 import { LecturerFormModal } from '@/features/lecturer/LecturerFormModal';
+import { LecturerBasicInfo, lecturerBasicProfileOf } from '@/features/lecturer/LecturerBasicInfo';
 import { LecturerTeachingTab } from '@/features/lecturer/LecturerTeachingTab';
 import { LecturerEvaluationsTab } from '@/features/lecturer/LecturerEvaluationsTab';
 import { LecturerTrialsTab } from '@/features/lecturer/LecturerTrialsTab';
@@ -42,8 +40,6 @@ import {
   useFieldEnums,
   useSourceDepts,
 } from '@/features/lecturer/lecturerMeta';
-
-const { Text } = Typography;
 
 /**
  * 驾驶舱三 · 讲师与能力地图（设计稿《讲师地图》）。
@@ -214,16 +210,22 @@ export function LecturerCockpitPage() {
               showSearch
               placeholder="来源部门"
               style={{ width: 160 }}
-              options={(sourceDepts.data ?? []).map((value) => ({ value, label: value }))}
+              options={[
+                ...domains.map((value) => ({ value, label: value })),
+                ...(sourceDepts.data ?? [])
+                  .filter((value) => !domains.includes(value))
+                  .map((value) => ({ value, label: value })),
+              ]}
               onChange={(value) => patch({ sourceDept: value ?? null })}
             />
-            <Select
+            <Input
               allowClear
-              showSearch
               placeholder="擅长领域"
-              style={{ width: 150 }}
-              options={domains.map((value) => ({ value, label: value }))}
-              onChange={(value) => patch({ expertiseDomain: value ?? null })}
+              style={{ width: 160 }}
+              onPressEnter={(event) =>
+                patch({ expertiseDomain: (event.target as HTMLInputElement).value || null })
+              }
+              onBlur={(event) => patch({ expertiseDomain: event.target.value || null })}
             />
             <Select
               allowClear
@@ -436,74 +438,11 @@ export function LecturerCockpitPage() {
 }
 
 /**
- * 基本信息页签（需求 10.3 的字段清单）。
+ * 基本信息页签（业务确认的基础档案口径 + 需求 10.3 只读项）。
  *
- * <p>入池方式与入池时间在这里只读：它们是「这个人怎么进来的」的事实，由入池路径决定，
- * 表单里没有这两项。试讲合格标记与首次试讲合格时间同理，只能由试讲结论录入产生。
+ * <p>入池方式、试讲合格标记与首次试讲合格时间只读：前一项由入池路径决定，后两项只能由
+ * 试讲结论录入产生。建档时间可改，走编辑表单。
  */
 function BasicInfo({ lecturer }: { lecturer: Lecturer }) {
-  return (
-    <Card size="small" styles={{ body: { padding: space.sm } }}>
-      <Descriptions
-        column={1}
-        size="small"
-        styles={{ label: { color: neutral[600], width: 116, fontSize: fontSize.bodySm } }}
-        items={[
-          { key: 'no', label: '讲师ID', children: lecturer.lecturerNo },
-          { key: 'employeeNo', label: '工号', children: lecturer.employeeNo },
-          { key: 'dept', label: '来源部门', children: lecturer.sourceDept },
-          {
-            key: 'domains',
-            label: '擅长领域',
-            children:
-              lecturer.expertiseDomains.length === 0 ? (
-                <Text type="secondary">待补充</Text>
-              ) : (
-                lecturer.expertiseDomains.map((domain) => <Tag key={domain}>{domain}</Tag>)
-              ),
-          },
-          {
-            key: 'direction',
-            label: '授课方向',
-            children: <Text style={{ whiteSpace: 'pre-wrap' }}>{lecturer.teachingDirection}</Text>,
-          },
-          { key: 'joinType', label: '入池方式', children: lecturer.joinType },
-          { key: 'joinedDate', label: '入池时间', children: lecturer.joinedDate },
-          {
-            key: 'trial',
-            label: '试讲合格标记',
-            children: lecturer.trialQualified ? '是' : '否',
-          },
-          {
-            key: 'firstQualified',
-            label: '首次试讲合格',
-            // 只记第一次：反复试讲不会把这个日期往后推，它是效率统计的起点
-            children: lecturer.firstQualifiedDate ?? EM_DASH,
-          },
-          {
-            key: 'teaching',
-            label: '累计授课次数',
-            children: lecturer.teachingCount === null ? EM_DASH : `${lecturer.teachingCount} 次`,
-          },
-          {
-            key: 'attendees',
-            label: '累计学员人次',
-            children: lecturer.attendeeCount === null ? EM_DASH : lecturer.attendeeCount.toLocaleString(),
-          },
-          {
-            key: 'score',
-            label: '平均评分',
-            children: lecturer.avgScore === null ? EM_DASH : `${lecturer.avgScore} / 5`,
-          },
-          { key: 'poolState', label: '在池状态', children: lecturer.poolState },
-          { key: 'removedReason', label: '移出原因', children: lecturer.removedReason ?? EM_DASH },
-          {
-            key: 'importBatch',
-            label: '导入批次',
-            children: lecturer.importBatchNo ?? EM_DASH,
-          },
-        ]}
-      />
-    </Card>
-  );
+  return <LecturerBasicInfo profile={lecturerBasicProfileOf(lecturer)} />;
 }
