@@ -26,9 +26,17 @@ const MAX_SESSIONS_PER_PLAN = 200;
 interface PlanSessionsTabProps {
   planId: number;
   courseId: number;
+  /** 产品详情里点场次名切到本弹窗的场次，不跳业务页 */
+  selectedSessionId?: number;
+  onSelectSession?: (session: TrainingSession) => void;
 }
 
-export function PlanSessionsTab({ planId, courseId }: PlanSessionsTabProps) {
+export function PlanSessionsTab({
+  planId,
+  courseId,
+  selectedSessionId,
+  onSelectSession,
+}: PlanSessionsTabProps) {
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
@@ -75,6 +83,14 @@ export function PlanSessionsTab({ planId, courseId }: PlanSessionsTabProps) {
         loading={sessions.isLoading}
         pagination={false}
         locale={{ emptyText: '这个计划下还没有场次' }}
+        rowClassName={(row) => (row.id === selectedSessionId ? 'ant-table-row-selected' : '')}
+        onRow={
+          onSelectSession
+            ? (row) => ({
+                onClick: () => onSelectSession(row),
+              })
+            : undefined
+        }
         columns={[
           { title: '场次ID', dataIndex: 'sessionNo', width: 150 },
           {
@@ -84,7 +100,9 @@ export function PlanSessionsTab({ planId, courseId }: PlanSessionsTabProps) {
               <Button
                 type="link"
                 style={{ padding: 0 }}
-                onClick={() => navigate(`/training-sessions/${row.id}`)}
+                onClick={() =>
+                  onSelectSession ? onSelectSession(row) : navigate(`/training-sessions/${row.id}`)
+                }
               >
                 {name ?? row.sessionNo}
               </Button>

@@ -193,6 +193,45 @@ class TrainingSessionCrudIntegrationTest extends TrainingTestBase {
     }
 
     @Test
+    @DisplayName("日历筛选：课程名／讲师／运营负责人可搜，计划状态与归档状态可筛")
+    void 日历筛选扩展() {
+        String token = "筛" + (System.nanoTime() % 1_000_000);
+        long courseId = 造课程("课程" + token);
+        long planId = application.createPlan(计划表单("计划" + token, courseId));
+        long lecturerId = 造讲师("讲师" + token, "可上岗");
+        long sessionId = application.createSession(planId, 场次表单(courseId, lecturerId).build()).id();
+
+        TrainingSessionQuery byCourse = new TrainingSessionQuery();
+        byCourse.setKeyword("课程" + token);
+        assertThat(sessions.page(byCourse).records()).extracting(TrainingSessionListItem::getId)
+                .contains(sessionId);
+
+        TrainingSessionQuery byLecturerName = new TrainingSessionQuery();
+        byLecturerName.setKeyword("讲师" + token);
+        assertThat(sessions.page(byLecturerName).records()).extracting(TrainingSessionListItem::getId)
+                .contains(sessionId);
+
+        TrainingSessionQuery byOwner = new TrainingSessionQuery();
+        byOwner.setKeyword("培训负责人");
+        assertThat(sessions.page(byOwner).records()).extracting(TrainingSessionListItem::getId)
+                .contains(sessionId);
+
+        TrainingSessionQuery byPlanState = new TrainingSessionQuery();
+        byPlanState.setPlanId(planId);
+        byPlanState.setPlanState("待执行");
+        assertThat(sessions.page(byPlanState).total()).isEqualTo(1);
+        byPlanState.setPlanState("已完成");
+        assertThat(sessions.page(byPlanState).total()).isZero();
+
+        TrainingSessionQuery notArchived = new TrainingSessionQuery();
+        notArchived.setPlanId(planId);
+        notArchived.setArchived(false);
+        assertThat(sessions.page(notArchived).total()).isEqualTo(1);
+        notArchived.setArchived(true);
+        assertThat(sessions.page(notArchived).total()).isZero();
+    }
+
+    @Test
     @DisplayName("需求 11.4 第 14 项：实际签到人数只数「已签到」，是否已导入签到看有没有记录")
     void 签到派生列() {
         long courseId = 造课程("签到派生");

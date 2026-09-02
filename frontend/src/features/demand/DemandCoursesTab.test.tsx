@@ -99,7 +99,7 @@ describe('需求详情关联课程页签', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: '关联课程' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '课程链接' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '关联文档' })).toBeInTheDocument();
     const link = await screen.findByRole('link', { name: 'https://example.com/course' });
     expect(link).toHaveAttribute('href', 'https://example.com/course');

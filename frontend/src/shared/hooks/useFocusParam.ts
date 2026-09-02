@@ -57,3 +57,11 @@ export function focusHref(path: string, id: string, search: string): string {
   params.set(FOCUS_PARAM, id);
   return `${path}?${params.toString()}`;
 }
+
+/** 试讲台账「查看」：打开课程工作台，并把详情停在试讲页签。 */
+export function courseTrialHref(courseFocus: string, search: string): string {
+  const params = new URLSearchParams(search);
+  params.set(FOCUS_PARAM, courseFocus);
+  params.set('tab', '试讲');
+  return `/courses?${params.toString()}`;
+}

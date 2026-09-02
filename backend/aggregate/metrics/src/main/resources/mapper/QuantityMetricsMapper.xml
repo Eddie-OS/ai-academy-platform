@@ -133,9 +133,34 @@
            AND plan_end_date &gt;= #{rangeStart}
     </select>
 
+    <select id="countPlans" resultType="long">
+        SELECT COUNT(*) FROM biz_training_plan WHERE deleted = FALSE
+    </select>
+
+    <select id="countPlansCreatedBefore" resultType="long">
+        SELECT COUNT(*) FROM biz_training_plan
+         WHERE deleted = FALSE AND created_at &lt; #{before}
+    </select>
+
+    <select id="countSessions" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session WHERE deleted = FALSE
+    </select>
+
+    <select id="countSessionsCreatedBefore" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session
+         WHERE deleted = FALSE AND created_at &lt; #{before}
+    </select>
+
     <select id="countSessionsByState" resultType="long">
         SELECT COUNT(*) FROM biz_training_session
          WHERE deleted = FALSE AND session_state = #{sessionState}
+    </select>
+
+    <select id="countSessionsByStateChangedBefore" resultType="long">
+        SELECT COUNT(*) FROM biz_training_session
+         WHERE deleted = FALSE
+           AND session_state = #{sessionState}
+           AND last_state_changed_at &lt; #{before}
     </select>
 
     <select id="countSessionsInMonth" resultType="long">
@@ -156,6 +181,13 @@
     <select id="countAttendancePresent" resultType="long">
         SELECT COUNT(*) FROM dtl_attendance
          WHERE attend_status = #{attendStatus}
+    </select>
+
+    <select id="countAttendancePresentBefore" resultType="long">
+        SELECT COUNT(*) FROM dtl_attendance a
+          JOIN biz_training_session s ON s.id = a.session_id AND s.deleted = FALSE
+         WHERE a.attend_status = #{attendStatus}
+           AND s.training_date &lt; #{before}
     </select>
 
     <select id="countDistinctAttendeesPresent" resultType="long">

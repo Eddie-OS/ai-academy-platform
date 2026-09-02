@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AttachmentOwnerTypeTest {
 
     @Test
-    @DisplayName("附件对象类型 = 状态机对象类型（需求 5.11 的同一份词表）")
+    @DisplayName("状态机对象类型在附件词表里都有对应项（需求 5.11 的子集；讲师头像等无状态机附件可额外登记）")
     void 对象类型词表一致() {
         List<String> 状态机的 = StateObjectMappings.all().stream()
                 .map(StateObjectMapping::objectType)
@@ -36,7 +36,8 @@ class AttachmentOwnerTypeTest {
                 .toList();
 
         assertThat(附件的)
-                .describedAs("状态机对象必须都能挂附件。讲师没有状态机，但头像要挂附件，所以附件词表可以多 LECTURER")
+                .describedAs("带状态机的业务对象上传附件时，ref_type 必须与状态机 objectType 逐字一致。"
+                        + "新增一类状态机对象时，这个测试会提醒你附件那边也要加")
                 .containsAll(状态机的);
     }
 

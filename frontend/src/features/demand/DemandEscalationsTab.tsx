@@ -41,16 +41,18 @@ export function DemandEscalationsTab({ demand }: DemandEscalationsTabProps) {
       pagination={false}
       locale={{ emptyText: '还没有催办记录。底部「一键催办」写入台账后会出现在这里。' }}
       columns={[
-        { title: '催办时间', dataIndex: 'escalatedAt', width: 160, render: formatDateTime },
+        { title: '催办时间', dataIndex: 'escalatedAt', width: 136, render: formatDateTime },
         {
           title: '需求标题',
           dataIndex: 'objectName',
+          ellipsis: true,
           render: (value: string | null) => value || demand.demandName || EM_DASH,
         },
         {
           title: '催办对象',
           key: 'target',
-          width: 120,
+          width: 96,
+          ellipsis: true,
           render: (_, row) => row.ownerName || row.ownerNo || EM_DASH,
         },
         {

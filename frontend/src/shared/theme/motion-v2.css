@@ -1,0 +1,163 @@
+/*
+ * V2 默认产品页的反馈动效。
+ *
+ * 只做首屏层级和操作反馈，不改变区域几何。fixture 回归与 reduced-motion 都直接显示终态。
+ */
+@keyframes v2-region-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes v2-kpi-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes v2-mask-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes v2-mask-exit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes v2-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes v2-dialog-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+.v2-page [data-region] {
+  animation: v2-region-enter 280ms var(--ease-enter) both;
+}
+
+.v2-page [data-region='R4'] { animation-delay: 40ms; }
+.v2-page [data-region='R5'] { animation-delay: 80ms; }
+.v2-page [data-region='R6'] { animation-delay: 120ms; }
+.v2-page [data-region='R7'] { animation-delay: 160ms; }
+.v2-page [data-region='R8'] { animation-delay: 200ms; }
+.v2-page [data-region='R9'] { animation-delay: 240ms; }
+
+.v2-page [data-testid$='-kpi'] {
+  animation: v2-kpi-enter 360ms var(--ease-enter) both;
+}
+
+.v2-page [data-testid$='-kpi']:nth-child(2) { animation-delay: 70ms; }
+.v2-page [data-testid$='-kpi']:nth-child(3) { animation-delay: 140ms; }
+.v2-page [data-testid$='-kpi']:nth-child(4) { animation-delay: 210ms; }
+.v2-page [data-testid$='-kpi']:nth-child(5) { animation-delay: 280ms; }
+.v2-page [data-testid$='-kpi']:nth-child(6) { animation-delay: 350ms; }
+.v2-page [data-testid$='-kpi']:nth-child(7) { animation-delay: 420ms; }
+
+.v2-page :where(button, a) {
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-quick) var(--ease-standard),
+    border-color var(--motion-quick) var(--ease-standard),
+    color var(--motion-quick) var(--ease-standard),
+    box-shadow var(--motion-quick) var(--ease-standard);
+}
+
+.v2-page :where(button, a):not(:disabled):active {
+  transform: translateY(1px);
+}
+
+/* V2 自绘详情弹窗：遮罩与内容分层运动，关闭时由 useDialogMotion 延迟卸载。 */
+.crs-modal-mask {
+  animation: v2-mask-enter 180ms var(--ease-enter) both;
+}
+
+.crs-modal-mask > [role='dialog'] {
+  animation: v2-dialog-enter 240ms var(--ease-enter) both;
+}
+
+.crs-modal-mask[data-closing='true'] {
+  animation: v2-mask-exit 140ms var(--ease-exit) both;
+  pointer-events: none;
+}
+
+.crs-modal-mask[data-closing='true'] > [role='dialog'] {
+  animation: v2-dialog-exit 140ms var(--ease-exit) both;
+}
+
+/* Ant Design 弹窗、确认框和抽屉：统一提高位移可见度，仍沿用其延迟卸载机制。 */
+.ant-modal-root .ant-modal.ant-zoom-appear,
+.ant-modal-root .ant-modal.ant-zoom-enter {
+  animation: v2-dialog-enter 240ms var(--ease-enter) both !important;
+}
+
+.ant-modal-root .ant-modal.ant-zoom-leave {
+  animation: v2-dialog-exit 140ms var(--ease-exit) both !important;
+}
+
+.ant-modal-root .ant-modal-mask.ant-fade-appear,
+.ant-modal-root .ant-modal-mask.ant-fade-enter {
+  animation: v2-mask-enter 180ms var(--ease-enter) both !important;
+}
+
+.ant-modal-root .ant-modal-mask.ant-fade-leave {
+  animation: v2-mask-exit 140ms var(--ease-exit) both !important;
+}
+
+.ant-drawer .ant-drawer-content-wrapper {
+  transition-duration: var(--motion-base) !important;
+  transition-timing-function: var(--ease-standard) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-force-motion]) .v2-page [data-region],
+  html:not([data-force-motion]) .v2-page [data-testid$='-kpi'],
+  html:not([data-force-motion]) .crs-modal-mask,
+  html:not([data-force-motion]) .crs-modal-mask > [role='dialog'],
+  html:not([data-force-motion]) .ant-modal-root .ant-modal,
+  html:not([data-force-motion]) .ant-modal-root .ant-modal-mask {
+    animation: none !important;
+  }
+
+  html:not([data-force-motion]) .ant-drawer .ant-drawer-content-wrapper {
+    transition: none !important;
+  }
+}
+
+html[data-regression]:not([data-force-motion]) .v2-page [data-region],
+html[data-regression]:not([data-force-motion]) .v2-page [data-testid$='-kpi'],
+html[data-regression]:not([data-force-motion]) .crs-modal-mask,
+html[data-regression]:not([data-force-motion]) .crs-modal-mask > [role='dialog'],
+html[data-regression]:not([data-force-motion]) .ant-modal-root .ant-modal,
+html[data-regression]:not([data-force-motion]) .ant-modal-root .ant-modal-mask {
+  animation: none !important;
+}
+
+html[data-regression]:not([data-force-motion]) .ant-drawer .ant-drawer-content-wrapper {
+  transition: none !important;
+}

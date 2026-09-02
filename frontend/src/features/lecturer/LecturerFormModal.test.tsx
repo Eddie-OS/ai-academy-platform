@@ -27,7 +27,7 @@ const POOL_OUT = '已移出';
 const FIELD_ENUMS = {
   [FIELD_ENUM_KEYS.lecturerTrainingState]: ['待培养', '培养中', '可上岗'],
   [FIELD_ENUM_KEYS.lecturerDutyState]: ['可上岗', '暂停授课', '已下线'],
-  [FIELD_ENUM_KEYS.lecturerLevel]: ['L0', 'L1', 'L2', 'L3'],
+  [FIELD_ENUM_KEYS.lecturerLevel]: ['L0', 'L1', 'L2', 'L3', 'L4'],
   // 顺序即后端 LecturerEnums.POOL_STATES 的定义顺序，组件按下标取「已移出」
   [FIELD_ENUM_KEYS.lecturerPoolState]: [POOL_IN, POOL_OUT],
   [FIELD_ENUM_KEYS.lecturerJoinType]: ['课程开发人员自动入池', '运营手动添加', '批量导入'],
@@ -110,13 +110,17 @@ function operatorAccount(): AccountInfo {
   };
 }
 
-function renderModal(value: Lecturer) {
+function renderModal(value?: Lecturer) {
   useAuthStore.setState({ account: operatorAccount(), resolved: true });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <App>
-        <LecturerFormModal open lecturer={value} onClose={() => undefined} onUpdated={() => undefined} />
+        {value ? (
+          <LecturerFormModal open lecturer={value} onClose={() => undefined} onUpdated={() => undefined} />
+        ) : (
+          <LecturerFormModal open onClose={() => undefined} onCreated={() => undefined} />
+        )}
       </App>
     </QueryClientProvider>,
   );
@@ -147,9 +151,33 @@ describe('讲师表单', () => {
     expect(screen.getByText('讲师等级')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '工号' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: '擅长领域' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '来源部门' })).toBeTruthy();
     expect(screen.queryByText('培养状态')).toBeNull();
     expect(screen.queryByText('入池方式')).toBeNull();
     expect(screen.queryByText('试讲合格标记')).toBeNull();
+  });
+
+  it('新建按基础档案十四项，来源部门手工输入，不出现在池状态', async () => {
+    renderModal();
+
+    expect(await screen.findByText('新建讲师基础档案')).toBeTruthy();
+    expect(screen.getByText('由运营填写讲师基础档案。')).toBeTruthy();
+    expect(screen.getByDisplayValue('保存后自动生成')).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: '讲师姓名' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '来源部门' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '擅长领域' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '能力标签' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '可授课时间' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '排课限制说明' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '档案维护人' })).toBeTruthy();
+    expect(screen.getByLabelText('讲师等级')).toBeTruthy();
+    expect(screen.getByLabelText('上岗状态')).toBeTruthy();
+    expect(screen.getByLabelText('建档时间')).toBeTruthy();
+    expect(screen.getByText('讲师简介')).toBeTruthy();
+    expect(screen.getByText('讲师头像')).toBeTruthy();
+    expect(screen.getByText('备注')).toBeTruthy();
+    expect(screen.queryByText('在池状态')).toBeNull();
+    expect(screen.queryByText('移出原因')).toBeNull();
   });
 
   it('头像区同时提供上传与 60 张现成图', async () => {

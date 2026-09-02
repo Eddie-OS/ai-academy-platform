@@ -67,6 +67,8 @@ export interface TrainingSession {
   sessionName: string | null;
   courseId: number;
   courseName: string | null;
+  /** 课程简介（立项大纲摘要）。日视图展示；没有则为 null */
+  courseIntro?: string | null;
   lecturerId: number;
   lecturerName: string | null;
   trainingDate: string;
@@ -83,6 +85,8 @@ export interface TrainingSession {
   attendanceImported: boolean;
   sessionState: string;
   remark: string | null;
+  createdAt?: string | null;
+  createdBy?: string | null;
   lastStateChangedAt: string | null;
   updatedAt: string;
   updatedBy: string | null;
@@ -111,6 +115,10 @@ export interface TrainingSessionFilter {
   courseId?: number | null;
   lecturerId?: number | null;
   sessionState?: string | null;
+  /** 所属计划的培训计划状态 */
+  planState?: string | null;
+  /** 场次是否已进入归档终态；null 不筛 */
+  archived?: boolean | null;
   trainingForm?: string | null;
   dateFrom?: string | null;
   dateTo?: string | null;

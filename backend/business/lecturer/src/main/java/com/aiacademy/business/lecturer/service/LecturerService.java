@@ -9,7 +9,6 @@ import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.common.json.JsonArrays;
-import com.aiacademy.platform.dict.domain.BusinessDomains;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeService;
 import org.springframework.stereotype.Service;
@@ -230,31 +229,10 @@ public class LecturerService {
         if (LecturerEnums.POOL_OUT.equals(form.poolState()) && blankToNull(form.removedReason()) == null) {
             throw new BizException(ErrorCode.PARAM_INVALID, "移出讲师池时必须填写移出原因");
         }
-        validateSourceDept(form.sourceDept(), excludeId);
         List<String> domains = form.expertiseDomains() == null ? List.of() : form.expertiseDomains();
         if (domains.stream().noneMatch(item -> item != null && !item.isBlank())) {
             throw new BizException(ErrorCode.PARAM_INVALID, "请填写擅长领域");
         }
-    }
-
-    /**
-     * 来源部门取现场口径七类（零售／服务／…）。擅长领域已改为自由文本。
-     *
-     * <p>编辑时允许保留历史部门名（人员台账带出的三级部门），避免旧档案一保存就被拒。
-     */
-    private void validateSourceDept(String sourceDept, Long excludeId) {
-        String value = sourceDept.trim();
-        if (BusinessDomains.contains(value)) {
-            return;
-        }
-        if (excludeId != null) {
-            Lecturer existing = mapper.selectById(excludeId);
-            if (existing != null && value.equals(existing.getSourceDept())) {
-                return;
-            }
-        }
-        throw new BizException(ErrorCode.PARAM_INVALID,
-                "来源部门只能是：" + String.join(" / ", BusinessDomains.NAMES));
     }
 
     /**

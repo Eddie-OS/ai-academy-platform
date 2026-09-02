@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Input,
@@ -67,9 +67,12 @@ const { Text } = Typography;
 
 export function CourseCockpitPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isOperator = useIsOperator();
+  const openTrialTab = params.get('tab') === 'trials' || params.get('tab') === '试讲';
+  const [detailTab, setDetailTab] = useState(openTrialTab ? 'trials' : 'basic');
 
   const [filter, setFilter] = useState<CourseWorkbenchFilter>(EMPTY_COURSE_FILTER);
   const [pageNum, setPageNum] = useState(1);
@@ -129,6 +132,10 @@ export function CourseCockpitPage() {
   const filtered = isCourseFilterActive(filter);
 
   const select = (courseId: number) => navigate(`/courses/${courseId}`);
+
+  useEffect(() => {
+    setDetailTab(openTrialTab ? 'trials' : 'basic');
+  }, [selectedId, openTrialTab]);
   /* 主路径默认是 V2 复刻件，回列表必须带 ?legacy=1，否则关掉详情就掉出业务页 */
   const closeDetail = () => navigate('/courses?legacy=1');
 
@@ -379,6 +386,8 @@ export function CourseCockpitPage() {
             </div>
             <Tabs
               size="small"
+              activeKey={detailTab}
+              onChange={setDetailTab}
               items={[
                 { key: 'basic', label: '基本信息', children: data ? <CourseBasicInfo course={data} /> : null },
                 { key: 'initiate', label: '立项', children: data ? <CourseInitiateTab course={data} /> : null },

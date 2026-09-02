@@ -60,7 +60,10 @@
                t.inconsistent,
                t.expert_opinion,
                t.issue_list,
-               t.record_state
+               t.record_state,
+               c.trial_satisfaction,
+               c.trial_optimize_advice,
+               c.trial_scheduled_date
           FROM dtl_course_trial t
           JOIN biz_course c ON c.id = t.course_id
           JOIN biz_lecturer l ON l.id = t.lecturer_id

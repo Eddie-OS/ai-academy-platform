@@ -144,7 +144,7 @@ public class LecturerImportHandler implements ImportHandler {
             // 需求 14.5 B 列：姓名以工号带出为准，文件里的姓名只作参考
             LecturerWrite write = new LecturerWrite(employeeNo, employee.getEmployeeName(),
                     row.text(COL_DEPT), toJsonArray(domains), row.text(COL_DIRECTION),
-                    trainingState, poolState, LecturerEnums.dutyStateOf(trainingState));
+                    trainingState, poolState);
             Long id = existing.get(employeeNo);
             if (id == null) {
                 plan.insert(row, write);
@@ -171,21 +171,19 @@ public class LecturerImportHandler implements ImportHandler {
                 writer.insert(planned.rowNo(), TABLE, () -> mapper.insertLecturer(
                         lecturerNo, write.lecturerName(), write.employeeNo(), write.sourceDept(),
                         write.expertiseDomainsJson(), write.teachingDirection(), today,
-                        write.trainingState(), write.poolState(), write.dutyState(),
-                        LecturerEnums.LEVELS.get(0), writer.batchNo(), writer.operator()));
+                        write.trainingState(), write.poolState(), writer.batchNo(), writer.operator()));
             } else if (planned.op() == RowOp.UPDATE) {
                 writer.update(planned.rowNo(), TABLE, planned.targetId(),
                         () -> mapper.updateLecturer(planned.targetId(), write.lecturerName(),
                                 write.sourceDept(), write.expertiseDomainsJson(), write.teachingDirection(),
-                                write.trainingState(), write.poolState(), write.dutyState(),
-                                writer.batchNo(), writer.operator()));
+                                write.trainingState(), write.poolState(), writer.batchNo(), writer.operator()));
             }
         }
     }
 
     private record LecturerWrite(String employeeNo, String lecturerName, String sourceDept,
                                  String expertiseDomainsJson, String teachingDirection,
-                                 String trainingState, String poolState, String dutyState) {
+                                 String trainingState, String poolState) {
     }
 
     private static List<String> splitDomains(String raw) {

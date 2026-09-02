@@ -105,6 +105,10 @@ export interface TeachingRecord {
   sessionState: string;
   attendeeCount: number;
   avgScore: string | null;
+  /** 场次培训形式：线下／线上／混合，原样展示 */
+  trainingForm: string | null;
+  createdBy: string | null;
+  updatedAt: string | null;
 }
 
 /** 一条学员评价（需求 10.6）。{@code submitterName} 为 null 即匿名。 */
@@ -140,6 +144,11 @@ export interface TrialLedgerRow {
   expertOpinion: string | null;
   issueList: string | null;
   recordState: string;
+  /** 课程工作台「整体满意度」，挂在课程上，同课多轮共用 */
+  trialSatisfaction: string | null;
+  /** 课程工作台「优化建议」 */
+  trialOptimizeAdvice: string | null;
+  trialScheduledDate: string | null;
 }
 
 export interface TrialLedgerFilter {
@@ -180,4 +189,140 @@ export const lecturerApi = {
     api.get<PageResult<TrialLedgerRow>>(
       `/api/lecturers/trial-ledger${query({ ...filter, pageNum, pageSize })}`,
     ),
+
+  cultivationRecords: (lecturerId: number) =>
+    api.get<CultivationRecord[]>(`/api/lecturers/${lecturerId}/cultivation-records`),
+
+  createCultivation: (lecturerId: number, form: CultivationForm) =>
+    api.post<number>(`/api/lecturers/${lecturerId}/cultivation-records`, form),
+
+  updateCultivation: (lecturerId: number, recordId: number, form: CultivationForm) =>
+    api.put<void>(`/api/lecturers/${lecturerId}/cultivation-records/${recordId}`, form),
+
+  removeCultivation: (lecturerId: number, recordId: number) =>
+    api.delete<void>(`/api/lecturers/${lecturerId}/cultivation-records/${recordId}`),
+
+  certificationRecords: (lecturerId: number) =>
+    api.get<CertificationRecord[]>(`/api/lecturers/${lecturerId}/certification-records`),
+
+  createCertification: (lecturerId: number, form: CertificationForm) =>
+    api.post<number>(`/api/lecturers/${lecturerId}/certification-records`, form),
+
+  updateCertification: (lecturerId: number, recordId: number, form: CertificationForm) =>
+    api.put<void>(`/api/lecturers/${lecturerId}/certification-records/${recordId}`, form),
+
+  removeCertification: (lecturerId: number, recordId: number) =>
+    api.delete<void>(`/api/lecturers/${lecturerId}/certification-records/${recordId}`),
+
+  levelLogs: (lecturerId: number) =>
+    api.get<LevelLogRecord[]>(`/api/lecturers/${lecturerId}/level-logs`),
+
+  createLevelLog: (lecturerId: number, form: LevelLogForm) =>
+    api.post<number>(`/api/lecturers/${lecturerId}/level-logs`, form),
+
+  updateLevelLog: (lecturerId: number, recordId: number, form: LevelLogForm) =>
+    api.put<void>(`/api/lecturers/${lecturerId}/level-logs/${recordId}`, form),
+
+  removeLevelLog: (lecturerId: number, recordId: number) =>
+    api.delete<void>(`/api/lecturers/${lecturerId}/level-logs/${recordId}`),
+
+  fieldLogs: (lecturerId: number) =>
+    api.get<LecturerFieldLog[]>(`/api/lecturers/${lecturerId}/field-logs`),
 };
+
+export interface CultivationRecord {
+  id: number;
+  lecturerId: number;
+  planText: string | null;
+  plannedFrom: string | null;
+  plannedTo: string | null;
+  cultivationTypes: string[];
+  recordText: string | null;
+  actualFrom: string | null;
+  actualTo: string | null;
+  planState: string;
+  evaluation: string | null;
+  remark: string | null;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export interface CultivationForm {
+  planText?: string | null;
+  plannedFrom?: string | null;
+  plannedTo?: string | null;
+  cultivationTypes?: string[];
+  recordText?: string | null;
+  actualFrom?: string | null;
+  actualTo?: string | null;
+  planState: string;
+  evaluation?: string | null;
+  remark?: string | null;
+}
+
+export interface CertificationRecord {
+  id: number;
+  lecturerId: number;
+  certBatch: string | null;
+  lecturerLevel: string | null;
+  certState: string;
+  reviewers: string | null;
+  opinion: string | null;
+  passedOn: string | null;
+  validFrom: string | null;
+  validTo: string | null;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export interface CertificationForm {
+  certBatch?: string | null;
+  lecturerLevel?: string | null;
+  certState: string;
+  reviewers?: string | null;
+  opinion?: string | null;
+  passedOn?: string | null;
+  validFrom?: string | null;
+  validTo?: string | null;
+}
+
+export interface LevelLogRecord {
+  id: number;
+  lecturerId: number;
+  changeNo: string;
+  triggerReason: string | null;
+  changeDesc: string | null;
+  changedOn: string | null;
+  levelAfter: string;
+  reviewer: string | null;
+  reviewComment: string | null;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export interface LevelLogForm {
+  triggerReason?: string | null;
+  changeDesc?: string | null;
+  changedOn?: string | null;
+  levelAfter: string;
+  reviewer?: string | null;
+  reviewComment?: string | null;
+}
+
+/** 上岗／培养／认证的字段变更。来自操作审计，不是状态机流转日志。 */
+export interface LecturerFieldLog {
+  fieldName: string;
+  oldValue: string | null;
+  newValue: string | null;
+  accountType: string;
+  operatorNo: string | null;
+  operatorName: string | null;
+  operatedAt: string;
+  remark: string | null;
+}

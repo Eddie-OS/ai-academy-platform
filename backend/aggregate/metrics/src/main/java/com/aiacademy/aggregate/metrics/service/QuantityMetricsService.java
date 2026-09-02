@@ -8,12 +8,10 @@ import com.aiacademy.platform.statemachine.domain.Transition;
 import com.aiacademy.platform.statemachine.domain.machines.CaseStateMachines;
 import com.aiacademy.platform.statemachine.domain.machines.CourseStateMachines;
 import com.aiacademy.platform.statemachine.domain.machines.DemandStateMachines;
-import com.aiacademy.platform.statemachine.domain.machines.TaskStateMachine;
 import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -25,8 +23,6 @@ import java.util.Map;
  */
 @Service
 public class QuantityMetricsService {
-
-    private static final String EFFECT_DERIVE_PREFIX = "DERIVE_TASK:";
 
     /** 分流出口非状态机枚举（需求 5.2／8.3）；不在 StateLiteralGuard 扫描集合内。 */
     private static final String OUTLET_SOLUTION = "用现有工具输出解决方案";
@@ -240,28 +236,33 @@ public class QuantityMetricsService {
     }
 
     /**
-     * 驾驶舱四顶部卡。
+     * 驾驶舱四顶部卡：plans／sessions／attendeesTotal／attendees／archived。
      *
-     * <p>{@code weekPlans} 按 7.4「本周∩计划区间」；{@code attendance}／{@code archive}
-     * 为 {@code sys_task} 未完成任务按派生任务类型计数。
+     * <p>四张累计、一张当月（本月参训人次 = 15.1 #16）。{@code *Prev} 是上月末存量
+     * （累计）或上月同口径（当月），给前端算月度环比。总看板入口卡仍读
+     * {@code sessions}／{@code attendees}。
      */
     @Transactional(readOnly = true)
     public CockpitQuantityVO forTrainings() {
         LocalDate today = LocalDate.now();
-        LocalDate weekStart = today.with(DayOfWeek.MONDAY);
-        LocalDate weekEnd = today.with(DayOfWeek.SUNDAY);
-        List<String> openTaskStates = List.of(
-                TaskStateMachine.STATE_PENDING, TaskStateMachine.STATE_IN_PROGRESS);
-        List<String> finishTaskTypes = sessionFinishTaskTypes();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate lastMonthStart = monthStart.minusMonths(1);
+        LocalDate lastMonthEnd = monthStart.minusDays(1);
+        String archived = TrainingStateMachines.SESSION_ARCHIVED;
 
         QuantitySnapshot snap = all();
         Map<String, Long> out = new LinkedHashMap<>();
-        out.put("plans", snap.asLong("13"));
-        out.put("weekPlans", mapper.countPlansOverlapping(weekStart, weekEnd));
-        out.put("sessions", snap.asLong("14"));
+        out.put("plans", mapper.countPlans());
+        out.put("plansPrev", mapper.countPlansCreatedBefore(monthStart));
+        out.put("sessions", mapper.countSessions());
+        out.put("sessionsPrev", mapper.countSessionsCreatedBefore(monthStart));
+        out.put("attendeesTotal", snap.asLong("16a"));
+        out.put("attendeesTotalPrev", mapper.countAttendancePresentBefore(ATTEND_PRESENT, monthStart));
         out.put("attendees", snap.asLong("16"));
-        out.put("attendance", mapper.countOpenTasksByType(finishTaskTypes.get(0), openTaskStates));
-        out.put("archive", mapper.countOpenTasksByType(finishTaskTypes.get(1), openTaskStates));
+        out.put("attendeesPrev", mapper.countAttendancePresentInMonth(
+                ATTEND_PRESENT, lastMonthStart, lastMonthEnd));
+        out.put("archived", mapper.countSessionsByState(archived));
+        out.put("archivedPrev", mapper.countSessionsByStateChangedBefore(archived, monthStart));
         return CockpitQuantityVO.of(out);
     }
 
@@ -298,22 +299,6 @@ public class QuantityMetricsService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "状态机 " + def.machineName() + " 无动作 " + action));
-    }
-
-    /** 场次「结束」转换上挂的两条 DERIVE_TASK，顺序：签到导入、培训归档。 */
-    private static List<String> sessionFinishTaskTypes() {
-        Transition finish = TrainingStateMachines.session().transitions().stream()
-                .filter(t -> "FINISH".equals(t.action()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("场次状态机缺少 FINISH"));
-        List<String> types = finish.effects().stream()
-                .filter(e -> e.startsWith(EFFECT_DERIVE_PREFIX))
-                .map(e -> e.substring(EFFECT_DERIVE_PREFIX.length()))
-                .toList();
-        if (types.size() < 2) {
-            throw new IllegalStateException("场次 FINISH 应派生签到导入与培训归档两类任务");
-        }
-        return types;
     }
 
     private static Map<String, Long> toLongMap(List<Map<String, Object>> rows) {

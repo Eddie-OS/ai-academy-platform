@@ -205,7 +205,7 @@ export function SessionAttendeesTab({ sessionId }: SessionAttendeesTabProps) {
 }
 
 /** 手工添加参训人员（需求 11.5.1）。已在名单上的会被后端忽略，这里同时把它们从候选里去掉。 */
-function AddAttendeesModal({
+export function AddAttendeesModal({
   open,
   sessionId,
   existing,

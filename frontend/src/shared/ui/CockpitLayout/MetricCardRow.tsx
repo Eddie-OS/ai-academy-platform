@@ -1,15 +1,16 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Card, Tooltip, Typography } from 'antd';
 import { Info } from 'lucide-react';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import {
   brand,
-  elevation,
   fontSize,
   lineHeight,
   neutral,
   radius,
   space,
 } from '@/shared/theme/designTokens';
+import './CockpitLayout.css';
 
 const { Text } = Typography;
 
@@ -67,8 +68,8 @@ export function MetricCardRow({ items }: MetricCardRowProps) {
         gap: space.md,
       }}
     >
-      {items.map(({ key, ...spec }) => (
-        <MetricCard key={key} cardKey={key} {...spec} />
+      {items.map(({ key, ...spec }, index) => (
+        <MetricCard key={key} cardKey={key} cardIndex={index} {...spec} />
       ))}
     </div>
   );
@@ -76,6 +77,7 @@ export function MetricCardRow({ items }: MetricCardRowProps) {
 
 function MetricCard({
   cardKey,
+  cardIndex,
   title,
   value,
   suffix,
@@ -86,7 +88,7 @@ function MetricCard({
   deltaLabel,
   selected,
   onClick,
-}: Omit<MetricCardSpec, 'key'> & { cardKey: string }) {
+}: Omit<MetricCardSpec, 'key'> & { cardKey: string; cardIndex: number }) {
   const pending = value === undefined;
   const clickable = Boolean(onClick);
 
@@ -97,6 +99,7 @@ function MetricCard({
       data-metric={cardKey}
       data-pending={pending}
       data-selected={selected ? 'true' : undefined}
+      className="cockpit-metric-card"
       hoverable={clickable}
       onClick={onClick}
       role={clickable ? 'button' : undefined}
@@ -115,11 +118,11 @@ function MetricCard({
       styles={{ body: { padding: space.md } }}
       style={{
         borderRadius: radius.lg,
-        boxShadow: elevation[1],
         cursor: clickable ? 'pointer' : undefined,
+        '--metric-index': cardIndex,
         // 未接入的卡片不加边框强调，避免它在一排里比真实指标更抢眼
         borderColor: selected ? brand[600] : neutral[200],
-      }}
+      } as CSSProperties}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: space.xs }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -148,7 +151,7 @@ function MetricCard({
               color: pending ? neutral[400] : neutral[900],
             }}
           >
-            {value ?? '—'}
+            {pending ? '—' : <AnimatedNumber value={value!} />}
             {!pending && suffix && (
               <span style={{ fontSize: fontSize.body, marginLeft: space['2xs'], fontWeight: 400 }}>
                 {suffix}

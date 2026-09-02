@@ -1,22 +1,22 @@
 .crs-state-timeline {
-  margin: 0;
-  padding: 0;
+  margin: var(--space-v2-2) 0 0;
+  padding: 0 0 0 16px;
   list-style: none;
 }
 
 .crs-state-item {
   position: relative;
-  padding: 0 0 var(--space-md) var(--space-lg);
+  padding: 0 0 var(--space-v2-4) 0;
 }
 
 .crs-state-item::before {
   content: '';
   position: absolute;
-  top: var(--space-xs);
-  bottom: 0;
-  left: var(--space-2xs);
+  top: 10px;
+  bottom: -2px;
+  left: -13px;
   width: 1px;
-  background: var(--color-border-divider);
+  background: var(--border-default);
 }
 
 .crs-state-item:last-child {
@@ -27,47 +27,57 @@
   display: none;
 }
 
-.crs-state-dot {
+/* 必须挂在时间轴条目下。类名与课程列表 StateTag 的 .crs-state-dot 撞车，
+   写成全局会把表里每个状态点吸到 .crs-table-panel（position:relative）左上角。 */
+.crs-state-item .crs-state-dot {
   position: absolute;
-  top: var(--space-2xs);
-  left: 0;
-  width: var(--space-xs);
-  height: var(--space-xs);
-  border-radius: var(--radius-xs);
-  background: var(--color-icon-default);
+  top: 5px;
+  left: -16px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--brand-action);
+  border-radius: 50%;
+  background: var(--bg-page);
+  box-sizing: border-box;
+}
+
+.crs-state-item:first-child .crs-state-dot {
+  background: var(--brand-action);
 }
 
 .crs-state-time {
-  margin: 0 0 var(--space-xs);
-  color: var(--color-text-body);
-  font-size: var(--text-body-size);
-  font-weight: var(--text-body-strong-weight);
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
   font-variant-numeric: tabular-nums;
-  line-height: var(--text-body-line);
+  line-height: var(--type-table-line);
 }
 
 .crs-state-meta {
   margin: 0;
-  color: var(--color-text-body);
-  font-size: var(--text-body-size);
-  line-height: var(--text-body-line);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 .crs-state-meta dt {
   display: inline;
-  color: var(--color-text-secondary);
+  color: var(--text-tertiary);
 }
 
 .crs-state-meta dd {
   display: inline;
-  margin: 0 0 0 var(--space-sm);
+  margin: 0 0 0 var(--space-v2-2);
 }
 
 .crs-state-meta div + div {
-  margin-top: var(--space-3xs);
+  margin-top: 2px;
 }
 
 .crs-state-empty {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--text-tertiary);
+  font-size: var(--type-table-size);
+  line-height: var(--lh-22);
 }

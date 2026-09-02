@@ -49,6 +49,12 @@ import { avatarUrlOf, personByName } from './people';
  */
 export const LECTURER_DOMAINS = ['零售', 'GTM', '电商', 'MKT', '服务', '渠道', '政企'] as const;
 
+export const LECTURER_LEVELS = ['L0', 'L1', 'L2', 'L3', 'L4'] as const;
+
+export const LECTURER_CULTIVATION_STATES = ['待培养', '培养中', '可上岗'] as const;
+
+export const LECTURER_DUTY_STATES = ['可上岗', '暂停授课', '已下线'] as const;
+
 export type LecturerDomain = (typeof LECTURER_DOMAINS)[number];
 
 /**
@@ -178,6 +184,11 @@ export const LECTURER_POOL: LecturerCard[] = [
   { id: 'JS0458', name: '韩烨', dept: '数据合规部', domains: ['政企'], trialQualified: true, teachingCount: 19, avgScore: '4.58', attendees: 2470 },
 ];
 
+/** 来源部门选项。池子里的部门名去重，不另造一份名单 */
+export const LECTURER_SOURCE_DEPTS = [...new Set(LECTURER_POOL.map((card) => card.dept))].sort((a, b) =>
+  a.localeCompare(b, 'zh-CN'),
+);
+
 /** 千分位整数（设计规范 3.3） */
 function thousands(value: number): string {
   return value.toLocaleString('en-US');
@@ -272,6 +283,15 @@ export const LECTURER_SELECTED_ID = 'JS0431';
 export const TRIAL_CONCLUSION_QUALIFIED = '合格';
 export const TRIAL_CONCLUSION_UNQUALIFIED = '不合格';
 
+/** 台账展示用是／否。库里仍是合格／不合格，这里只换读法。 */
+export const TRIAL_LEDGER_YES = '是';
+export const TRIAL_LEDGER_NO = '否';
+
+export function trialLedgerYesNoOf(conclusion: string | null | undefined): string {
+  if (!conclusion) return '—';
+  return conclusion === TRIAL_CONCLUSION_QUALIFIED ? TRIAL_LEDGER_YES : TRIAL_LEDGER_NO;
+}
+
 export interface TrialLedgerRow {
   id: string;
   course: string;
@@ -360,9 +380,34 @@ export const TRIAL_LEDGER_COLUMNS = [
   { id: 'action', label: '操作', width: 47 },
 ] as const;
 
-/** R7 详情四个页签。文档 8：默认停在「试讲记录」 */
+/**
+ * 产品模式台账列。对齐课程工作台·课程试讲：结论改成是／否，去掉「结论一致」。
+ * 合计仍是 812，不改回归那组列宽。
+ */
+export const TRIAL_LEDGER_PRODUCT_COLUMNS = [
+  { id: 'course', label: '课程名称', width: 168 },
+  { id: 'round', label: '试讲轮数', width: 80 },
+  { id: 'lecturer', label: '讲师', width: 72 },
+  { id: 'lecturerConclusion', label: '讲师试讲是否合格', width: 148 },
+  { id: 'courseConclusion', label: '课程是否满足发布要求', width: 176 },
+  { id: 'reviewedAt', label: '试讲时间', width: 88 },
+  { id: 'action', label: '操作', width: 80 },
+] as const;
+
+/** R7 详情四个页签。文档 8：默认停在「试讲记录」。回归模式钉死这一组。 */
 export const LECTURER_DETAIL_TABS = ['基本信息', '试讲记录', '授课记录', '学员评价'] as const;
 export const LECTURER_DETAIL_ACTIVE_TAB = 1;
+
+/** 产品模式右侧详情七个页签。培养／认证／等级只展示当前结果，流转日志说明讲师没有状态机。 */
+export const LECTURER_PRODUCT_TABS = [
+  '基本信息',
+  '试讲记录',
+  '培养计划与培养记录',
+  '认证记录',
+  '等级变更记录',
+  '授课记录与学员反馈',
+  '状态流转日志',
+] as const;
 
 /**
  * 详情头部的标签。设计稿给的是机器学习/深度学习/Python/数据挖掘/+2，
@@ -394,6 +439,10 @@ export interface TrialTimelineItem {
   /** 参与人（TrialLedgerRow.participants）。一期没有「评审人」这个字段 */
   participants: string;
   date: string;
+  /** 课程工作台带出。回归时间线不渲染，避免动 p04 基线 */
+  courseName?: string;
+  satisfaction?: string;
+  optimizeAdvice?: string;
 }
 
 /**
@@ -410,6 +459,9 @@ export const TRIAL_TIMELINE: TrialTimelineItem[] = withCurrentDates([
     opinion: '门店场景拆解到位，导购话术示范清晰，综合评分 4.8 / 5',
     participants: '张小北、周建、黄悦',
     date: '2024-05-08',
+    courseName: '门店 AI 导购助手实战',
+    satisfaction: '4.8 / 5',
+    optimizeAdvice: '门店场景拆解到位，导购话术示范清晰',
   },
   {
     round: '第 2 轮',
@@ -417,6 +469,9 @@ export const TRIAL_TIMELINE: TrialTimelineItem[] = withCurrentDates([
     opinion: '案例偏总部视角，建议补一线门店的实操演示',
     participants: '陈晨、李华',
     date: '2024-04-22',
+    courseName: '门店 AI 导购助手实战',
+    satisfaction: '3.2 / 5',
+    optimizeAdvice: '案例偏总部视角，建议补一线门店的实操演示',
   },
   {
     round: '第 1 轮',
@@ -424,6 +479,9 @@ export const TRIAL_TIMELINE: TrialTimelineItem[] = withCurrentDates([
     opinion: '节奏偏快，需优化结构与门店案例引入',
     participants: '赵敏、王宇',
     date: '2024-04-10',
+    courseName: '门店 AI 导购助手实战',
+    satisfaction: '2.8 / 5',
+    optimizeAdvice: '节奏偏快，需优化结构与门店案例引入',
   },
 ]);
 
@@ -434,13 +492,41 @@ export interface TeachingRecord {
   taughtOn: string;
   /** 本场平均评分（需求 10.5） */
   score: string;
+  /** 场次培训形式。产品展开用，回归表不读 */
+  trainingForm?: string;
+  createdBy?: string;
+  updatedAt?: string;
 }
 
 /** R7「近期授课记录」三条。李玥的授课记录，评分与她的平均分 4.86 同一量级 */
 export const TEACHING_RECORDS: TeachingRecord[] = withCurrentDates([
-  { course: '门店 AI 导购助手实战', session: '第 12 期', taughtOn: '2024-05-10', score: '4.86' },
-  { course: '零售终端陈列优化', session: '第 9 期', taughtOn: '2024-04-28', score: '4.78' },
-  { course: '门店店效数据分析', session: '第 15 期', taughtOn: '2024-04-12', score: '4.81' },
+  {
+    course: '门店 AI 导购助手实战',
+    session: '第 12 期',
+    taughtOn: '2024-05-10',
+    score: '4.86',
+    trainingForm: '线下',
+    createdBy: '运营',
+    updatedAt: '2024-05-10 18:30',
+  },
+  {
+    course: '零售终端陈列优化',
+    session: '第 9 期',
+    taughtOn: '2024-04-28',
+    score: '4.78',
+    trainingForm: '混合',
+    createdBy: '运营',
+    updatedAt: '2024-04-28 17:10',
+  },
+  {
+    course: '门店店效数据分析',
+    session: '第 15 期',
+    taughtOn: '2024-04-12',
+    score: '4.81',
+    trainingForm: '线上',
+    createdBy: '运营',
+    updatedAt: '2024-04-12 16:40',
+  },
 ]);
 
 /**
@@ -477,6 +563,53 @@ export function lecturerTitleOf(name: string): string {
   return person ? `${person.dept} · ${person.position}` : '';
 }
 
+const DOMAIN_COURSES: Record<string, readonly [string, string, string]> = {
+  零售: ['门店 AI 导购助手实战', '零售终端陈列优化', '门店店效数据分析'],
+  GTM: ['GTM 上市节奏拆解', '新品导入一线实战', '竞品应对工作坊'],
+  电商: ['电商大促运营实战', '直播间话术与转化', '会员运营增长'],
+  MKT: ['品牌内容营销实战', '社媒投放与复盘', '活动策划落地'],
+  服务: ['服务体验一线实战', '售后话术与升级', '客户成功案例拆解'],
+  渠道: ['渠道政策解读与落地', '经销商赋能体系实战', '渠道激励落地'],
+  政企: ['政企标案写作进阶', '行业方案陈述', '投标支持实战'],
+};
+
+const TRAINING_FORMS = ['线下', '混合', '线上'] as const;
+
+const DEMO_OPERATORS = [
+  { name: '张三', no: '00123456' },
+  { name: '李四', no: '00123457' },
+  { name: '王五', no: '00123458' },
+] as const;
+
+function coursesOf(card: LecturerCard): readonly [string, string, string] {
+  return DOMAIN_COURSES[card.domains[0] ?? '零售'] ?? DOMAIN_COURSES.零售!;
+}
+
+function poolIndexOf(card: LecturerCard): number {
+  const index = LECTURER_POOL.findIndex((row) => row.id === card.id);
+  return index < 0 ? 0 : index;
+}
+
+function demoOperator(index: number, slot: number): string {
+  const who = DEMO_OPERATORS[(index + slot) % DEMO_OPERATORS.length]!;
+  return `${who.name} ${who.no}`;
+}
+
+/** 认证记录上的三值。卡上推导见 {@code lecturerCertDisplayOf}，这里只给台账。 */
+function certRecordStateOf(card: LecturerCard): string {
+  if (card.trialQualified) return '已认证';
+  if (card.cultivationStatus === '培养中') return '认证中';
+  return '待认证';
+}
+
+function previousLevelOf(level: string): string {
+  if (level === 'L4') return 'L3';
+  if (level === 'L3') return 'L2';
+  if (level === 'L2') return 'L1';
+  if (level === 'L1') return 'L0';
+  return '—';
+}
+
 /**
  * 产品模式详情「基本信息」的只读档案。字段与新建表单同一套。
  *
@@ -484,35 +617,37 @@ export function lecturerTitleOf(name: string): string {
  * {@link LECTURER_POOL} 把 p04 像素基线一起打掉。回归模式不走这份档案。
  *
  * <p>上岗状态与培养状态对齐后端 {@code dutyStateOf}：可上岗↔可上岗，
- * 培养中↔暂停授课，待培养↔已下线。等级按授课次数分档，只是展示，不是评估模型。
+ * 培养中↔暂停授课，待培养↔已下线。等级按授课次数分到 L0–L4，只是展示，不是评估模型。
  */
 export function lecturerArchiveOf(card: LecturerCard) {
   const person = personByName(card.name);
-  return {
+  const duty = dutyStateOf(card);
+  return withCurrentDates({
     name: card.name,
     lecturerNo: card.id,
     employeeNo: person?.no ?? null,
     sourceDept: card.dept,
     lecturerLevel: lecturerLevelOf(card.teachingCount),
-    dutyState: dutyStateOf(card),
+    dutyState: duty,
     expertiseDomains: card.domains,
     capabilityTags: person?.position ?? null,
     bio: person
       ? `${person.position}。擅长${card.domains.join('、')}。`
       : `擅长${card.domains.join('、')}。`,
     portraitSrc: avatarUrlOf(card.name) ?? null,
-    availableTime: null,
-    scheduleLimit: null,
-    joinedDate: null,
-    profileMaintainer: null,
+    availableTime: '工作日 09:00–12:00、14:00–17:00',
+    scheduleLimit:
+      duty === '可上岗' ? '每周最多 2 场' : duty === '暂停授课' ? '培养期内不排新课' : '已下线，不排课',
+    joinedDate: '2026-03-15',
+    profileMaintainer: '运营',
     poolState: '在池',
     removedReason: null,
-    remark: null,
+    remark: duty === '暂停授课' ? '培养期内暂缓新课' : duty === '已下线' ? '待培养，暂不排课' : null,
     trialQualified: card.trialQualified,
     teachingCount: card.teachingCount,
     avgScore: card.avgScore,
     attendees: card.attendees,
-  };
+  });
 }
 
 function dutyStateOf(card: LecturerCard): string {
@@ -521,7 +656,24 @@ function dutyStateOf(card: LecturerCard): string {
   return '可上岗';
 }
 
-function lecturerLevelOf(teachingCount: number): string {
+/** 卡上上岗徽章的色相。取值在 fixtures 里对齐，页面不比较中文枚举。 */
+export function lecturerDutyTone(card: LecturerCard): 'ok' | 'warn' | 'muted' {
+  if (card.cultivationStatus === '培养中') return 'warn';
+  if (card.cultivationStatus === '待培养') return 'muted';
+  return 'ok';
+}
+
+/** 培养状态三值。卡上没写的合格者即「可上岗」。 */
+export function lecturerCultivationOf(card: LecturerCard): string {
+  return card.cultivationStatus ?? '可上岗';
+}
+
+export function lecturerCultivationTone(card: LecturerCard): 'ok' | 'warn' | 'muted' {
+  return lecturerDutyTone(card);
+}
+
+export function lecturerLevelOf(teachingCount: number): string {
+  if (teachingCount >= 24) return 'L4';
   if (teachingCount >= 18) return 'L3';
   if (teachingCount >= 12) return 'L2';
   if (teachingCount >= 6) return 'L1';
@@ -547,17 +699,17 @@ export function lecturerBasicFieldsOf(card: LecturerCard): LecturerDetailField[]
     { label: '讲师姓名', value: archive.name },
     { label: '工号', value: fieldValue(archive.employeeNo) },
     { label: '来源部门', value: fieldValue(archive.sourceDept) },
+    { label: '讲师简介', value: fieldValue(archive.bio) },
     { label: '讲师等级', value: fieldValue(archive.lecturerLevel) },
-    { label: '上岗状态', value: fieldValue(archive.dutyState) },
     { label: '擅长领域', value: archive.expertiseDomains.join('、') || '—' },
     { label: '能力标签', value: fieldValue(archive.capabilityTags) },
-    { label: '讲师简介', value: fieldValue(archive.bio) },
     { label: '可授课时间', value: fieldValue(archive.availableTime) },
+    { label: '上岗状态', value: fieldValue(archive.dutyState) },
     { label: '排课限制说明', value: fieldValue(archive.scheduleLimit) },
     { label: '建档时间', value: fieldValue(archive.joinedDate) },
     { label: '档案维护人', value: fieldValue(archive.profileMaintainer) },
     { label: '在池状态', value: fieldValue(archive.poolState) },
-    { label: '备注信息', value: fieldValue(archive.remark) },
+    { label: '备注', value: fieldValue(archive.remark) },
     { label: '试讲合格', value: archive.trialQualified ? '是' : '否' },
     { label: '授课次数', value: String(archive.teachingCount) },
     { label: '学员评分', value: `${archive.avgScore} / 5` },
@@ -567,49 +719,341 @@ export function lecturerBasicFieldsOf(card: LecturerCard): LecturerDetailField[]
 
 /**
  * 该讲师的试讲时间线。李玥走冻结的三轮（p04 钉死了日期与参与人），
- * 其余人按合格标记给一轮结论 —— 不是新编的状态机，只是让右侧详情不再所有人都是李玥的课。
+ * 其余人按合格标记铺满标准轮次：合格者三轮「不合格 → 不合格 → 合格」，
+ * 未合格者两轮「不合格 → 不合格」。不是新编的状态机。
  */
 export function lecturerTimelineOf(card: LecturerCard): TrialTimelineItem[] {
   if (card.id === LECTURER_SELECTED_ID) return TRIAL_TIMELINE;
-  const qualified = card.trialQualified;
+  const course = coursesOf(card)[0];
+  const domain = card.domains[0] ?? '';
+  if (card.trialQualified) {
+    return withCurrentDates([
+      {
+        round: '第 3 轮',
+        conclusion: TRIAL_CONCLUSION_QUALIFIED,
+        opinion: `${domain}场景拆解到位，综合评分 ${card.avgScore} / 5`,
+        participants: '张小北、周建、黄悦',
+        date: '2024-05-08',
+        courseName: course,
+        satisfaction: `${card.avgScore} / 5`,
+        optimizeAdvice: `${domain}场景拆解到位，一线案例可直接带回用`,
+      },
+      {
+        round: '第 2 轮',
+        conclusion: TRIAL_CONCLUSION_UNQUALIFIED,
+        opinion: '案例偏总部视角，建议补一线实操演示',
+        participants: '陈晨、李华',
+        date: '2024-04-22',
+        courseName: course,
+        satisfaction: '3.2 / 5',
+        optimizeAdvice: '案例偏总部视角，建议补一线实操演示',
+      },
+      {
+        round: '第 1 轮',
+        conclusion: TRIAL_CONCLUSION_UNQUALIFIED,
+        opinion: '节奏偏快，需优化结构与一线案例引入',
+        participants: '赵敏、王宇',
+        date: '2024-04-10',
+        courseName: course,
+        satisfaction: '2.8 / 5',
+        optimizeAdvice: '节奏偏快，需优化结构与一线案例引入',
+      },
+    ]);
+  }
   return withCurrentDates([
     {
-      round: qualified ? '第 2 轮' : '第 1 轮',
-      conclusion: qualified ? TRIAL_CONCLUSION_QUALIFIED : TRIAL_CONCLUSION_UNQUALIFIED,
-      opinion: qualified
-        ? `${card.domains[0] ?? ''}场景拆解清楚，综合评分 ${card.avgScore} / 5`
-        : '案例偏总部视角，建议补一线实操演示后再试讲',
+      round: '第 2 轮',
+      conclusion: TRIAL_CONCLUSION_UNQUALIFIED,
+      opinion: '案例偏总部视角，建议补一线实操演示后再试讲',
       participants: '张小北、周建',
-      date: qualified ? '2024-05-08' : '2024-04-22',
+      date: '2024-04-22',
+      courseName: course,
+      satisfaction: '3.1 / 5',
+      optimizeAdvice: '建议补一线实操演示后再试讲',
+    },
+    {
+      round: '第 1 轮',
+      conclusion: TRIAL_CONCLUSION_UNQUALIFIED,
+      opinion: '节奏偏快，结构与案例引入都还不够稳',
+      participants: '陈晨、李华',
+      date: '2024-04-10',
+      courseName: course,
+      satisfaction: '2.6 / 5',
+      optimizeAdvice: '先把课程结构压住，再补一线案例',
     },
   ]);
 }
 
 /**
- * 该讲师的近期授课。李玥走冻结三条；授课次数为 0 的人给空数组。
+ * 该讲师的近期授课。李玥走冻结三条；其余人同样摊三条标准场次。
  */
 export function lecturerTeachingOf(card: LecturerCard): TeachingRecord[] {
   if (card.id === LECTURER_SELECTED_ID) return TEACHING_RECORDS;
-  if (card.teachingCount <= 0) return [];
-  const domain = card.domains[0] ?? '零售';
+  const courses = coursesOf(card);
+  const latest = Math.max(3, card.teachingCount);
+  return withCurrentDates(
+    courses.map((course, index) => ({
+      course,
+      session: `第 ${latest - index} 期`,
+      taughtOn: (['2024-05-10', '2024-04-28', '2024-04-12'] as const)[index]!,
+      score: card.avgScore,
+      trainingForm: TRAINING_FORMS[index]!,
+      createdBy: '运营',
+      updatedAt: (['2024-05-10 18:30', '2024-04-28 17:10', '2024-04-12 16:40'] as const)[index]!,
+    })),
+  );
+}
+
+export interface CultivationFixture {
+  planText: string;
+  plannedFrom: string;
+  plannedTo: string;
+  cultivationTypes: string[];
+  recordText: string;
+  actualFrom: string;
+  actualTo: string;
+  planState: string;
+  evaluation: string;
+  remark: string;
+}
+
+export interface CertFixture {
+  certBatch: string;
+  lecturerLevel: string;
+  certState: string;
+  reviewers: string;
+  opinion: string;
+  passedOn: string;
+  validFrom: string;
+  validTo: string;
+}
+
+/** 产品模式认证页签的演示记录。只摊开九字段，不是认证流程。每位讲师一条。 */
+export function lecturerCertRecordsOf(card: LecturerCard): CertFixture[] {
+  if (card.id === LECTURER_SELECTED_ID) {
+    return withCurrentDates([
+      {
+        certBatch: '2026-08 批次',
+        lecturerLevel: 'L4',
+        certState: '已认证',
+        reviewers: '张小北、周建',
+        opinion: '门店场景拆解清楚，准予认证。',
+        passedOn: '2026-08-31',
+        validFrom: '2026-08-31',
+        validTo: '2027-08-31',
+      },
+    ]);
+  }
+  const level = lecturerLevelOf(card.teachingCount);
+  const state = certRecordStateOf(card);
+  const domain = card.domains[0] ?? '';
+  const certified = state === '已认证';
   return withCurrentDates([
     {
-      course: `${domain}一线实战`,
-      session: `第 ${Math.max(1, card.teachingCount)} 期`,
-      taughtOn: '2024-05-10',
-      score: card.avgScore,
+      certBatch: certified ? '2026-08 批次' : state === '认证中' ? '2026-07 批次' : '2026-06 批次',
+      lecturerLevel: level,
+      certState: state,
+      reviewers: '张小北、周建',
+      opinion: certified
+        ? `${domain}场景拆解清楚，准予认证。`
+        : state === '认证中'
+          ? `${domain}认证材料已收齐，线下评审进行中。`
+          : `${domain}认证尚未启动，先补培养记录。`,
+      passedOn: certified ? '2026-08-20' : '',
+      validFrom: '2026-08-20',
+      validTo: '2027-08-20',
+    },
+  ]);
+}
+
+export interface LevelLogFixture {
+  changeNo: string;
+  triggerReason: string;
+  changeDesc: string;
+  changedOn: string;
+  levelAfter: string;
+  reviewer: string;
+  reviewComment: string;
+  createdBy: string;
+  updatedAt: string;
+}
+
+/** 产品模式等级变更页签的演示记录。不改档案等级。每位讲师一条。 */
+export function lecturerLevelLogsOf(card: LecturerCard): LevelLogFixture[] {
+  if (card.id === LECTURER_SELECTED_ID) {
+    return withCurrentDates([
+      {
+        changeNo: 'BG0001',
+        triggerReason: '定期评审',
+        changeDesc: '由 L3 变更为 L4',
+        changedOn: '2026-08-20',
+        levelAfter: 'L4',
+        reviewer: '张小北',
+        reviewComment: '授课次数与一线案例均达标。',
+        createdBy: '运营',
+        updatedAt: '2026-08-20 10:00',
+      },
+    ]);
+  }
+  const level = lecturerLevelOf(card.teachingCount);
+  const prev = previousLevelOf(level);
+  const changeNo = `BG${String(poolIndexOf(card) + 1).padStart(4, '0')}`;
+  return withCurrentDates([
+    {
+      changeNo,
+      triggerReason: prev === '—' ? '初次定级' : '定期评审',
+      changeDesc: `由 ${prev} 变更为 ${level}`,
+      changedOn: '2026-08-18',
+      levelAfter: level,
+      reviewer: '张小北',
+      reviewComment: prev === '—' ? '按授课次数初次定级。' : '授课次数与一线案例均达标。',
+      createdBy: '运营',
+      updatedAt: '2026-08-18 10:00',
+    },
+  ]);
+}
+
+export interface FieldLogFixture {
+  operatedAt: string;
+  fieldName: string;
+  oldValue: string;
+  newValue: string;
+  operator: string;
+  remark: string;
+}
+
+/** 产品模式状态流转日志。演示操作审计时间轴，不是状态机流水。每位讲师三条。 */
+export function lecturerFieldLogsOf(card: LecturerCard): FieldLogFixture[] {
+  if (card.id === LECTURER_SELECTED_ID) {
+    return withCurrentDates([
+      {
+        operatedAt: '2026-08-05 10:44',
+        fieldName: '上岗状态',
+        oldValue: '可上岗',
+        newValue: '暂停授课',
+        operator: '张三 00123456',
+        remark: '',
+      },
+      {
+        operatedAt: '2026-08-01 09:34',
+        fieldName: '培养状态',
+        oldValue: '待培养',
+        newValue: '培养中',
+        operator: '李四 00123457',
+        remark: '培养记录需更新',
+      },
+      {
+        operatedAt: '2026-07-30 08:51',
+        fieldName: '认证状态',
+        oldValue: '认证中',
+        newValue: '已认证',
+        operator: '王五 00123458',
+        remark: '讲师认证完成',
+      },
+    ]);
+  }
+  const index = poolIndexOf(card);
+  const duty = dutyStateOf(card);
+  const cultivation = lecturerCultivationOf(card);
+  const cert = certRecordStateOf(card);
+  const dutyFrom = duty === '可上岗' ? '暂停授课' : '可上岗';
+  const cultivationFrom = cultivation === '可上岗' ? '培养中' : cultivation === '培养中' ? '待培养' : '培养中';
+  const certFrom = cert === '已认证' ? '认证中' : cert === '认证中' ? '待认证' : '认证中';
+  return withCurrentDates([
+    {
+      operatedAt: '2026-08-05 10:44',
+      fieldName: '上岗状态',
+      oldValue: dutyFrom,
+      newValue: duty,
+      operator: demoOperator(index, 0),
+      remark: '',
+    },
+    {
+      operatedAt: '2026-08-01 09:34',
+      fieldName: '培养状态',
+      oldValue: cultivationFrom,
+      newValue: cultivation,
+      operator: demoOperator(index, 1),
+      remark: cultivation === '培养中' ? '培养记录需更新' : '',
+    },
+    {
+      operatedAt: '2026-07-30 08:51',
+      fieldName: '认证状态',
+      oldValue: certFrom,
+      newValue: cert,
+      operator: demoOperator(index, 2),
+      remark: cert === '已认证' ? '讲师认证完成' : cert === '认证中' ? '认证材料已提交' : '待启动认证',
+    },
+  ]);
+}
+
+/** 产品模式培养页签的演示记录。不是培养引擎，只把十字段摊开。每位讲师一条。 */
+export function lecturerCultivationRecordsOf(card: LecturerCard): CultivationFixture[] {
+  if (card.id === LECTURER_SELECTED_ID) {
+    return withCurrentDates([
+      {
+        planText: '门店一线带教：观摩两场、模拟试讲一场，补齐导购话术。',
+        plannedFrom: '2026-08-15',
+        plannedTo: '2026-08-31',
+        cultivationTypes: ['定向培养', '能力迭代'],
+        recordText: '已完成一场门店观摩与一次模拟试讲。',
+        actualFrom: '2026-08-16',
+        actualTo: '2026-08-28',
+        planState: '已完成培养',
+        evaluation: '场景拆解清楚，带教节奏可再放慢。',
+        remark: '',
+      },
+    ]);
+  }
+  const domain = card.domains[0] ?? '';
+  const cultivation = lecturerCultivationOf(card);
+  const done = cultivation === '可上岗';
+  const inProgress = cultivation === '培养中';
+  return withCurrentDates([
+    {
+      planText: `${domain}一线带教：观摩两场、模拟试讲一场，补齐一线话术。`,
+      plannedFrom: '2026-08-15',
+      plannedTo: '2026-08-31',
+      cultivationTypes: ['定向培养', '能力迭代'],
+      recordText: done
+        ? '已完成一场一线观摩与一次模拟试讲。'
+        : inProgress
+          ? '已完成一场一线观摩，模拟试讲待排。'
+          : '培养计划已建档，尚未开始带教。',
+      actualFrom: done || inProgress ? '2026-08-16' : '—',
+      actualTo: done ? '2026-08-28' : inProgress ? '2026-08-22' : '—',
+      planState: done ? '已完成培养' : cultivation,
+      evaluation: done
+        ? '场景拆解清楚，带教节奏可再放慢。'
+        : inProgress
+          ? '带教进行中，先把一线案例补齐。'
+          : '待培养启动后再评。',
+      remark: inProgress ? '培养记录需更新' : '',
     },
   ]);
 }
 
 export function lecturerEvaluationsOf(card: LecturerCard): StudentEvaluation[] {
-  if (card.teachingCount <= 0) return [];
+  const latest = Math.max(3, card.teachingCount);
+  const domain = card.domains[0] ?? '';
   return [
     {
       student: '门店学员甲',
-      session: `第 ${Math.max(1, card.teachingCount)} 期`,
+      session: `第 ${latest} 期`,
       score: card.avgScore,
-      comment: `「${card.domains[0] ?? ''}」部分能直接带回门店用。`,
+      comment: `「${domain}」部分能直接带回一线用。`,
+    },
+    {
+      student: '门店学员乙',
+      session: `第 ${latest - 1} 期`,
+      score: card.avgScore,
+      comment: '案例具体，课后可以对照自己的场次复盘。',
+    },
+    {
+      student: '区域学员丙',
+      session: `第 ${latest - 2} 期`,
+      score: card.avgScore,
+      comment: '节奏清楚，希望再多留一点提问时间。',
     },
   ];
 }

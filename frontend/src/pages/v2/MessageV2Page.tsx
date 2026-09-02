@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ASSETS } from '@/shared/theme/designTokensV2';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { isRegressionMode } from '@/app/regressionMode';
 import { ApiError } from '@/shared/api/client';
 import {
@@ -262,7 +263,7 @@ function KpiRow({ items, showDelta }: { items: readonly KpiItem[]; showDelta: bo
           >
             <div className="esc-kpi-text">
               <p className="esc-kpi-label">{kpi.label}</p>
-              <strong className="esc-kpi-value">{kpi.value}</strong>
+              <strong className="esc-kpi-value"><AnimatedNumber value={kpi.value} duration={520} /></strong>
               {showDelta && kpi.delta ? (
                 <p className="esc-kpi-delta" data-warn={warn ? 'true' : undefined}>
                   <span>{kpi.delta}</span>

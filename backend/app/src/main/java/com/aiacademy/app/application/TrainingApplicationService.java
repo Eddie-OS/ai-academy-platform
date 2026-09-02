@@ -91,6 +91,20 @@ public class TrainingApplicationService {
                         CourseRefMapper.CourseRef::courseName, (a, b) -> a));
     }
 
+    /** 批量取课程简介（立项大纲摘要），给日历日视图补「课程介绍」。 */
+    @Transactional(readOnly = true)
+    public Map<Long, String> courseIntros(Collection<Long> courseIds) {
+        Set<Long> ids = courseIds.stream().filter(java.util.Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return courses.findByIds(ids).stream()
+                .filter(ref -> ref.outlineSummary() != null && !ref.outlineSummary().isBlank())
+                .collect(Collectors.toMap(CourseRefMapper.CourseRef::id,
+                        CourseRefMapper.CourseRef::outlineSummary, (a, b) -> a));
+    }
+
     // -------------------------------------------------------------------------
     // 培训场次（需求 11.4、11.4.1）
     // -------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { Button, DatePicker, Descriptions, Input, Select, Space, Tag } from 'ant
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { lecturerApi, type TrialLedgerFilter, type TrialLedgerRow } from '@/shared/api/lecturers';
+import { trialLedgerYesNoOf } from '@/fixtures/lecturer';
 import { AnalyticsCard } from '@/shared/ui/CockpitLayout';
 import { DataTable, actionsWidth, type DataTableColumn } from '@/shared/ui/DataTable';
 import { space } from '@/shared/theme/designTokens';
@@ -23,9 +24,8 @@ import {
  * 状态、课程试讲子状态与讲师试讲合格标记。在台账上另开一个录入口就会有两条写路径，
  * 而两条路径迟早只有一条是完整的。这里给的是「去课程页录」的入口。
  *
- * <p><b>双结论不一致单独一列并可筛。</b>课程结论与讲师结论相互独立（需求 9.7.1）：课程本身
- * 没问题但这次讲的人没讲好，或者反过来，都是正常情况。不一致的那几条正是需要线下复核的，
- * 台账最有价值的筛选就是这一个。不一致标记是库里的生成列，前端不自己比较两个结论。
+ * <p>列名与取值跟课程工作台·课程试讲对齐：试讲轮数、讲师试讲是否合格、课程是否满足发布要求、
+ * 试讲时间；结论只展示是／否。不再单独列「结论一致」。
  */
 
 interface TrialLedgerTableProps {
@@ -59,7 +59,7 @@ export function TrialLedgerTable({ activeLecturerId, onSelectLecturer }: TrialLe
   );
 
   const columns: DataTableColumn<TrialLedgerRow>[] = [
-    { key: 'trialDate', title: '试讲日期', kind: 'date', dataIndex: 'trialDate', sortable: true },
+    { key: 'trialDate', title: '试讲时间', kind: 'date', dataIndex: 'trialDate', sortable: true },
     {
       key: 'courseName',
       title: '课程',
@@ -71,7 +71,7 @@ export function TrialLedgerTable({ activeLecturerId, onSelectLecturer }: TrialLe
         </Button>
       ),
     },
-    { key: 'roundNo', title: '轮次', kind: 'number', sortable: true, render: (row) => `第 ${row.roundNo} 轮` },
+    { key: 'roundNo', title: '试讲轮数', kind: 'number', sortable: true, render: (row) => `第 ${row.roundNo} 轮` },
     {
       key: 'lecturerName',
       title: '试讲讲师',
@@ -87,23 +87,18 @@ export function TrialLedgerTable({ activeLecturerId, onSelectLecturer }: TrialLe
     },
     {
       key: 'courseConclusion',
-      title: '课程结论',
+      title: '课程是否满足发布要求',
       kind: 'statusSub',
-      render: (row) => (row.courseConclusion ? <Tag color="blue">{row.courseConclusion}</Tag> : null),
+      width: 176,
+      render: (row) => (row.courseConclusion ? <Tag color="blue">{trialLedgerYesNoOf(row.courseConclusion)}</Tag> : null),
     },
     {
       key: 'lecturerConclusion',
-      title: '讲师结论',
+      title: '讲师试讲是否合格',
       kind: 'statusSub',
+      width: 148,
       render: (row) =>
-        row.lecturerConclusion ? <Tag color="blue">{row.lecturerConclusion}</Tag> : null,
-    },
-    {
-      key: 'inconsistent',
-      title: '双结论',
-      kind: 'statusSub',
-      // 一致是常态，不给它标签：一致的行挂满灰标签会把不一致的那几条淹掉
-      render: (row) => (row.inconsistent ? <Tag color="warning">不一致</Tag> : null),
+        row.lecturerConclusion ? <Tag color="blue">{trialLedgerYesNoOf(row.lecturerConclusion)}</Tag> : null,
     },
     { key: 'recordState', title: '记录状态', kind: 'statusSub', dataIndex: 'recordState' },
     {
@@ -116,9 +111,9 @@ export function TrialLedgerTable({ activeLecturerId, onSelectLecturer }: TrialLe
           type="link"
           size="small"
           style={{ padding: 0 }}
-          onClick={() => navigate(`/courses/${row.courseId}`)}
+          onClick={() => navigate(`/courses/${row.courseId}?tab=trials`)}
         >
-          去课程页
+          查看
         </Button>
       ),
     },
@@ -140,31 +135,18 @@ export function TrialLedgerTable({ activeLecturerId, onSelectLecturer }: TrialLe
           <Select
             allowClear
             size="small"
-            placeholder="课程结论"
-            style={{ width: 120 }}
+            placeholder="课程是否满足发布要求"
+            style={{ width: 200 }}
             options={conclusions}
             onChange={(value) => patch({ courseConclusion: value ?? null })}
           />
           <Select
             allowClear
             size="small"
-            placeholder="讲师结论"
-            style={{ width: 120 }}
+            placeholder="讲师试讲是否合格"
+            style={{ width: 180 }}
             options={conclusions}
             onChange={(value) => patch({ lecturerConclusion: value ?? null })}
-          />
-          <Select
-            allowClear
-            size="small"
-            placeholder="双结论"
-            style={{ width: 130 }}
-            options={[
-              { value: 'true', label: '只看不一致' },
-              { value: 'false', label: '只看一致' },
-            ]}
-            onChange={(value) =>
-              patch({ inconsistent: value === undefined ? null : value === 'true' })
-            }
           />
           <Select
             allowClear
@@ -188,7 +170,7 @@ export function TrialLedgerTable({ activeLecturerId, onSelectLecturer }: TrialLe
       }
     >
       <DataTable<TrialLedgerRow>
-        storageKey="trial-ledger"
+        storageKey="trial-ledger-course-align"
         columns={columns}
         rows={page.data?.records}
         rowKey={(row) => String(row.id)}
@@ -240,6 +222,8 @@ export function TrialLedgerDetail({ row }: { row: TrialLedgerRow }) {
       size="small"
       column={1}
       items={[
+        { key: 'satisfaction', label: '整体满意度', children: row.trialSatisfaction ?? '—' },
+        { key: 'advice', label: '优化建议', children: row.trialOptimizeAdvice ?? '—' },
         { key: 'participants', label: '参与验收人员', children: row.participants ?? '—' },
         { key: 'opinion', label: '评审专家意见', children: row.expertOpinion ?? '—' },
         { key: 'issues', label: '问题清单', children: row.issueList ?? '—' },

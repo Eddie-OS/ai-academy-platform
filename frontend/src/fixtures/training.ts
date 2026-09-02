@@ -6,7 +6,7 @@
  * | V2.0 原值 | 替换为 | 依据 |
  * |---|---|---|
  * | 月历卡「进行中／待开始」 | 「已开课／待开课」 | 场次状态机只有 待开课／已开课／已结束／已归档（5.8）；11.8 颜色也按这四值 |
- * | KPI 六名照抄 | 保留 V2.0 六名 | 「本周培训计划数」在需求 7.4 驾驶舱入口有出处；后两张是任务派生计数（13.1.2），不是 15.1 公式 |
+ * | KPI 六名照抄 | 回归保留六名；产品改五张 | 产品卡：累计计划／场次／人次、本月人次、已归档，均带月度环比 |
  * | R6 区域名「培训计划列表」却列场次字段 | 行按场次、第一列挂所属计划名 | 「必须照抄」列宽不动；标题仍写设计稿原文 |
  * | 详情五个页签 | 五个都渲染 | 需求 P4-4 把参训与签到合并，设计稿拆开——几何照抄，默认停在基本信息 |
  * | 导入结果「成功／重复／未匹配」 | 「写入／覆盖更新／自动补入」 | 14.4：同工号覆盖更新、不在名单则自动补入；「未匹配」不是合法结果分类 |
@@ -22,7 +22,7 @@
 
 import { withCurrentDates } from './fixtureClock';
 
-/** R3 六张 KPI。前四张在需求 7.4／15.1 能查到；后两张是任务派生计数 */
+/** R3 六张 KPI。回归模式照抄 V2.0；产品模式改走 {@link TRAINING_PRODUCT_KPIS}。 */
 export const TRAINING_KPIS = [
   { id: 'monthPlans', label: '本月培训计划数', value: '128', delta: '↑ 18.2%', period: '较上月', icon: 'CalendarDays' },
   { id: 'weekPlans', label: '本周培训计划数', value: '32', delta: '↑ 12.5%', period: '较上周', icon: 'Briefcase' },
@@ -31,6 +31,20 @@ export const TRAINING_KPIS = [
   /* 下降用危险色：待办变少是好事，但环比箭头朝下仍按「数值下降」着色，与总看板一致 */
   { id: 'pendingAttendance', label: '待导入签到', value: '86', delta: '↓ 3.2%', period: '较上周', icon: 'FileInput', down: true },
   { id: 'pendingArchive', label: '待归档', value: '42', delta: '↓ 6.1%', period: '较上周', icon: 'FolderOpen', down: true },
+] as const;
+
+/**
+ * 产品模式五张 KPI。卡名与口径来自业务当场表：四张累计、一张当月，都带月度环比。
+ *
+ * <p>{@code id} 与 {@code GET /api/metrics/quantity/trainings} 的 key 对齐。
+ * 冻数只给演示站用；产品构建走接口，环比用上月末存量（累计）／上月同口径（当月）算。
+ */
+export const TRAINING_PRODUCT_KPIS = [
+  { id: 'plans', label: '累计培训计划数', value: '128', deltaPercent: 18.2, icon: 'CalendarDays' },
+  { id: 'sessions', label: '累计培训场次', value: '356', deltaPercent: 12.5, icon: 'Video' },
+  { id: 'attendeesTotal', label: '累计参训人次', value: '8,640', deltaPercent: 9.4, icon: 'Users' },
+  { id: 'attendees', label: '本月参训人次', value: '1,236', deltaPercent: 5.6, icon: 'UserCheck' },
+  { id: 'archived', label: '已归档', value: '214', deltaPercent: 6.1, icon: 'FolderOpen' },
 ] as const;
 
 /** R4 工具条：视图切换 + 筛选。全部未选中态（文档 0.3） */
@@ -45,8 +59,25 @@ export const TRAINING_FILTERS = [
   { id: 'domain', label: '所属领域', value: '全部' },
 ] as const;
 
+/** 产品模式三张筛选项。取值来自元数据；这里只冻标签。 */
+export const TRAINING_PRODUCT_FILTERS = [
+  { id: 'planState', label: '培训计划状态' },
+  { id: 'sessionState', label: '场次授课状态' },
+  { id: 'archived', label: '培训归档状态' },
+] as const;
+
+/** 归档筛的两值。标签放 fixtures，页面只渲染不下判断（STK-1）。 */
+export const TRAINING_ARCHIVE_FILTERS = [
+  { value: 'true', label: '已归档' },
+  { value: 'false', label: '未归档' },
+] as const;
+
 /** 场次状态四值。色板与 11.8「按场次状态着色」对齐 */
 export type SessionState = '待开课' | '已开课' | '已结束' | '已归档';
+
+export function sessionMatchesArchive(state: SessionState, archived: boolean): boolean {
+  return archived === (state === '已归档');
+}
 
 export interface CalendarSession {
   id: string;
@@ -56,6 +87,14 @@ export interface CalendarSession {
   time: string;
   /** 形式 + 讲师，如「线上 · 李明」 */
   meta: string;
+  /** 培训课程名称。没有则退回 {@link title} */
+  courseName?: string;
+  /** 授课讲师。没有则从 meta 里拆 */
+  lecturer?: string;
+  /** 课程介绍。日视图用 */
+  intro?: string;
+  /** 真实授课日 YYYY-MM-DD。有则按日期挂格，没有则按相对日号（回归冻数） */
+  date?: string;
   state: SessionState;
   /** 所属日，1～31 */
   day: number;
@@ -211,6 +250,15 @@ export const TRAINING_DETAIL_TABS = [
   '基本信息',
   '参训人员',
   '签到记录',
+  '培训归档',
+  '学员反馈',
+] as const;
+
+/** 产品模式培训详情五子页（规格：与新建培训计划字段同一套基本信息） */
+export const TRAINING_PRODUCT_DETAIL_TABS = [
+  '基本信息',
+  '培训场次记录',
+  '参训学员',
   '培训归档',
   '学员反馈',
 ] as const;

@@ -1,0 +1,58 @@
+/*
+ * 新建／编辑培训计划：按标注红框落在主区中央。
+ * 红框在 1024×524 截图上量得 234,66,612×368
+ * → 22.9vw / 12.6vh / 59.8vw / 70.2vh。
+ * 标题与底栏不滚；表体只纵向滚，禁止横向溢出。
+ */
+.training-plan-form-modal-root .ant-modal.training-plan-form-modal {
+  top: 12.6vh !important;
+  left: 22.9vw !important;
+  width: 59.8vw !important;
+  max-width: none;
+  height: 70.2vh;
+  margin: 0 !important;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.training-plan-form-modal-root .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  height: 70.2vh;
+  max-height: 70.2vh;
+  overflow: hidden;
+}
+
+.training-plan-form-modal-root .ant-modal-header,
+.training-plan-form-modal-root .ant-modal-footer {
+  flex-shrink: 0;
+}
+
+.training-plan-form-modal-root .ant-modal-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+
+.training-plan-form-modal-root .ant-form,
+.training-plan-form-modal-root .ant-row,
+.training-plan-form-modal-root .ant-col {
+  max-width: 100%;
+}
+
+.training-plan-form-modal-root .ant-col {
+  min-width: 0;
+}
+
+.training-plan-form-modal-root .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.training-plan-form-modal-root .ant-select,
+.training-plan-form-modal-root .ant-picker,
+.training-plan-form-modal-root .ant-input-number {
+  max-width: 100%;
+}

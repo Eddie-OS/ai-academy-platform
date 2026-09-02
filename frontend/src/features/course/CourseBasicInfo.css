@@ -27,17 +27,17 @@
 }
 
 .crs-basic-card {
-  padding: var(--space-v2-3) var(--card-pad);
+  padding: var(--space-v2-3) var(--space-v2-4);
   border: var(--border-v2);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-control);
   background: var(--bg-page);
 }
 
 .crs-basic-card h4 {
-  margin-bottom: var(--space-v2-3);
+  margin-bottom: var(--space-v2-2);
   padding-bottom: var(--space-v2-2);
-  border-bottom: 1px solid var(--border-light);
-  color: var(--text-secondary);
+  border-bottom: var(--border-v2);
+  color: var(--text-primary);
 }
 
 .crs-basic-grid {
@@ -67,15 +67,15 @@
 
 .crs-basic-field dt {
   color: var(--text-tertiary);
-  font-size: var(--fs-12);
-  line-height: var(--lh-18);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 .crs-basic-field dd {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--type-body-size);
-  line-height: var(--type-body-line);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
   word-break: break-word;
 }
 
@@ -112,15 +112,15 @@
 
 .crs-basic-prose span {
   color: var(--text-tertiary);
-  font-size: var(--fs-12);
-  line-height: var(--lh-18);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 .crs-basic-prose p {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--type-body-size);
-  line-height: var(--type-body-line);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -140,11 +140,11 @@
 }
 
 .crs-basic-tags li {
-  padding: 0 var(--space-v2-2);
+  padding: 0 6px;
   border-radius: var(--radius-tag);
-  background: var(--bg-muted);
-  color: var(--text-secondary);
-  font-size: var(--fs-12);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: var(--type-caption-size);
   line-height: var(--lh-20);
 }
 
@@ -160,5 +160,5 @@
 }
 
 .crs-basic-form .ant-form-item {
-  margin-bottom: var(--space-v2-4);
+  margin-bottom: var(--space-v2-3);
 }

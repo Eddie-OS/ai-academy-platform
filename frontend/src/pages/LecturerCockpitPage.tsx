@@ -27,10 +27,17 @@ import { formatDateTime } from '@/shared/format';
 import { space } from '@/shared/theme/designTokens';
 import { useIsOperator } from '@/shared/store/authStore';
 import { LecturerFormModal } from '@/features/lecturer/LecturerFormModal';
+import { LecturerTabEdit } from '@/features/lecturer/LecturerTabEdit';
 import { LecturerBasicInfo, lecturerBasicProfileOf } from '@/features/lecturer/LecturerBasicInfo';
 import { LecturerTeachingTab } from '@/features/lecturer/LecturerTeachingTab';
 import { LecturerEvaluationsTab } from '@/features/lecturer/LecturerEvaluationsTab';
 import { LecturerTrialsTab } from '@/features/lecturer/LecturerTrialsTab';
+import { LecturerCultivationTab } from '@/features/lecturer/LecturerCultivationTab';
+import {
+  LecturerCertTab,
+  LecturerLevelLogTab,
+  LecturerStateLogTab,
+} from '@/features/lecturer/LecturerSnapshotTabs';
 import { LecturerPoolDistribution } from '@/features/lecturer/LecturerPoolDistribution';
 import { TrialLedgerTable } from '@/features/lecturer/TrialLedgerTable';
 import {
@@ -44,13 +51,12 @@ import {
 /**
  * 驾驶舱三 · 讲师与能力地图（设计稿《讲师地图》）。
  *
- * <p>一屏装下需求文档 10.2 的三页：<b>P3-1 讲师池列表</b>是主区左列，<b>P3-2 讲师详情</b>的四个
- * 页签是右列面板，<b>P3-3 试讲台账</b>是底部分析区。
+ * <p>一屏装下需求文档 10.2 的三页：<b>P3-1 讲师池列表</b>是主区左列，<b>P3-2 讲师详情</b>的
+ * 七个页签是右列面板，<b>P3-3 试讲台账</b>是底部分析区。
  *
- * <p><b>右侧面板没有状态区，也没有状态流转日志页签。</b>另外四个驾驶舱的面板顶部都有一排
- * 转换按钮，讲师没有——培养状态与在池状态都不是状态机（规则 TS1、C10、需求 5.13），它们是
- * 自由选择的枚举，改值走「编辑」而不是转换接口，也不写状态流转日志（TS2）。留一个空的状态区
- * 或一个永远为空的日志页签，会让人以为「讲师也有状态机，只是还没配」。
+ * <p><b>右侧面板没有可执行动作区。</b>另外四个驾驶舱的面板顶部都有一排转换按钮，讲师没有——
+ * 培养状态与在池状态都不是状态机（规则 TS1、C10、需求 5.13），改值走「编辑」。
+ * 「状态流转日志」页签展示上岗／培养／认证的操作审计时间轴，并写明不是状态机（TS2）。
  *
  * <p><b>侧栏叫「讲师与能力地图」，但这里不画能力地图。</b>讲师能力地图是二期的评估模型
  * （N6、原则三）。底部画的是已录数据的分布，不做任何打分与推荐。
@@ -374,25 +380,48 @@ export function LecturerCockpitPage() {
               ) : (
                 <Tabs
                   size="small"
+                  tabBarExtraContent={
+                    isOperator && data ? <LecturerTabEdit onEdit={() => setEditing(true)} /> : null
+                  }
                   items={[
-                    { key: 'basic', label: '基本信息', children: data ? <BasicInfo lecturer={data} /> : null },
-                    {
-                      key: 'trials',
-                      label: '试讲记录',
-                      children: hasSelection ? <LecturerTrialsTab lecturerId={selectedId} /> : null,
-                    },
-                    {
-                      key: 'teaching',
-                      label: '授课记录',
-                      children: hasSelection ? <LecturerTeachingTab lecturerId={selectedId} /> : null,
-                    },
-                    {
-                      key: 'evaluations',
-                      label: '学员评价',
-                      children: hasSelection ? <LecturerEvaluationsTab lecturerId={selectedId} /> : null,
-                    },
-                  ]}
-                />
+                      { key: 'basic', label: '基本信息', children: data ? <BasicInfo lecturer={data} /> : null },
+                      {
+                        key: 'trials',
+                        label: '试讲记录',
+                        children: hasSelection ? <LecturerTrialsTab lecturerId={selectedId} /> : null,
+                      },
+                      {
+                        key: 'cultivation',
+                        label: '培养计划与培养记录',
+                        children: data ? <LecturerCultivationTab lecturer={data} /> : null,
+                      },
+                      {
+                        key: 'cert',
+                        label: '认证记录',
+                        children: data ? <LecturerCertTab lecturer={data} /> : null,
+                      },
+                      {
+                        key: 'level',
+                        label: '等级变更记录',
+                        children: data ? <LecturerLevelLogTab lecturer={data} /> : null,
+                      },
+                      {
+                        key: 'teaching',
+                        label: '授课记录与学员反馈',
+                        children: data ? (
+                          <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
+                            <LecturerTeachingTab lecturer={data} />
+                            <LecturerEvaluationsTab lecturerId={data.id} />
+                          </Space>
+                        ) : null,
+                      },
+                      {
+                        key: 'logs',
+                        label: '状态流转日志',
+                        children: data ? <LecturerStateLogTab lecturer={data} /> : null,
+                      },
+                    ]}
+                  />
               )}
             </CockpitDetailPanel>
           )

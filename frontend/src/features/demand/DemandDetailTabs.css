@@ -71,7 +71,7 @@
   display: none;
 }
 
-.dmd-state-dot {
+.dmd-state-item .dmd-state-dot {
   position: absolute;
   top: var(--space-2xs);
   left: 0;

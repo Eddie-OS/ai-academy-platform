@@ -96,7 +96,7 @@ export function DemandCoursesTab({ demand }: DemandCoursesTabProps) {
   return (
     <Space direction="vertical" size={space.md} style={{ width: '100%' }}>
       <section className="dmd-tab-section">
-        <h3 className="dmd-tab-heading">关联课程</h3>
+        <h3 className="dmd-tab-heading">课程链接</h3>
         <Form
           form={linkForm}
           layout="vertical"
@@ -105,7 +105,6 @@ export function DemandCoursesTab({ demand }: DemandCoursesTabProps) {
           onFinish={(values) => saveLink.mutate(values)}
         >
           <Form.Item
-            label="课程链接"
             name="courseLink"
             extra="填写 http:// 或 https:// 开头的链接，保存后可点击跳转"
           >

@@ -26,10 +26,12 @@ html[data-regression] body {
 }
 
 /* 文档 1.2：截图前注入 *{animation:none;transition:none}。
-   这里直接写进样式表，Playwright 那行 addStyleTag 作为双保险 */
-html[data-regression] *,
-html[data-regression] *::before,
-html[data-regression] *::after {
+   这里直接写进样式表，Playwright 那行 addStyleTag 作为双保险。
+   data-force-motion 是人眼预览冻数据时的出口：同一条 ?fixture=1 既给截图用、
+   也给本地看界面用，关动画只属于截图。 */
+html[data-regression]:not([data-force-motion]) *,
+html[data-regression]:not([data-force-motion]) *::before,
+html[data-regression]:not([data-force-motion]) *::after {
   animation: none !important;
   transition: none !important;
   /* 插入符会在文本框里闪烁，两次截图能差出一整条竖线 */

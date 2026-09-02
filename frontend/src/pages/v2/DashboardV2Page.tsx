@@ -13,6 +13,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { EChartsOption, SeriesOption } from 'echarts';
 import { Chart } from '@/shared/ui/v2/Chart';
 import { Avatar } from '@/shared/ui/v2/Avatar';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { WarningLight, WarningSummaryCard, redLightReasonOf } from '@/shared/ui/WarningLight';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
 import { usesFixtureData } from '@/app/fixtureSource';
@@ -137,7 +138,7 @@ function KpiRow({ data, pending }: LivePanelProps) {
                 <Icon size={18} strokeWidth={1.8} />
               </span>
             </div>
-            <div className="kpi-value">{value}</div>
+            <div className="kpi-value"><AnimatedNumber value={value} duration={520} /></div>
             <div className="kpi-foot">
               {data || pending ? (
                 /* 真实数字没有环比可配：对照期的口径属阶段 3 的指标接口，接口没给。

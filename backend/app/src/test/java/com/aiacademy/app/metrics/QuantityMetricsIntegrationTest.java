@@ -272,12 +272,23 @@ class QuantityMetricsIntegrationTest extends IntegrationTest {
         assertThat(lecturersVo.values()).containsKeys("pendingTrial", "cultivating");
         assertThat(lecturersVo.values().get("cultivating")).isGreaterThanOrEqualTo(1L);
 
+        jdbc.update("""
+                INSERT INTO biz_training_session (session_no, plan_id, session_name, course_id, lecturer_id,
+                    training_date, start_time, end_time, training_form, student_scope, session_state,
+                    last_state_changed_at, created_by)
+                VALUES (?, ?, '已归档场', ?, ?, ?, '09:00', '12:00', '线下', '全体', ?, NOW(), 'OPS')
+                """, "CC" + nano(), planId, coursePub, lecturerId, today,
+                TrainingStateMachines.SESSION_ARCHIVED);
+
         CockpitQuantityVO trainingsVo = quantity.forTrainings();
         assertThat(trainingsVo.values())
-                .containsKeys("plans", "weekPlans", "sessions", "attendees", "attendance", "archive");
-        assertThat(trainingsVo.values().get("weekPlans")).isGreaterThanOrEqualTo(1L);
-        assertThat(trainingsVo.values().get("attendance")).isGreaterThanOrEqualTo(1L);
-        assertThat(trainingsVo.values().get("archive")).isGreaterThanOrEqualTo(1L);
+                .containsKeys("plans", "sessions", "attendeesTotal", "attendees", "archived",
+                        "plansPrev", "sessionsPrev", "attendeesTotalPrev", "attendeesPrev", "archivedPrev");
+        assertThat(trainingsVo.values().get("plans")).isGreaterThanOrEqualTo(1L);
+        assertThat(trainingsVo.values().get("sessions")).isGreaterThanOrEqualTo(1L);
+        assertThat(trainingsVo.values().get("attendeesTotal")).isGreaterThanOrEqualTo(1L);
+        assertThat(trainingsVo.values().get("attendees")).isGreaterThanOrEqualTo(1L);
+        assertThat(trainingsVo.values().get("archived")).isGreaterThanOrEqualTo(1L);
 
         long casePublishedId = jdbc.queryForObject(
                 "SELECT id FROM biz_case WHERE case_name = '数量指标案例-已上架' ORDER BY id DESC LIMIT 1",

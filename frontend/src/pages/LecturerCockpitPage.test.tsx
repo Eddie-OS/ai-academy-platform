@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { LecturerCockpitPage } from './LecturerCockpitPage';
 import { FIELD_ENUM_KEYS } from '@/shared/api/meta';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -13,10 +13,9 @@ import type { Lecturer } from '@/shared/api/lecturers';
  * 讲师驾驶舱与另外四个驾驶舱的两处结构差异，都不是可有可无的细节。
  *
  * <ul>
- *   <li><b>面板里没有状态区、没有状态流转日志页签。</b>培养状态与在池状态不是状态机
- *       （规则 TS1、C10），改值走编辑而不是转换接口，也不写流转日志（TS2）。摆一个空的状态区
- *       或一个永远为空的日志页签，会让人以为讲师也有状态机、只是还没配上；接下来就会有人
- *       去给它补一份转换表，而那正是 TS1 要挡住的事。
+ *   <li><b>面板里没有可执行动作区。</b>培养状态与在池状态不是状态机（规则 TS1、C10），
+ *       改值走编辑而不是转换接口，也不写状态机流转日志（TS2）。「状态流转日志」页签
+ *       展示操作审计时间轴，并写明不是状态机。
  *   <li><b>平均评分为空显示「—」而不是 0.0。</b>「还没有人评过」与「大家都打 0 分」是两回事
  *       （设计规范 3.3），而后者会让一名新讲师在按评分排序的列表里沉到底。
  * </ul>
@@ -50,6 +49,10 @@ vi.mock('@/shared/api/lecturers', async (importOriginal) => {
       evaluations: () => Promise.resolve([]),
       sourceDepts: () => Promise.resolve(['客服中心']),
       trialLedger: () => Promise.resolve({ records: [], total: 0, pageNum: 1, pageSize: 20 }),
+      cultivationRecords: () => Promise.resolve([]),
+      certificationRecords: () => Promise.resolve([]),
+      levelLogs: () => Promise.resolve([]),
+      fieldLogs: () => Promise.resolve([]),
     },
   };
 });
@@ -62,9 +65,12 @@ vi.mock('@/features/lecturer/lecturerMeta', async (importOriginal) => {
       data: {
         [FIELD_ENUM_KEYS.lecturerTrainingState]: ['待培养', '培养中', '可上岗'],
         [FIELD_ENUM_KEYS.lecturerDutyState]: ['可上岗', '暂停授课', '已下线'],
-        [FIELD_ENUM_KEYS.lecturerLevel]: ['L0', 'L1', 'L2', 'L3'],
+        [FIELD_ENUM_KEYS.lecturerLevel]: ['L0', 'L1', 'L2', 'L3', 'L4'],
         [FIELD_ENUM_KEYS.lecturerPoolState]: ['在池', '已移出'],
         [FIELD_ENUM_KEYS.lecturerJoinType]: ['课程开发人员自动入池', '运营手动添加', '批量导入'],
+        [FIELD_ENUM_KEYS.lecturerCultivationType]: ['定向培养', '能力迭代', '专项定向培养', '其他'],
+        [FIELD_ENUM_KEYS.lecturerCultivationPlanState]: ['待培养', '培养中', '已完成培养'],
+        [FIELD_ENUM_KEYS.lecturerCertState]: ['待认证', '认证中', '已认证'],
         [FIELD_ENUM_KEYS.trialConclusion]: ['合格', '不合格'],
       },
       isLoading: false,
@@ -140,12 +146,31 @@ function renderPage(path: string) {
 }
 
 describe('讲师驾驶舱', () => {
-  it('详情面板只有需求 10.2 的四个页签，没有状态流转日志', async () => {
+  it('详情面板是七个页签，流转日志写明讲师没有状态机', async () => {
     renderPage('/lecturers/1');
 
     const panel = await screen.findByTestId('cockpit-detail-panel');
     const tabs = within(panel).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['基本信息', '试讲记录', '授课记录', '学员评价']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      '基本信息',
+      '试讲记录',
+      '培养计划与培养记录',
+      '认证记录',
+      '等级变更记录',
+      '授课记录与学员反馈',
+      '状态流转日志',
+    ]);
+
+    fireEvent.click(within(panel).getByRole('tab', { name: '状态流转日志' }));
+    expect(await within(panel).findByText('档案字段改值自动留痕，不是状态机')).toBeTruthy();
+    expect(within(panel).getByText(/不写状态流转日志/)).toBeTruthy();
+    expect(await within(panel).findByText('还没有状态变更记录')).toBeTruthy();
+
+    fireEvent.click(within(panel).getByRole('tab', { name: '基本信息' }));
+    expect(within(panel).getByTestId('lecturer-tab-edit')).toBeTruthy();
+    expect(within(panel).getByTestId('lecturer-basic')).not.toHaveTextContent('讲师头像');
+    fireEvent.click(within(panel).getByRole('tab', { name: '培养计划与培养记录' }));
+    expect(within(panel).getByTestId('lecturer-tab-edit')).toBeTruthy();
   });
 
   it('面板里没有可执行动作区——讲师的两个枚举字段都不是状态机', async () => {

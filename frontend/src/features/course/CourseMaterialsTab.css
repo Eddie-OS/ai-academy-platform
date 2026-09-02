@@ -3,17 +3,17 @@
   grid-template-columns: 1fr 1.05fr 1.2fr;
   min-height: 200px;
   overflow: hidden;
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
 }
 
 .crs-mat-col {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: var(--space-sm);
-  border-right: 1px solid var(--color-border-divider);
+  padding: var(--space-v2-3) var(--space-v2-4);
+  border-right: var(--border-v2);
 }
 
 .crs-mat-col:last-child {
@@ -21,11 +21,11 @@
 }
 
 .crs-mat-heading {
-  margin: 0 0 var(--space-xs);
-  color: var(--color-text-body);
-  font-size: var(--text-body-size);
-  font-weight: var(--text-body-strong-weight);
-  line-height: var(--text-body-line);
+  margin: 0 0 var(--space-v2-2);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
 }
 
 .crs-mat-list {
@@ -40,22 +40,22 @@
 .crs-mat-version {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
-  padding: var(--space-xs);
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-page);
+  gap: var(--space-v2-1);
+  padding: var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
   text-align: left;
   cursor: pointer;
 }
 
 .crs-mat-version[data-selected='true'] {
-  border-color: var(--color-brand-600);
-  background: var(--color-bg-selected);
+  border-color: var(--brand-action);
+  background: var(--brand-50);
 }
 
 .crs-mat-version[data-current='true'] {
-  border-color: var(--color-success-solid);
+  border-color: var(--success);
 }
 
 .crs-mat-version-top {
@@ -66,15 +66,16 @@
 }
 
 .crs-mat-version-no {
-  color: var(--color-text-body);
-  font-weight: var(--text-body-strong-weight);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
   font-variant-numeric: tabular-nums;
 }
 
 .crs-mat-version-meta {
-  color: var(--color-text-secondary);
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
   font-variant-numeric: tabular-nums;
 }
 
@@ -82,11 +83,11 @@
   display: inline-flex;
   align-items: center;
   height: 16px;
-  padding: 0 var(--space-xs);
-  border-radius: var(--radius-sm);
-  background: var(--color-success-solid);
-  color: var(--color-text-inverse);
-  font-size: var(--text-caption-size);
+  padding: 0 5px;
+  border-radius: var(--radius-tag);
+  background: var(--success);
+  color: #fff;
+  font-size: var(--type-caption-size);
   line-height: 16px;
 }
 
@@ -121,28 +122,30 @@
 
 .crs-mat-file-name {
   overflow: hidden;
-  color: var(--color-text-body);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .crs-mat-file-type {
-  color: var(--color-text-secondary);
-  font-size: var(--text-caption-size);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
 }
 
 .crs-mat-note {
-  margin: var(--space-xs) 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-line);
+  margin: var(--space-v2-2) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
 }
 
 .crs-mat-summary {
-  margin: 0 0 var(--space-sm);
-  color: var(--color-text-body);
-  font-size: var(--text-body-size);
-  line-height: var(--text-body-line);
+  margin: 0 0 var(--space-v2-3);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 .crs-mat-change {
@@ -160,16 +163,20 @@
 }
 
 .crs-mat-change-text {
-  color: var(--color-text-body);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 .crs-mat-change-at {
-  color: var(--color-text-secondary);
-  font-size: var(--text-caption-size);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
   font-variant-numeric: tabular-nums;
 }
 
 .crs-mat-empty {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--text-tertiary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }

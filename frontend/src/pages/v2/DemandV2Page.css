@@ -33,13 +33,17 @@ html:not([data-regression]) .dmd-kpis {
 }
 
 html:not([data-regression]) .dmd-filters {
-  flex: 0 0 45px;
-  gap: var(--space-v2-3);
+  flex: 0 0 auto;
+  height: auto;
+  min-height: calc(var(--space-v2-2) * 2 + var(--control-compact-h));
+  padding: var(--space-v2-2) var(--card-pad);
+  gap: var(--space-v2-2);
 }
 
 html:not([data-regression]) .dmd-search {
   flex: 0 0 240px;
   max-width: 240px;
+  height: var(--control-compact-h);
 }
 
 html:not([data-regression]) .dmd-filter {
@@ -47,9 +51,17 @@ html:not([data-regression]) .dmd-filter {
   gap: var(--space-v2-2);
 }
 
-html:not([data-regression]) .dmd-filter .dmd-control {
+html:not([data-regression]) .dmd-filter .dmd-control,
+html:not([data-regression]) .dmd-reset,
+html:not([data-regression]) .dmd-create {
   flex: 0 0 auto;
   box-sizing: border-box;
+  height: var(--control-compact-h);
+}
+
+html:not([data-regression]) .dmd-date-input {
+  height: 100%;
+  line-height: var(--control-compact-h);
 }
 
 html:not([data-regression]) .dmd-filters [data-testid='demand-daterange'] {
@@ -112,25 +124,60 @@ html:not([data-regression]) .dmd-analysis-split .dmd-situation {
   gap: var(--space-v2-2);
 }
 
-html:not([data-regression]) .dmd-situation-list {
+html:not([data-regression]) .dmd-situation-chart {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 108px;
+}
+
+html:not([data-regression]) .dmd-situation-donut-center {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+html:not([data-regression]) .dmd-situation-donut-center strong {
+  font-size: var(--fs-18);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--lh-22);
+}
+
+html:not([data-regression]) .dmd-situation-donut-center span {
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+}
+
+html:not([data-regression]) .dmd-situation-legend,
+html:not([data-regression]) .dmd-situation-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
   margin: 0;
   padding: 0;
   list-style: none;
-  gap: var(--space-v2-1);
+  gap: 2px 12px;
 }
 
 html:not([data-regression]) .dmd-situation-row {
   display: grid;
-  grid-template-columns: 3.5em 5.5em minmax(48px, 1fr);
+  grid-template-columns: 8px minmax(3.5em, 1fr) auto;
   align-items: center;
-  flex: 1 1 0;
   min-width: 0;
-  min-height: 20px;
+  min-height: 18px;
   gap: var(--space-v2-2);
+}
+
+html:not([data-regression]) .dmd-situation-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
 }
 
 html:not([data-regression]) .dmd-situation-name {
@@ -442,6 +489,316 @@ select.dmd-control[data-empty='true'] {
 
 .dmd-detail-live .ant-card {
   border-radius: var(--radius-control);
+}
+
+/*
+ * 产品详情弹窗：七个页签正文与「基本信息」同一档。
+ * 基本信息字段用 --type-table-size（13px）；其余页签原先走 V1 --text-body-size
+ * 和 AntD 默认 14px，会大一号。只改产品模式，回归 R7 不动。
+ */
+html:not([data-regression]) .dmd-detail-body {
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+html:not([data-regression]) .dmd-detail-body .dmd-tab-heading,
+html:not([data-regression]) .dmd-detail-body .dmd-state-time,
+html:not([data-regression]) .dmd-detail-body .dmd-state-meta,
+html:not([data-regression]) .dmd-detail-body .dmd-course-link,
+html:not([data-regression]) .dmd-detail-body .dmd-solution-link,
+html:not([data-regression]) .dmd-detail-body .dmd-esc-status,
+html:not([data-regression]) .dmd-detail-body .ant-form-item-label > label,
+html:not([data-regression]) .dmd-detail-body .ant-form-item-extra,
+html:not([data-regression]) .dmd-detail-body .ant-form-item-explain,
+html:not([data-regression]) .dmd-detail-body .ant-input,
+html:not([data-regression]) .dmd-detail-body .ant-input-affix-wrapper,
+html:not([data-regression]) .dmd-detail-body .ant-input-textarea textarea,
+html:not([data-regression]) .dmd-detail-body .ant-select-selector,
+html:not([data-regression]) .dmd-detail-body .ant-select-selection-item,
+html:not([data-regression]) .dmd-detail-body .ant-select-selection-placeholder,
+html:not([data-regression]) .dmd-detail-body .ant-picker,
+html:not([data-regression]) .dmd-detail-body .ant-picker-input > input,
+html:not([data-regression]) .dmd-detail-body .ant-descriptions,
+html:not([data-regression]) .dmd-detail-body .ant-descriptions-item-label,
+html:not([data-regression]) .dmd-detail-body .ant-descriptions-item-content,
+html:not([data-regression]) .dmd-detail-body .ant-table,
+html:not([data-regression]) .dmd-detail-body .ant-table-title,
+html:not([data-regression]) .dmd-detail-body .ant-table-thead > tr > th,
+html:not([data-regression]) .dmd-detail-body .ant-table-tbody > tr > td,
+html:not([data-regression]) .dmd-detail-body .ant-empty-description,
+html:not([data-regression]) .dmd-detail-body .ant-typography,
+html:not([data-regression]) .dmd-detail-body .ant-card-head-title,
+html:not([data-regression]) .dmd-detail-body .ant-card-body,
+html:not([data-regression]) .dmd-detail-body .ant-alert-message,
+html:not([data-regression]) .dmd-detail-body .ant-alert-description,
+html:not([data-regression]) .dmd-detail-body .ant-btn,
+html:not([data-regression]) .dmd-detail-body .ant-upload,
+html:not([data-regression]) .dmd-detail-body .ant-upload-text {
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+/*
+ * 产品详情弹窗：七个页签共用同一套卡框、表格与时间线。
+ * 基本信息是登记表 + 浅框；其余页签原先是 AntD 默认表单/卡片/表格叠在一起，
+ * 边框色、圆角、块间距对不齐，时间线的 1px 浅灰线几乎看不见。
+ */
+html:not([data-regression]) .crs-modal .dmd-detail-head {
+  align-items: center;
+}
+
+html:not([data-regression]) .crs-modal .dmd-live-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-v2-3);
+}
+
+html:not([data-regression]) .crs-modal .dmd-live-stack > .dmd-group,
+html:not([data-regression]) .crs-modal .dmd-detail-live > .dmd-group {
+  margin-top: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-live-stack > .ant-space,
+html:not([data-regression]) .crs-modal .dmd-detail-live .ant-space-vertical {
+  width: 100%;
+  gap: var(--space-v2-3) !important;
+}
+
+html:not([data-regression]) .crs-modal .dmd-tab-heading {
+  margin: 0 0 var(--space-v2-2);
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-body-line);
+}
+
+html:not([data-regression]) .crs-modal .dmd-tab-section {
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  padding: var(--space-v2-3) var(--space-v2-4);
+}
+
+html:not([data-regression]) .crs-modal .dmd-tab-section + .dmd-tab-section {
+  margin-top: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-review-form .ant-form,
+html:not([data-regression]) .crs-modal .dmd-process-form .ant-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--space-v2-4);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  padding: var(--space-v2-3) var(--space-v2-4) var(--space-v2-2);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-form-item {
+  margin-bottom: var(--space-v2-3);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-form-item:has(textarea),
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-form-item:has(.ant-btn),
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-form-item.dmd-form-wide,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-form .ant-descriptions,
+html:not([data-regression]) .crs-modal .dmd-solution-link,
+html:not([data-regression]) .crs-modal .dmd-course-link {
+  grid-column: 1 / -1;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-empty-description,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-placeholder {
+  color: var(--text-tertiary);
+}
+
+html:not([data-regression]) .crs-modal .dmd-courses-form .ant-form,
+html:not([data-regression]) .crs-modal .dmd-tab-section .ant-form {
+  display: block;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-input,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-input-affix-wrapper,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-select-selector,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-picker {
+  border-color: var(--border-default);
+  border-radius: var(--radius-control);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-card {
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  box-shadow: none;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-card-head {
+  min-height: 0;
+  padding: var(--space-v2-2) var(--space-v2-4);
+  border-bottom: var(--border-v2);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-card-body {
+  padding: var(--space-v2-2) var(--space-v2-4) var(--space-v2-3);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-alert {
+  padding: var(--space-v2-2) var(--space-v2-3);
+  border: 1px solid #dbeafe;
+  border-radius: var(--radius-control);
+  background: #eff6ff;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-descriptions {
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  padding: var(--space-v2-1) var(--space-v2-4);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-form .ant-descriptions {
+  border: 0;
+  margin: 0 0 var(--space-v2-3);
+  padding: var(--space-v2-2) var(--space-v2-3);
+  border-radius: var(--radius-control);
+  background: var(--bg-muted);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-card .ant-descriptions,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table .ant-descriptions {
+  border: 0;
+  padding: 0;
+  margin-bottom: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-card .ant-descriptions,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table .ant-descriptions {
+  margin-bottom: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-descriptions-item {
+  padding-bottom: var(--space-v2-2);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-descriptions-item-label {
+  color: var(--text-tertiary);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-descriptions-item-content {
+  color: var(--text-primary);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-wrapper {
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-container,
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-content {
+  border: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-title {
+  padding: var(--space-v2-2) var(--space-v2-3);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-thead > tr > th {
+  background: var(--bg-muted);
+  border-bottom: var(--border-v2);
+  color: var(--text-tertiary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-tbody > tr > td {
+  border-bottom: var(--border-v2);
+}
+
+html:not([data-regression]) .crs-modal .dmd-detail-body .ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-esc-status {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: var(--radius-tag);
+  font-size: var(--type-table-size);
+  line-height: var(--lh-20);
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .crs-modal .dmd-esc-status[data-status='done'] {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+html:not([data-regression]) .crs-modal .dmd-esc-status[data-status='pending'] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-timeline {
+  margin: var(--space-v2-2) 0 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-item {
+  position: relative;
+  padding: 0 0 var(--space-v2-4) 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-item::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: -2px;
+  left: -13px;
+  width: 1px;
+  background: var(--border-default);
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-item:last-child {
+  padding-bottom: 0;
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-item:last-child::before {
+  display: none;
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-item .dmd-state-dot {
+  position: absolute;
+  top: 5px;
+  left: -16px;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--brand-action);
+  border-radius: 50%;
+  background: var(--bg-page);
+  box-sizing: border-box;
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-item:first-child .dmd-state-dot {
+  background: var(--brand-action);
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-time {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-table-line);
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-meta {
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-meta dt {
+  color: var(--text-tertiary);
+}
+
+html:not([data-regression]) .crs-modal .dmd-state-meta div + div {
+  margin-top: 2px;
 }
 
 .dmd-review-form .ant-form-item {
@@ -828,10 +1185,14 @@ html:not([data-regression]) .dmd-table tbody tr[data-drop='before'] td {
   white-space: nowrap;
 }
 
-.dmd-state-dot {
+.dmd-state-tag .dmd-state-dot {
+  position: static;
+  left: auto;
+  top: auto;
   flex: 0 0 6px;
   width: 6px;
   height: 6px;
+  border: 0;
   border-radius: 50%;
   background: var(--tag-dot);
 }
@@ -1347,9 +1708,12 @@ html:not([data-regression]) .dmd-feed-illustration {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 12px 14px 10px;
+  padding: 16px 20px 12px;
   gap: 0;
   overflow: hidden;
+  border: 0;
+  box-shadow: none;
+  border-radius: inherit;
 }
 
 .crs-modal .dmd-detail-head,
@@ -1412,6 +1776,11 @@ html:not([data-regression]) .dmd-feed-illustration {
   padding: 0 10px;
   font-size: var(--fs-12);
   line-height: calc(var(--type-unit) * 26);
+}
+
+.crs-modal .dmd-detail-actions .dmd-close-loop-footer.ant-btn {
+  color: var(--brand-action);
+  border-color: var(--brand-action);
 }
 
 .dmd-detail-head {

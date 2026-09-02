@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ASSETS } from '@/shared/theme/designTokensV2';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { isRegressionMode } from '@/app/regressionMode';
 import { reviewRecordsApi, type ReviewRecordItem } from '@/shared/api/reviewRecords';
 import {
@@ -238,7 +239,7 @@ function KpiRow({ items, showDelta }: { items: readonly KpiItem[]; showDelta: bo
           >
             <div className="rvw-kpi-text">
               <p className="rvw-kpi-label">{kpi.label}</p>
-              <p className="rvw-kpi-value">{kpi.value}</p>
+              <p className="rvw-kpi-value"><AnimatedNumber value={kpi.value} duration={520} /></p>
               {showDelta && kpi.delta ? (
                 <p className="rvw-kpi-delta" data-warn={kpi.id === 'pending' ? 'true' : undefined}>
                   <span>{kpi.delta}</span>

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Card, Typography } from 'antd';
 import { fontSize, layout, neutral, radius, space } from '@/shared/theme/designTokens';
 import { MetricCardRow, type MetricCardSpec } from './MetricCardRow';
+import './CockpitLayout.css';
 
 const { Title, Text } = Typography;
 
@@ -101,6 +102,7 @@ export function CockpitLayout({
         {hasDetail && (
           <div
             data-testid="cockpit-detail-column"
+            className="cockpit-detail-column"
             style={{
               width: detailExpanded ? '100%' : DETAIL_WIDTH,
               flexShrink: 0,

@@ -5,10 +5,14 @@ import com.aiacademy.app.application.LecturerApplicationService;
 import com.aiacademy.app.repository.LecturerBoardMapper;
 import com.aiacademy.app.support.IntegrationTest;
 import com.aiacademy.business.course.domain.CourseForm;
+import com.aiacademy.business.lecturer.domain.CertificationForm;
+import com.aiacademy.business.lecturer.domain.CertificationRecord;
 import com.aiacademy.business.lecturer.domain.LecturerEnums;
 import com.aiacademy.business.lecturer.domain.LecturerForm;
 import com.aiacademy.business.lecturer.domain.LecturerListItem;
 import com.aiacademy.business.lecturer.domain.LecturerQuery;
+import com.aiacademy.business.lecturer.domain.LevelLogForm;
+import com.aiacademy.business.lecturer.domain.LevelLogRecord;
 import com.aiacademy.common.api.ErrorCode;
 import com.aiacademy.common.audit.OperatorAccount;
 import com.aiacademy.common.audit.OperatorContext;
@@ -93,18 +97,13 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("来源部门取现场口径七类；擅长领域是自由文本")
-    void 来源部门取自现场口径_擅长领域自由填写() {
+    @DisplayName("来源部门是三层部门自由文本；擅长领域也是自由文本")
+    void 来源部门与擅长领域自由填写() {
         String employeeNo = 造人员("领域讲师", "客服中心");
 
-        assertThatThrownBy(() -> lecturers.createManually(
-                表单("领域讲师", employeeNo).部门("凭空捏造的部门").build()))
-                .isInstanceOf(BizException.class)
-                .hasMessageContaining("来源部门只能是");
-
         long id = lecturers.createManually(
-                表单("领域讲师", employeeNo).部门("零售").领域("大模型应用落地").build());
-        assertThat(lecturers.detail(id).getSourceDept()).isEqualTo("零售");
+                表单("领域讲师", employeeNo).部门("市场营销部").领域("大模型应用落地").build());
+        assertThat(lecturers.detail(id).getSourceDept()).isEqualTo("市场营销部");
         assertThat(lecturers.detail(id).getExpertiseDomains())
                 .isEqualTo("[\"大模型应用落地\"]");
     }
@@ -141,6 +140,9 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
                 """, Integer.class))
                 .describedAs("培养状态是自由选择的枚举（TS1）。写进流转日志会污染按流转算的 9 个效率指标")
                 .isZero();
+        assertThat(lecturers.statusFieldLogs(id))
+                .extracting(row -> row.fieldName())
+                .contains("培养状态");
     }
 
     @Test
@@ -202,7 +204,52 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
         assertThat(lecturers.teachingRecords(id))
                 .extracting(LecturerBoardMapper.TeachingRecordRow::sessionId)
                 .containsExactlyInAnyOrder(finished, archived);
+        assertThat(lecturers.teachingRecords(id))
+                .extracting(LecturerBoardMapper.TeachingRecordRow::trainingForm)
+                .containsOnly("线下");
         assertThat(lecturers.evaluations(id)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("认证记录只落库，不改档案、不做认证审批")
+    void 认证记录只记录() {
+        long id = lecturers.createManually(表单("认证讲师", 造人员("认证讲师", "客服中心")).build());
+        String archiveLevel = lecturers.detail(id).getLecturerLevel();
+
+        long recordId = lecturers.createCertification(id, new CertificationForm(
+                "2026-08 批次", "L2", "已认证", "张小北", "准予认证",
+                LocalDate.of(2026, 8, 31), LocalDate.of(2026, 8, 31), LocalDate.of(2027, 8, 31)));
+
+        CertificationRecord row = lecturers.certificationRecords(id).get(0);
+        assertThat(row.getId()).isEqualTo(recordId);
+        assertThat(row.getCertBatch()).isEqualTo("2026-08 批次");
+        assertThat(row.getCertState()).isEqualTo("已认证");
+        assertThat(lecturers.detail(id).getLecturerLevel()).isEqualTo(archiveLevel);
+
+        lecturers.removeCertification(id, recordId);
+        assertThat(lecturers.certificationRecords(id)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("等级变更编号系统生成，不改档案等级")
+    void 等级变更只记录() {
+        long id = lecturers.createManually(表单("等级讲师", 造人员("等级讲师", "客服中心")).build());
+        String archiveLevel = lecturers.detail(id).getLecturerLevel();
+
+        long recordId = lecturers.createLevelLog(id, new LevelLogForm(
+                "定期评审", "由 L0 变更为 L1", LocalDate.of(2026, 8, 20),
+                "L1", "张小北", "能力达标"));
+
+        LevelLogRecord row = lecturers.listLevelLogs(id).get(0);
+        assertThat(row.getId()).isEqualTo(recordId);
+        assertThat(row.getChangeNo()).matches("BG\\d{4,}");
+        assertThat(row.getLevelAfter()).isEqualTo("L1");
+        assertThat(lecturers.detail(id).getLecturerLevel())
+                .describedAs("变更后等级只挂在台账上，档案等级保持原样")
+                .isEqualTo(archiveLevel);
+
+        lecturers.removeLevelLog(id, recordId);
+        assertThat(lecturers.listLevelLogs(id)).isEmpty();
     }
 
     @Test

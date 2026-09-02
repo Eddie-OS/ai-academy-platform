@@ -125,11 +125,14 @@ public class TrainingSessionController {
         PageResult<TrainingSessionListItem> page = sessions.page(query);
         Map<Long, String> courseNames =
                 application.courseNamesOf(page.records(), TrainingSessionListItem::getCourseId);
+        Map<Long, String> courseIntros = application.courseIntros(
+                page.records().stream().map(TrainingSessionListItem::getCourseId).toList());
         Map<Long, String> lecturerNames = application.lecturerNames(
                 page.records().stream().map(TrainingSessionListItem::getLecturerId).toList());
         return R.ok(new PageResult<>(
                 page.records().stream()
                         .map(s -> TrainingSessionVO.of(s, courseNames.get(s.getCourseId()),
+                                courseIntros.get(s.getCourseId()),
                                 lecturerNames.get(s.getLecturerId())))
                         .toList(),
                 page.total(), page.pageNum(), page.pageSize()));
@@ -140,6 +143,7 @@ public class TrainingSessionController {
         TrainingSessionListItem session = sessions.get(id);
         return R.ok(TrainingSessionVO.of(session,
                 application.courseNames(List.of(session.getCourseId())).get(session.getCourseId()),
+                application.courseIntros(List.of(session.getCourseId())).get(session.getCourseId()),
                 application.lecturerNames(List.of(session.getLecturerId()))
                         .get(session.getLecturerId())));
     }

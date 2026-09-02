@@ -2,10 +2,17 @@ package com.aiacademy.app.web.controller;
 
 import com.aiacademy.app.application.LecturerApplicationService;
 import com.aiacademy.app.repository.LecturerBoardMapper;
+import com.aiacademy.app.web.dto.CertificationRecordVO;
+import com.aiacademy.app.web.dto.CultivationRecordVO;
+import com.aiacademy.app.web.dto.LecturerFieldLogVO;
 import com.aiacademy.app.web.dto.LecturerVO;
+import com.aiacademy.app.web.dto.LevelLogRecordVO;
 import com.aiacademy.app.web.dto.TrialLedgerQuery;
 import com.aiacademy.app.repository.TrialLedgerMapper;
+import com.aiacademy.business.lecturer.domain.CertificationForm;
+import com.aiacademy.business.lecturer.domain.CultivationForm;
 import com.aiacademy.business.lecturer.domain.LecturerForm;
+import com.aiacademy.business.lecturer.domain.LevelLogForm;
 import com.aiacademy.business.lecturer.domain.LecturerListItem;
 import com.aiacademy.business.lecturer.domain.LecturerQuery;
 import com.aiacademy.common.api.PageResult;
@@ -114,5 +121,91 @@ public class LecturerController {
     @GetMapping("/trial-ledger")
     public R<PageResult<TrialLedgerMapper.TrialLedgerRow>> trialLedger(TrialLedgerQuery query) {
         return R.ok(lecturers.trialLedger(query));
+    }
+
+    @GetMapping("/{id}/cultivation-records")
+    public R<List<CultivationRecordVO>> cultivationRecords(@PathVariable long id) {
+        return R.ok(lecturers.cultivationRecords(id).stream().map(CultivationRecordVO::of).toList());
+    }
+
+    @WriteApi
+    @PostMapping("/{id}/cultivation-records")
+    public R<Long> createCultivation(@PathVariable long id, @Valid @RequestBody CultivationForm form) {
+        return R.ok(lecturers.createCultivation(id, form));
+    }
+
+    @WriteApi
+    @PutMapping("/{id}/cultivation-records/{recordId}")
+    public R<Void> updateCultivation(@PathVariable long id,
+                                     @PathVariable long recordId,
+                                     @Valid @RequestBody CultivationForm form) {
+        lecturers.updateCultivation(id, recordId, form);
+        return R.ok(null);
+    }
+
+    @WriteApi
+    @DeleteMapping("/{id}/cultivation-records/{recordId}")
+    public R<Void> deleteCultivation(@PathVariable long id, @PathVariable long recordId) {
+        lecturers.removeCultivation(id, recordId);
+        return R.ok(null);
+    }
+
+    @GetMapping("/{id}/field-logs")
+    public R<List<LecturerFieldLogVO>> fieldLogs(@PathVariable long id) {
+        return R.ok(lecturers.statusFieldLogs(id).stream().map(LecturerFieldLogVO::of).toList());
+    }
+
+    @GetMapping("/{id}/certification-records")
+    public R<List<CertificationRecordVO>> certificationRecords(@PathVariable long id) {
+        return R.ok(lecturers.certificationRecords(id).stream().map(CertificationRecordVO::of).toList());
+    }
+
+    @WriteApi
+    @PostMapping("/{id}/certification-records")
+    public R<Long> createCertification(@PathVariable long id, @Valid @RequestBody CertificationForm form) {
+        return R.ok(lecturers.createCertification(id, form));
+    }
+
+    @WriteApi
+    @PutMapping("/{id}/certification-records/{recordId}")
+    public R<Void> updateCertification(@PathVariable long id,
+                                       @PathVariable long recordId,
+                                       @Valid @RequestBody CertificationForm form) {
+        lecturers.updateCertification(id, recordId, form);
+        return R.ok(null);
+    }
+
+    @WriteApi
+    @DeleteMapping("/{id}/certification-records/{recordId}")
+    public R<Void> deleteCertification(@PathVariable long id, @PathVariable long recordId) {
+        lecturers.removeCertification(id, recordId);
+        return R.ok(null);
+    }
+
+    @GetMapping("/{id}/level-logs")
+    public R<List<LevelLogRecordVO>> levelLogs(@PathVariable long id) {
+        return R.ok(lecturers.listLevelLogs(id).stream().map(LevelLogRecordVO::of).toList());
+    }
+
+    @WriteApi
+    @PostMapping("/{id}/level-logs")
+    public R<Long> createLevelLog(@PathVariable long id, @Valid @RequestBody LevelLogForm form) {
+        return R.ok(lecturers.createLevelLog(id, form));
+    }
+
+    @WriteApi
+    @PutMapping("/{id}/level-logs/{recordId}")
+    public R<Void> updateLevelLog(@PathVariable long id,
+                                  @PathVariable long recordId,
+                                  @Valid @RequestBody LevelLogForm form) {
+        lecturers.updateLevelLog(id, recordId, form);
+        return R.ok(null);
+    }
+
+    @WriteApi
+    @DeleteMapping("/{id}/level-logs/{recordId}")
+    public R<Void> deleteLevelLog(@PathVariable long id, @PathVariable long recordId) {
+        lecturers.removeLevelLog(id, recordId);
+        return R.ok(null);
     }
 }

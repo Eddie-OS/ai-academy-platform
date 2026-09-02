@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen,
   ChevronDown,
@@ -18,7 +18,9 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { usesFixtureData } from '@/app/fixtureSource';
 import { isRegressionMode } from '@/app/regressionMode';
+import { useDialogMotion } from '@/shared/motion/useDialogMotion';
 import { ActionGuard } from '@/shared/ui/ActionGuard';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { redLightReasonOf, WarningLight } from '@/shared/ui/WarningLight';
 import { space } from '@/shared/theme/designTokens';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
@@ -114,6 +116,9 @@ export function CourseV2Page() {
   const fixture = usesFixtureData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [params] = useSearchParams();
+  const focus = params.get('focus');
+  const openTrialTab = params.get('tab') === '试讲';
   const [filters, setFilters] = useState<CourseWorkbenchFilter>(EMPTY_COURSE_FILTER);
   const [pageNum, setPageNum] = useState(1);
   const [selectedId, setSelectedId] = useState(COURSE_SELECTED_ID);
@@ -136,13 +141,25 @@ export function CourseV2Page() {
   const selectedKpi = selectedCourseKpiId(filters);
 
   useEffect(() => {
-    if (regression || fixture) return;
+    if (regression || fixture || focus) return;
     const records = live.data?.records ?? [];
     if (records.length === 0) return;
     setSelectedId((current) =>
       records.some((course) => course.courseNo === current) ? current : (records[0]?.courseNo ?? current),
     );
-  }, [live.data, regression]);
+  }, [live.data, regression, fixture, focus]);
+
+  useEffect(() => {
+    if (regression || !openTrialTab || !focus) return;
+    if (!fixture && live.isLoading) return;
+    const records = fixture ? fixtureCourses : (live.data?.records ?? []);
+    const hit = records.find((course) => course.courseNo === focus || course.courseName === focus);
+    const card = hit
+      ? courseToBoardCard(hit)
+      : { id: focus, name: focus, owner: '', light: 'NONE' as const, stalledDays: 0 };
+    setSelectedId(card.id);
+    setOpened(card);
+  }, [regression, openTrialTab, focus, fixture, fixtureCourses, live.data, live.isLoading]);
 
   const setFilter = useCallback(<K extends keyof CourseWorkbenchFilter>(
     key: K,
@@ -214,6 +231,7 @@ export function CourseV2Page() {
         <CourseDetailModal
           card={opened}
           regression={regression}
+          initialTab={openTrialTab ? '试讲' : undefined}
           onClose={() => {
             setOpened(null);
             const focused = document.activeElement;
@@ -278,7 +296,7 @@ function KpiRow({
             <article className="crs-kpi" key={kpi.id} data-testid="course-kpi" data-kpi={kpi.id}>
               <p className="crs-kpi-label">{kpi.label}</p>
               <div className="crs-kpi-nums">
-                <p className="crs-kpi-value">{fixtureValue}</p>
+                <p className="crs-kpi-value"><AnimatedNumber value={fixtureValue} duration={520} /></p>
                 <p className="crs-kpi-delta">{delta}</p>
               </div>
             </article>
@@ -312,7 +330,7 @@ function KpiRow({
                 <Icon size={16} strokeWidth={1.8} />
               </span>
             </div>
-            <p className="crs-kpi-value">{liveValue}</p>
+            <p className="crs-kpi-value"><AnimatedNumber value={liveValue} duration={520} /></p>
             <p className="crs-kpi-foot">
               <span className="crs-kpi-delta">—</span>
               <span className="crs-kpi-baseline">{KPI_DELTA_BASELINE}</span>
@@ -1193,20 +1211,22 @@ function FullCalendarModal({
   onToday: () => void;
   onClose: () => void;
 }) {
+  const { closing, requestClose } = useDialogMotion(onClose);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [requestClose]);
 
   const iso = `${year}-${String(month).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
   const dayTrials = trialItems.filter((item) => item.trialDate === iso);
   const monthDays = [...new Set(trialItems.map((item) => item.trialDate))].sort();
 
   return (
-    <div className="crs-modal-mask" role="presentation" onClick={onClose}>
+    <div className="crs-modal-mask" data-closing={closing} role="presentation" onClick={requestClose}>
       <div
         className="crs-modal crs-cal-full"
         role="dialog"
@@ -1215,7 +1235,7 @@ function FullCalendarModal({
         data-testid="course-calendar-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <button className="crs-modal-close" type="button" aria-label="关闭完整试讲日历" onClick={onClose}>
+        <button className="crs-modal-close" type="button" aria-label="关闭完整试讲日历" onClick={requestClose}>
           <X size={16} aria-hidden />
         </button>
 
@@ -1441,22 +1461,26 @@ function OverviewPanel() {
 function CourseDetailModal({
   card,
   regression,
+  initialTab,
   onClose,
 }: {
   card: CourseCard;
   regression: boolean;
+  initialTab?: '试讲';
   onClose: () => void;
 }) {
+  const { closing, requestClose } = useDialogMotion(onClose);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [requestClose]);
 
   return (
-    <div className="crs-modal-mask" role="presentation" onClick={onClose}>
+    <div className="crs-modal-mask" data-closing={closing} role="presentation" onClick={requestClose}>
       <div
         className="crs-modal"
         role="dialog"
@@ -1465,10 +1489,10 @@ function CourseDetailModal({
         data-testid="course-detail-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <button className="crs-modal-close" type="button" aria-label="关闭课程详情" onClick={onClose}>
+        <button className="crs-modal-close" type="button" aria-label="关闭课程详情" onClick={requestClose}>
           <X size={16} aria-hidden />
         </button>
-        <DetailPanel card={card} regression={regression || usesFixtureData()} />
+        <DetailPanel card={card} regression={regression || usesFixtureData()} initialTab={initialTab} />
       </div>
     </div>
   );
@@ -1493,10 +1517,15 @@ type LiveDetailTab = (typeof LIVE_DETAIL_TABS)[number];
  * <p>回归模式保持五个冻结页签、结论按钮与材料四模块同屏，P03 视觉门禁钉的就是这一屏。
  * 产品模式不渲染动作栏：这五个按钮只是 fixture 占位，点了也不会改状态。
  */
-function DetailPanel({ card, regression }: { card: CourseCard; regression: boolean }) {
-  // 主状态药丸与状态摘要格必须同源，各写一份迟早会对不上
-  const mainState = COURSE_DETAIL_FIELDS.find((field) => field.label === '当前主状态')?.value;
-
+function DetailPanel({
+  card,
+  regression,
+  initialTab,
+}: {
+  card: CourseCard;
+  regression: boolean;
+  initialTab?: LiveDetailTab;
+}) {
   return (
     <section className="panel crs-detail" data-testid="course-detail" aria-label="课程详情">
       <header className="crs-detail-head">
@@ -1509,12 +1538,6 @@ function DetailPanel({ card, regression }: { card: CourseCard; regression: boole
           <span>课程类型 · {COURSE_TYPE}</span>
           <span>负责人 · {card.owner || COURSE_OWNER}</span>
         </p>
-        {mainState && (
-          <p className="crs-detail-status">
-            <span className="crs-detail-status-dot" aria-hidden />
-            {mainState}
-          </p>
-        )}
       </header>
 
       <dl className="crs-status-card" aria-label="状态摘要">
@@ -1560,14 +1583,14 @@ function DetailPanel({ card, regression }: { card: CourseCard; regression: boole
           <ModuleGrid />
         </>
       ) : (
-        <LiveDetailTabs card={card} />
+        <LiveDetailTabs card={card} initialTab={initialTab} />
       )}
     </section>
   );
 }
 
-function LiveDetailTabs({ card }: { card: CourseCard }) {
-  const [activeTab, setActiveTab] = useState<LiveDetailTab>('基本信息');
+function LiveDetailTabs({ card, initialTab }: { card: CourseCard; initialTab?: LiveDetailTab }) {
+  const [activeTab, setActiveTab] = useState<LiveDetailTab>(initialTab ?? '基本信息');
   const liveId = (card as LiveCourseCard).liveId;
   const live = Number.isFinite(liveId) && liveId > 0;
   const detail = useQuery({
@@ -1577,8 +1600,8 @@ function LiveDetailTabs({ card }: { card: CourseCard }) {
   });
 
   useEffect(() => {
-    setActiveTab('基本信息');
-  }, [card.id]);
+    setActiveTab(initialTab ?? '基本信息');
+  }, [card.id, initialTab]);
 
   return (
     <>

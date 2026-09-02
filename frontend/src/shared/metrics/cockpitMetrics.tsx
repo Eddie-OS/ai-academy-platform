@@ -2,7 +2,6 @@ import {
   Activity,
   Award,
   BookOpen,
-  CalendarCheck,
   CalendarDays,
   Eye,
   FileText,
@@ -82,24 +81,32 @@ export const CASE_METRICS: MetricCardSpec[] = [
 ];
 
 /**
- * 驾驶舱四 · 培训运营地图（需求 7.4 ④、15.1 第 13～16 项、13.1.2 任务派生）。
+ * 驾驶舱四 · 培训运营地图顶部卡。
  *
- * <p>六名与 V2.0 P05／业务裁决 V-38 对齐。「本周培训计划数」在 7.4 有出处、15.1 无公式；
- * 「待导入签到」「待归档」是任务派生计数，不是数量类指标。
+ * <p>产品五张：四张累计 + 本月参训人次，都带月度环比。V2.0 六名只留在回归冻结件。
  */
 export const TRAINING_METRICS: MetricCardSpec[] = [
-  { key: 'plans', title: '本月培训计划数', icon: <CalendarDays size={18} />, source: '需求 15.1 · 13' },
-  { key: 'weekPlans', title: '本周培训计划数', icon: <CalendarCheck size={18} />, source: '需求 7.4 ④' },
-  { key: 'sessions', title: '进行中培训场次', icon: <PlayCircle size={18} />, source: '需求 15.1 · 14' },
-  { key: 'attendees', title: '本月参训人次', icon: <Users size={18} />, source: '需求 15.1 · 16' },
-  { key: 'attendance', title: '待导入签到', icon: <UserCheck size={18} />, source: '需求 13.1.2' },
-  { key: 'archive', title: '待归档', icon: <FolderCheck size={18} />, source: '需求 13.1.2' },
+  { key: 'plans', title: '累计培训计划数', icon: <CalendarDays size={18} />, source: '未删除计划全量' },
+  { key: 'sessions', title: '累计培训场次', icon: <PlayCircle size={18} />, source: '未删除场次全量' },
+  { key: 'attendeesTotal', title: '累计参训人次', icon: <Users size={18} />, source: '需求 15.1 · 16a' },
+  { key: 'attendees', title: '本月参训人次', icon: <UserCheck size={18} />, source: '需求 15.1 · 16' },
+  { key: 'archived', title: '已归档', icon: <FolderCheck size={18} />, source: '场次状态=已归档' },
 ];
 
 /** 千分位整数；null／undefined 渲染为「—」（设计规范 3.3）。 */
 export function formatMetricInt(value: number | null | undefined): string {
   if (value == null) return '—';
   return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+export function formatKpiDelta(percent: number): string {
+  return `${percent < 0 ? '↓' : '↑'} ${Math.abs(percent).toFixed(1)}%`;
+}
+
+/** 上月为 0 时环比没有分母，显示「—」，不编一个 100%。 */
+export function monthOverMonth(current?: number, previous?: number): string {
+  if (current == null || previous == null || previous === 0) return '—';
+  return formatKpiDelta(((current - previous) / previous) * 100);
 }
 
 /** 把数量类接口返回值填进指标卡；未返回的 key 保持 pending 形态。 */
@@ -111,7 +118,14 @@ export function mergeMetricValues(
   return specs.map((spec) => {
     const raw = data[spec.key];
     if (raw === undefined) return spec;
-    return { ...spec, value: formatMetricInt(raw) };
+    const previous = data[`${spec.key}Prev`];
+    return {
+      ...spec,
+      value: formatMetricInt(raw),
+      ...(previous === undefined
+        ? {}
+        : { delta: monthOverMonth(raw, previous), deltaLabel: '月度环比（较上月）' }),
+    };
   });
 }
 

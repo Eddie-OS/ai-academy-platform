@@ -13,7 +13,6 @@ import {
   FIELD_ENUM_KEYS,
   selectOptions,
   useEmployees,
-  useExpertiseDomains,
   useFieldEnums,
 } from './lecturerMeta';
 import './lecturerFormModal.css';
@@ -21,7 +20,8 @@ import './lecturerFormModal.css';
 /**
  * 手动添加与编辑讲师。可填项按业务确认的基础档案口径。
  *
- * <p>工号手输，仍须在人员台账。来源部门是零售／服务等七类；擅长领域自由填写。
+ * <p>新建按基础档案 14 项。工号仍要（人员台账关联，同一个人只能入池一次）。
+ * 来源部门是三层部门手工输入。在池状态新建默认「在池」，只在编辑时出现。
  * 入池方式、试讲合格标记不在表单里。培养状态不出现——新建选的是上岗状态，
  * 后端保存时把培养状态对齐过去。
  */
@@ -63,7 +63,6 @@ export function LecturerFormModal({
   const [form] = Form.useForm<FormValues>();
   const employees = useEmployees();
   const fieldEnums = useFieldEnums();
-  const domains = useExpertiseDomains();
   const account = useAuthStore((state) => state.account);
   const [avatarId, setAvatarId] = useState<number | null>(null);
   const [avatarPreset, setAvatarPreset] = useState<string | null>(null);
@@ -169,7 +168,10 @@ export function LecturerFormModal({
   const fillFromEmployee = (nextEmployeeNo: string) => {
     const employee = employees.data?.records.find((item) => item.employeeNo === nextEmployeeNo.trim());
     if (employee) {
-      form.setFieldsValue({ lecturerName: employee.employeeName });
+      form.setFieldsValue({
+        lecturerName: employee.employeeName,
+        sourceDept: employee.deptName,
+      });
     }
     const roster = personByNo(nextEmployeeNo.trim());
     if (roster && !avatarId) {
@@ -177,17 +179,10 @@ export function LecturerFormModal({
     }
   };
 
-  const sourceDeptOptions = [
-    ...domains.map((value) => ({ value, label: value })),
-    ...(lecturer?.sourceDept && !domains.includes(lecturer.sourceDept)
-      ? [{ value: lecturer.sourceDept, label: lecturer.sourceDept }]
-      : []),
-  ];
-
   return (
     <Modal
       open={open}
-      title={lecturer ? `编辑讲师 ${lecturer.lecturerNo}` : '添加讲师'}
+      title={lecturer ? `编辑讲师 ${lecturer.lecturerNo}` : '新建讲师基础档案'}
       okText="保存"
       cancelText="取消"
       width={1120}
@@ -208,7 +203,7 @@ export function LecturerFormModal({
         {!lecturer && <p className="lecturer-form-lead">由运营填写讲师基础档案。</p>}
         <Row gutter={[16, 0]}>
           <Col span={12}>
-            <Form.Item label="讲师ID" extra="唯一标识，保存后由系统按 JS + 4 位流水自动生成">
+            <Form.Item label="讲师ID" extra="唯一编码，保存后由系统按 JS + 4 位流水自动生成，用于关联授课记录">
               <Input value={lecturer?.lecturerNo ?? '保存后自动生成'} disabled />
             </Form.Item>
           </Col>
@@ -225,7 +220,7 @@ export function LecturerFormModal({
             <Form.Item
               label="工号"
               name="employeeNo"
-              extra="请填写人员台账中的工号。填写后可带出姓名与头像。同一个人只能入池一次"
+              extra="人员台账工号。填写后可带出姓名、来源部门与头像。同一个人只能入池一次"
               rules={[{ required: true, message: '请填写工号' }]}
             >
               <Input
@@ -240,44 +235,10 @@ export function LecturerFormModal({
             <Form.Item
               label="来源部门"
               name="sourceDept"
-              extra="零售、服务、GTM 等现场口径，不是人员台账里的三级部门"
-              rules={[{ required: true, message: '请选择来源部门' }]}
+              extra="具体到三层部门，手工输入"
+              rules={[{ required: true, message: '请填写来源部门' }]}
             >
-              <Select placeholder="请选择来源部门" options={sourceDeptOptions} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label="讲师等级"
-              name="lecturerLevel"
-              rules={[{ required: true, message: '请选择讲师等级' }]}
-            >
-              <Select placeholder="请选择讲师等级" options={levels} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label="上岗状态"
-              name="dutyState"
-              extra="只有「可上岗」的讲师才能被排课"
-              rules={[{ required: true, message: '请选择上岗状态' }]}
-            >
-              <Select placeholder="请选择上岗状态" options={dutyStates} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label="擅长领域"
-              name="expertiseDomains"
-              extra="自由填写，多个用顿号或逗号分隔"
-              rules={[{ required: true, message: '请填写擅长领域' }]}
-            >
-              <Input maxLength={200} placeholder="请填写擅长领域" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item label="能力标签" name="capabilityTags">
-              <Input maxLength={500} placeholder="技能／业务标签，逗号分隔" />
+              <Input maxLength={50} placeholder="请填写来源部门" />
             </Form.Item>
           </Col>
           <Col span={24}>
@@ -286,14 +247,11 @@ export function LecturerFormModal({
               name="teachingDirection"
               rules={[{ required: true, message: '请填写讲师简介' }]}
             >
-              <Input.TextArea rows={3} maxLength={500} showCount placeholder="请填写讲师简介" />
+              <Input.TextArea rows={3} maxLength={500} showCount placeholder="请填写讲师介绍" />
             </Form.Item>
           </Col>
           <Col span={24}>
-            <Form.Item
-              label="讲师头像"
-              extra="可从平台现有的 60 张中选一张，也可自行上传。上传后以上传的为准。"
-            >
+            <Form.Item label="讲师头像" extra="上传图片展示头像。也可从平台现有的 60 张中选一张，上传后以上传的为准。">
               <LecturerAvatarField
                 employeeNo={employeeNo}
                 preset={avatarPreset}
@@ -317,44 +275,82 @@ export function LecturerFormModal({
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="可授课时间" name="availableTime">
-              <Input maxLength={200} placeholder="闲时描述，如每周三下午" />
+            <Form.Item
+              label="讲师等级"
+              name="lecturerLevel"
+              extra="L0 / L1 / L2 / L3 / L4"
+              rules={[{ required: true, message: '请选择讲师等级' }]}
+            >
+              <Select placeholder="请选择讲师等级" options={levels} />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="排课限制说明" name="scheduleLimit">
-              <Input maxLength={200} placeholder="如每月不超过 3 场、不排夜班" />
+            <Form.Item
+              label="擅长领域"
+              name="expertiseDomains"
+              extra="讲师擅长／研究的领域，多个用顿号或逗号分隔"
+              rules={[{ required: true, message: '请填写擅长领域' }]}
+            >
+              <Input maxLength={200} placeholder="请填写擅长领域" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="能力标签" name="capabilityTags" extra="技能／业务标签">
+              <Input maxLength={500} placeholder="技能／业务标签，逗号分隔" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="可授课时间" name="availableTime" extra="讲师空闲时间说明">
+              <Input maxLength={200} placeholder="如每周三下午" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="上岗状态"
+              name="dutyState"
+              extra="可上岗／暂停授课／已下线。只有「可上岗」才能被排课"
+              rules={[{ required: true, message: '请选择上岗状态' }]}
+            >
+              <Select placeholder="请选择上岗状态" options={dutyStates} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="排课限制说明" name="scheduleLimit" extra="如：每月最多 3 场，不接夜班">
+              <Input maxLength={200} placeholder="如每月最多 3 场，不接夜班" />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               label="建档时间"
               name="joinedDate"
+              extra="讲师档案创建时间"
               rules={[{ required: true, message: '请选择建档时间' }]}
             >
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item label="档案维护人" name="profileMaintainer">
-              <Input maxLength={50} />
+            <Form.Item label="档案维护人" name="profileMaintainer" extra="负责维护该讲师档案的管理员姓名">
+              <Input maxLength={50} placeholder="请填写档案维护人" />
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item
-              label="在池状态"
-              name="poolState"
-              rules={[{ required: true, message: '请选择在池状态' }]}
-            >
-              <Select placeholder="请选择在池状态" options={selectOptions(poolStates)} />
-            </Form.Item>
-          </Col>
+          {lecturer && (
+            <Col span={12}>
+              <Form.Item
+                label="在池状态"
+                name="poolState"
+                rules={[{ required: true, message: '请选择在池状态' }]}
+              >
+                <Select placeholder="请选择在池状态" options={selectOptions(poolStates)} />
+              </Form.Item>
+            </Col>
+          )}
           <Col span={24}>
-            <Form.Item label="备注信息" name="remark" extra="非结构化但重要的补充信息">
+            <Form.Item label="备注" name="remark" extra="其他补充记录">
               <Input.TextArea rows={3} maxLength={500} showCount placeholder="选填" />
             </Form.Item>
           </Col>
-          {poolState === poolOut && (
+          {lecturer && poolState === poolOut && (
             <Col span={24}>
               <Form.Item
                 label="移出原因"

@@ -63,7 +63,8 @@ public interface LecturerBoardMapper {
      */
     record TeachingRecordRow(long sessionId, String sessionNo, String sessionName,
                              Long courseId, String courseName, LocalDate teachingDate,
-                             String sessionState, int attendeeCount, BigDecimal avgScore) {
+                             String sessionState, int attendeeCount, BigDecimal avgScore,
+                             String trainingForm, String createdBy, OffsetDateTime updatedAt) {
     }
 
     /**

@@ -70,6 +70,14 @@ describe('WarningLight（三色灯）', () => {
     expect(card).toHaveTextContent('9');
   });
 
+  it('紧凑档不写死 11px：字号走 CSS 档位，内联样式一旦回来就会把缩放盖掉', () => {
+    const { container } = render(
+      <WarningSummaryCard color="BLUE" count={3} caption="距预计完成时间 3 天以上" compact />,
+    );
+    expect(screen.getByTestId('warning-summary-card')).toHaveClass('wsc', 'wsc--compact');
+    expect(container.innerHTML).not.toMatch(/font-size:\s*11px/);
+  });
+
   it('数字按 3.3 加千分位', () => {
     render(<WarningSummaryCard color="BLUE" count={2133} caption="距预计完成时间 3 天以上" />);
     expect(screen.getByTestId('warning-summary-card')).toHaveTextContent('2,133');

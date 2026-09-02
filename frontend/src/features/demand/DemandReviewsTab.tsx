@@ -153,7 +153,7 @@ export function DemandReviewsTab({ demand, demo }: DemandReviewsTabProps) {
             placeholder="请选择评审结论"
           />
         </Form.Item>
-        <Form.Item label="开发优先级" name="priority">
+        <Form.Item className="dmd-form-wide" label="开发优先级" name="priority">
           <Select
             allowClear
             showSearch

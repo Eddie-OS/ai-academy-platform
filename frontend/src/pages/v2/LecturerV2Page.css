@@ -578,6 +578,10 @@ button.lct-tag {
   text-align: left;
 }
 
+html:not([data-regression]) .lct-ledger .lct-table th {
+  white-space: nowrap;
+}
+
 .lct-table td {
   height: calc(var(--type-unit) * 20);
   border-bottom: 1px solid var(--border-light);
@@ -779,6 +783,78 @@ button.lct-tag {
 .lct-empty {
   margin: var(--space-v2-2) 0 0;
   color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.lct-record-now {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+  margin: var(--space-v2-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.lct-record-now strong {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+.lct-state-list {
+  margin: var(--space-v2-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lct-state-row {
+  position: relative;
+  padding: 0 0 var(--space-v2-3) var(--space-v2-4);
+}
+
+.lct-state-row::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: var(--text-tertiary);
+}
+
+.lct-state-row:last-child {
+  padding-bottom: 0;
+}
+
+.lct-state-row:last-child::before {
+  display: none;
+}
+
+.lct-state-row::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.lct-state-when {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--type-table-size);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--type-table-line);
+}
+
+.lct-state-change,
+.lct-state-who,
+.lct-state-note {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
   font-size: var(--type-caption-size);
   line-height: var(--type-caption-line);
 }
@@ -1133,7 +1209,108 @@ html:not([data-regression]) .lct-kpi-baseline {
 }
 
 html:not([data-regression]) .lct-card {
+  height: auto;
+  min-height: calc(var(--type-unit) * 174);
   cursor: pointer;
+}
+
+html:not([data-regression]) .lct-card-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  min-width: 0;
+}
+
+html:not([data-regression]) .lct-card-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .lct-card-level {
+  flex: 0 0 auto;
+  height: calc(var(--type-unit) * 16);
+  padding: 0 4px;
+  border-radius: var(--radius-tag);
+  background: var(--brand-50);
+  color: var(--brand-action);
+  font-size: var(--fs-10);
+  font-weight: var(--type-body-medium-weight);
+  line-height: calc(var(--type-unit) * 16);
+}
+
+html:not([data-regression]) .lct-card-idline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .lct-card-id {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+html:not([data-regression]) .lct-card-idline .lct-card-dept {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html:not([data-regression]) .lct-card-status {
+  display: flex;
+  gap: var(--space-v2-1);
+  flex: 0 0 calc(var(--type-unit) * 20);
+  margin-top: var(--space-v2-1);
+  overflow: hidden;
+}
+
+html:not([data-regression]) .lct-card-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: calc(var(--type-unit) * 20);
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  font-size: var(--fs-11);
+  line-height: calc(var(--type-unit) * 20);
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .lct-card-chip[data-tone='ok'] {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+html:not([data-regression]) .lct-card-chip[data-tone='warn'] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+html:not([data-regression]) .lct-card-chip[data-tone='muted'] {
+  background: var(--bg-muted);
+  color: var(--text-tertiary);
+}
+
+html:not([data-regression]) .lct-card-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 calc(var(--type-unit) * 16);
+  margin: var(--space-v2-1) 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: calc(var(--type-unit) * 16);
+}
+
+html:not([data-regression]) .lct-card-score-value {
+  color: var(--text-primary);
+  font-weight: var(--type-body-medium-weight);
+  font-variant-numeric: tabular-nums;
 }
 
 html:not([data-regression]) .lct-card:hover {
@@ -1152,9 +1329,83 @@ html:not([data-regression]) .lct-main {
   margin-bottom: var(--space-v2-6);
 }
 
-/* 筛选行不参与伸展：控件长高只会让下拉框浮在空白里 */
+/*
+ * 产品筛选：搜索只占短栏，七个下拉均分剩下的宽度。
+ * min-width 按最长选项留够（市场营销部=5，暂停授课=4），选完不会裁字。
+ */
 html:not([data-regression]) .lct-filters {
-  flex: 0 0 45px;
+  flex: 0 0 auto;
+  height: auto;
+  flex-wrap: wrap;
+  row-gap: var(--space-v2-2);
+}
+
+html:not([data-regression]) .lct-field {
+  --lct-chars: 3;
+  flex: 1 1 0;
+  width: auto;
+  min-width: max(
+    calc(var(--type-table-size) * var(--lct-chars) + var(--control-compact-pad-x) + 24px),
+    calc(var(--fs-11) * 4 + 2px)
+  );
+}
+
+html:not([data-regression]) .lct-field:nth-of-type(3) {
+  flex: 1 1 0;
+}
+
+html:not([data-regression]) .lct-field[data-filter='sourceDept'] { --lct-chars: 5; }
+html:not([data-regression]) .lct-field[data-filter='expertise'] { --lct-chars: 3; }
+html:not([data-regression]) .lct-field[data-filter='trial'] { --lct-chars: 3; }
+html:not([data-regression]) .lct-field[data-filter='level'] { --lct-chars: 2; }
+html:not([data-regression]) .lct-field[data-filter='cultivation'] { --lct-chars: 3; }
+html:not([data-regression]) .lct-field[data-filter='cert'] { --lct-chars: 3; }
+html:not([data-regression]) .lct-field[data-filter='duty'] { --lct-chars: 4; }
+
+html:not([data-regression]) .lct-field-label {
+  overflow: visible;
+  text-overflow: unset;
+}
+
+html:not([data-regression]) .lct-search {
+  flex: 0 0 calc(var(--type-table-size) * 7 + 38px);
+  min-width: 0;
+  max-width: calc(var(--type-table-size) * 7 + 38px);
+}
+
+html:not([data-regression]) .lct-search input {
+  text-overflow: ellipsis;
+}
+
+html:not([data-regression]) .lct-select {
+  position: relative;
+  width: 100%;
+  padding-right: 22px;
+  cursor: default;
+}
+
+html:not([data-regression]) .lct-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 22px 0 var(--control-compact-pad-x);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  appearance: none;
+  cursor: pointer;
+}
+
+html:not([data-regression]) .lct-select svg {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 html:not([data-regression]) .panel.lct-pool {
@@ -1173,6 +1424,19 @@ html:not([data-regression]) .panel.lct-detail {
   display: flex;
   flex-direction: column;
   height: auto;
+}
+
+html:not([data-regression]) .lct-tabs {
+  flex-wrap: wrap;
+  gap: var(--space-v2-1) var(--space-v2-3);
+}
+
+html:not([data-regression]) .lct-detail .lct-tab-edit-bar {
+  margin-top: var(--space-v2-2);
+}
+
+html:not([data-regression]) .lct-tab {
+  font-size: var(--fs-11);
 }
 
 /* 时间线吃掉成长建议腾出来的高度。给授课记录会让三行表格中间拉出大片空白 */

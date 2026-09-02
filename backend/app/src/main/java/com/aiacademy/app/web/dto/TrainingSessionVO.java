@@ -24,6 +24,7 @@ public record TrainingSessionVO(
         String sessionName,
         Long courseId,
         String courseName,
+        String courseIntro,
         Long lecturerId,
         String lecturerName,
         LocalDate trainingDate,
@@ -39,19 +40,22 @@ public record TrainingSessionVO(
         Boolean attendanceImported,
         String sessionState,
         String remark,
+        OffsetDateTime createdAt,
+        String createdBy,
         OffsetDateTime lastStateChangedAt,
         OffsetDateTime updatedAt,
         String updatedBy) {
 
     public static TrainingSessionVO of(TrainingSessionListItem s, String courseName,
-                                       String lecturerName) {
+                                       String courseIntro, String lecturerName) {
         return new TrainingSessionVO(
                 s.getId(), s.getSessionNo(), s.getPlanId(), s.getPlanNo(), s.getPlanName(),
-                s.getSessionName(), s.getCourseId(), courseName, s.getLecturerId(), lecturerName,
+                s.getSessionName(), s.getCourseId(), courseName, courseIntro, s.getLecturerId(), lecturerName,
                 s.getTrainingDate(), s.getStartTime(), s.getEndTime(), s.getDurationHours(),
                 s.getTrainingForm(), s.getVenue(), s.getOnlineLink(), s.getStudentScope(),
                 s.getPlanAttendeeCount(), s.getActualAttendeeCount(), s.getAttendanceImported(),
                 s.getSessionState(), s.getRemark(),
+                s.getCreatedAt(), s.getCreatedBy(),
                 s.getLastStateChangedAt(), s.getUpdatedAt(), s.getUpdatedBy());
     }
 }

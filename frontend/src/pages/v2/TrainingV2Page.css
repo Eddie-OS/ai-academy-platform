@@ -241,6 +241,37 @@
   color: var(--text-placeholder);
 }
 
+html:not([data-regression]) .trn-filter-select {
+  gap: 6px;
+  cursor: default;
+}
+
+html:not([data-regression]) .trn-filter-label {
+  color: var(--text-tertiary);
+}
+
+html:not([data-regression]) .trn-filter-select select {
+  appearance: none;
+  min-width: 72px;
+  max-width: 120px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  background-size: 12px;
+  padding-right: 16px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  cursor: pointer;
+}
+
+html:not([data-regression]) .trn-filter-select select[data-empty='true'] {
+  color: var(--text-placeholder);
+}
+
 .trn-create,
 .trn-import {
   display: inline-flex;
@@ -1284,16 +1315,89 @@ html[data-regression] .trn-cell-badge {
  * 产品模式：按设计稿行高比例吃满窗口
  * =========================================================================== */
 
+html:not([data-regression]) .shell[data-page='training'] {
+  height: 100vh;
+  overflow: hidden;
+}
+
+html:not([data-regression]) .shell[data-page='training'] .shell-main {
+  min-height: 0;
+}
+
+html:not([data-regression]) .shell[data-page='training'] .shell-content {
+  overflow: hidden;
+}
+
 html:not([data-regression]) .trn {
   flex: 1;
   min-height: 0;
+  height: 100%;
 }
 
 html:not([data-regression]) .trn-kpis {
   width: auto;
   height: auto;
-  flex: 111 1 0;
-  min-height: 111px;
+  flex: 0 0 auto;
+  min-height: 108px;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/*
+ * 产品模式 KPI 对齐课程工作台／需求／讲师驾驶舱：
+ * 标签顶左 + 28px 色底板顶右 + 大数字 + 「↑ n% 月度环比（较上月）」。
+ * 高度钉在 108，不再跟着窗口被拉开。
+ */
+html:not([data-regression]) .trn-kpi {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  min-height: 108px;
+  padding: var(--card-pad-compact);
+}
+
+html:not([data-regression]) .trn-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-v2-1);
+}
+
+html:not([data-regression]) .trn-kpi-label {
+  color: var(--text-secondary);
+  font-weight: var(--type-body-medium-weight);
+}
+
+html:not([data-regression]) .trn-kpi-plate {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+}
+
+html:not([data-regression]) .trn-kpi-value {
+  font-size: var(--type-kpi-size);
+  font-weight: var(--type-kpi-weight);
+  line-height: var(--type-kpi-line);
+}
+
+html:not([data-regression]) .trn-kpi-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-v2-2);
+}
+
+html:not([data-regression]) .trn-kpi-delta {
+  display: inline;
+  white-space: nowrap;
+}
+
+html:not([data-regression]) .trn-kpi-baseline {
+  color: var(--text-tertiary);
+  font-size: var(--fs-11);
+  line-height: var(--lh-16);
+  white-space: nowrap;
 }
 
 html:not([data-regression]) .trn-toolbar {
@@ -1302,22 +1406,24 @@ html:not([data-regression]) .trn-toolbar {
 }
 
 html:not([data-regression]) .trn-main {
+  width: auto;
   height: auto;
-  flex: 713 1 0;
-  min-height: 713px;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-bottom: var(--space-v2-6);
 }
 
 html:not([data-regression]) .trn-left {
-  flex: 814 1 0;
+  flex: 1 1 auto;
   width: auto;
   min-width: 0;
+  min-height: 0;
 }
 
 html:not([data-regression]) .panel.trn-calendar {
   height: auto;
-  flex: 455 1 0;
-  min-height: 455px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 html:not([data-regression]) .panel.trn-list {
@@ -1359,44 +1465,117 @@ html:not([data-regression]) .trn-cell[data-weekend='true'] .trn-cell-day {
   color: var(--danger);
 }
 
+/* 产品今天：蓝圈白字，不要「今」徽标，也不整格铺浅蓝 */
+html:not([data-regression]) .trn-cell-head {
+  min-height: 24px;
+}
+
 html:not([data-regression]) .trn-cell-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 16px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--brand-action);
-  color: #ffffff;
-  font-size: var(--fs-10);
-  font-weight: var(--type-body-medium-weight);
-  line-height: 16px;
+  display: none;
 }
 
 html:not([data-regression]) .trn-cell[data-today='true'] .trn-cell-day {
-  width: auto;
-  border-radius: 0;
-  background: transparent;
-  color: var(--brand-action);
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand-action);
+  color: #ffffff;
   font-weight: var(--type-body-medium-weight);
 }
 
-html:not([data-regression]) .trn-cell[data-today='true']:not([data-selected='true']) {
-  background: var(--brand-50);
-  box-shadow: inset 0 0 0 1.5px rgba(57, 116, 250, 0.35);
+html:not([data-regression]) .trn-cell[data-today='true']:not([data-weekend='true']) {
+  background: var(--bg-page);
+  box-shadow: none;
 }
 
-html:not([data-regression]) .trn-chip:not([data-expanded='true']) {
-  flex-direction: row;
+html:not([data-regression]) .trn-cell[data-today='true'][data-weekend='true'] {
+  background: #fff6f6;
+  box-shadow: none;
+}
+
+html:not([data-regression]) .trn-cell .trn-chip {
+  margin-bottom: 4px;
+}
+
+html:not([data-regression]) .trn-chip[data-density='month'],
+html:not([data-regression]) .trn-chip[data-density='week'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 4px;
-  height: 20px;
-  min-height: 20px;
-  padding: 0 5px;
+  column-gap: 8px;
+  row-gap: 2px;
+  height: auto;
+  min-height: 0;
+  padding: 4px 8px;
 }
 
-html:not([data-regression]) .trn-chip:not([data-expanded='true']) .trn-chip-meta,
-html:not([data-regression]) .trn-chip:not([data-expanded='true']) .trn-state {
+html:not([data-regression]) .trn-chip[data-density='month'] .trn-chip-head,
+html:not([data-regression]) .trn-chip[data-density='week'] .trn-chip-head {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+html:not([data-regression]) .trn-chip[data-density='month'] .trn-chip-meta,
+html:not([data-regression]) .trn-chip[data-density='week'] .trn-chip-meta {
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--text-tertiary);
+}
+
+html:not([data-regression]) .trn-chip[data-density='month'] .trn-state,
+html:not([data-regression]) .trn-chip[data-density='week'] .trn-state {
+  display: inline-flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin-top: 0;
+}
+
+html:not([data-regression]) .trn-day-row[data-density='day'] {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1.2fr) minmax(0, 1.6fr) 88px auto;
+  align-items: start;
+  gap: 12px;
+  height: auto;
+  min-height: 72px;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+html:not([data-regression]) .trn-day-intro {
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+html:not([data-regression]) .trn-detail-modal {
+  width: min(720px, calc(100vw - 48px));
+  height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+}
+
+html:not([data-regression]) .trn-detail-modal .crs-modal-close {
   display: none;
+}
+
+html:not([data-regression]) .trn-detail-modal .panel.trn-detail {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  box-shadow: none;
+  overflow: auto;
 }
 
 html:not([data-regression]) .trn-week {
@@ -1416,11 +1595,21 @@ html:not([data-regression]) .trn-week-col[data-weekend='true'] {
   background: #fff6f6;
 }
 
-html:not([data-regression]) .trn-week-col[data-today='true'],
 html:not([data-regression]) .trn-week-col[data-selected='true'] {
   border-color: var(--brand-action);
   box-shadow: inset 0 0 0 1px var(--brand-action);
   background: var(--brand-50);
+}
+
+html:not([data-regression]) .trn-week-col[data-today='true'] .trn-week-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand-action);
+  color: #ffffff;
 }
 
 html:not([data-regression]) .trn-week-empty {

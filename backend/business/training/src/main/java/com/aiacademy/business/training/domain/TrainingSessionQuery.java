@@ -1,6 +1,7 @@
 package com.aiacademy.business.training.domain;
 
 import com.aiacademy.common.api.PageQuery;
+import com.aiacademy.platform.statemachine.domain.machines.TrainingStateMachines;
 
 import java.time.LocalDate;
 
@@ -22,6 +23,15 @@ public class TrainingSessionQuery extends PageQuery {
     private Long lecturerId;
 
     private String sessionState;
+
+    /** 所属计划的计划状态。日历筛「培训计划状态」时按计划筛场次。 */
+    private String planState;
+
+    /**
+     * 培训归档状态。{@code true}＝场次已进入归档终态，{@code false}＝尚未归档，
+     * {@code null}＝不筛。终态取值来自状态机，不在 SQL 里写死。
+     */
+    private Boolean archived;
 
     private String trainingForm;
 
@@ -74,6 +84,27 @@ public class TrainingSessionQuery extends PageQuery {
 
     public void setSessionState(String sessionState) {
         this.sessionState = sessionState;
+    }
+
+    public String getPlanState() {
+        return planState;
+    }
+
+    public void setPlanState(String planState) {
+        this.planState = planState;
+    }
+
+    public Boolean getArchived() {
+        return archived;
+    }
+
+    public void setArchived(Boolean archived) {
+        this.archived = archived;
+    }
+
+    /** MyBatis 归档筛选用。取值来自场次状态机终态，不在 XML 写死。 */
+    public String getArchivedState() {
+        return TrainingStateMachines.SESSION_ARCHIVED;
     }
 
     public String getTrainingForm() {

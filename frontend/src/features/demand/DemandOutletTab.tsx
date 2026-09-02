@@ -189,6 +189,7 @@ export function DemandOutletTab({ demand, demo }: DemandOutletTabProps) {
         }}
       >
         <Form.Item
+          className="dmd-form-wide"
           label="流转去向"
           name="outlet"
           extra="与评审结论对应的两条处理出口。"
@@ -214,7 +215,7 @@ export function DemandOutletTab({ demand, demo }: DemandOutletTabProps) {
                 placeholder="请选择解决方案状态"
               />
             </Form.Item>
-            <Form.Item label="备注" name="solutionRemark">
+            <Form.Item label="解决方案备注" name="solutionRemark">
               <Input.TextArea rows={3} autoSize={{ minRows: 2 }} />
             </Form.Item>
           </>
@@ -237,7 +238,7 @@ export function DemandOutletTab({ demand, demo }: DemandOutletTabProps) {
                 placeholder="请选择需求开发状态"
               />
             </Form.Item>
-            <Form.Item label="备注" name="devRemark">
+            <Form.Item label="开发备注" name="devRemark">
               <Input.TextArea rows={3} autoSize={{ minRows: 2 }} />
             </Form.Item>
             <Descriptions
@@ -274,7 +275,7 @@ export function DemandOutletTab({ demand, demo }: DemandOutletTabProps) {
             placeholder="请选择业务验收状态"
           />
         </Form.Item>
-        <Form.Item label="备注" name="acceptanceRemark">
+        <Form.Item label="验收备注" name="acceptanceRemark">
           <Input.TextArea rows={2} autoSize={{ minRows: 2 }} />
         </Form.Item>
         <Form.Item label="交付使用状态" name="deliveryMark">
@@ -285,11 +286,11 @@ export function DemandOutletTab({ demand, demo }: DemandOutletTabProps) {
             placeholder="请选择交付使用状态"
           />
         </Form.Item>
-        <Form.Item label="备注" name="deliveryRemark">
-          <Input.TextArea rows={2} autoSize={{ minRows: 2 }} />
-        </Form.Item>
         <Form.Item label="实际完成时间" name="actualFinishDate">
           <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="交付备注" name="deliveryRemark">
+          <Input.TextArea rows={2} autoSize={{ minRows: 2 }} />
         </Form.Item>
         <Form.Item
           label="关联解决方案"

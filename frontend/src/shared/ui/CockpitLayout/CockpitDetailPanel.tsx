@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Button, Card, Tooltip, Typography } from 'antd';
 import { Maximize2, Minimize2, X } from 'lucide-react';
 import { elevation, fontSize, neutral, radius, space } from '@/shared/theme/designTokens';
+import { shouldReduceMotion } from '@/shared/motion/motionPreference';
+import './CockpitLayout.css';
 
 const { Text } = Typography;
 
@@ -49,18 +51,38 @@ export function CockpitDetailPanel({
   onToggleExpand,
   onClose,
 }: CockpitDetailPanelProps) {
+  const motionRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = () => {
+    const element = motionRef.current;
+    if (!element || shouldReduceMotion() || typeof element.animate !== 'function') {
+      onClose();
+      return;
+    }
+
+    const animation = element.animate(
+      [
+        { opacity: 1, transform: 'translateX(0)' },
+        { opacity: 0, transform: 'translateX(8px)' },
+      ],
+      { duration: 100, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' },
+    );
+    void animation.finished.then(onClose, onClose);
+  };
+
   return (
-    <Card
-      size="small"
-      data-testid="cockpit-detail-panel"
-      data-expanded={expanded}
-      style={{
-        borderRadius: radius.lg,
-        borderColor: neutral[200],
-        boxShadow: expanded ? elevation[3] : elevation[1],
-      }}
-      styles={{ body: { padding: space.md } }}
-    >
+    <div ref={motionRef} className="cockpit-detail-motion">
+      <Card
+        size="small"
+        data-testid="cockpit-detail-panel"
+        data-expanded={expanded}
+        style={{
+          borderRadius: radius.lg,
+          borderColor: neutral[200],
+          boxShadow: expanded ? elevation[3] : elevation[1],
+        }}
+        styles={{ body: { padding: space.md } }}
+      >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: space.xs }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' }}>
@@ -92,7 +114,7 @@ export function CockpitDetailPanel({
             size="small"
             aria-label="关闭详情面板"
             icon={<X size={16} />}
-            onClick={onClose}
+            onClick={handleClose}
           />
         </div>
       </div>
@@ -100,6 +122,7 @@ export function CockpitDetailPanel({
       {stateArea && <div style={{ marginTop: space.sm }}>{stateArea}</div>}
 
       <div style={{ marginTop: space.sm }}>{children}</div>
-    </Card>
+      </Card>
+    </div>
   );
 }

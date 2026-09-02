@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   BadgeCheck,
@@ -17,12 +17,18 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Avatar } from '@/shared/ui/v2/Avatar';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
+import { useDialogMotion } from '@/shared/motion/useDialogMotion';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
 import { isRegressionMode } from '@/app/regressionMode';
 import { registerShellCreate } from '@/app/shell/shellCreate';
+import { message } from 'antd';
+import { lecturerApi, type Lecturer } from '@/shared/api/lecturers';
+import { useIsOperator } from '@/shared/store/authStore';
 import { LecturerFormModal } from '@/features/lecturer/LecturerFormModal';
 import { LecturerBasicInfo } from '@/features/lecturer/LecturerBasicInfo';
-import { useFocusedId, useFocusSelection } from '@/shared/hooks/useFocusParam';
+import { LecturerTabEdit } from '@/features/lecturer/LecturerTabEdit';
+import { courseTrialHref, useFocusedId, useFocusSelection } from '@/shared/hooks/useFocusParam';
 import {
   ATTENDEE_SCALE,
   GROWTH_ADVICE,
@@ -30,21 +36,36 @@ import {
   LECTURER_DETAIL_DOMAINS,
   LECTURER_DETAIL_DOMAINS_MORE,
   LECTURER_DETAIL_TABS,
+  LECTURER_PRODUCT_TABS,
+  LECTURER_CULTIVATION_STATES,
   LECTURER_DETAIL_TITLE,
+  LECTURER_DOMAINS,
+  LECTURER_DUTY_STATES,
   LECTURER_FILTERS,
   LECTURER_GROUPS,
+  LECTURER_LEVELS,
   LECTURER_KPIS,
   LECTURER_POOL,
+  LECTURER_SOURCE_DEPTS,
   LECTURER_SELECTED_ID,
   TEACHING_RECORDS,
   TRIAL_CONCLUSION_QUALIFIED,
+  TRIAL_CONCLUSION_UNQUALIFIED,
   TRIAL_LEDGER,
   TRIAL_LEDGER_COLUMNS,
+  TRIAL_LEDGER_PRODUCT_COLUMNS,
+  trialLedgerYesNoOf,
   TRIAL_TIMELINE,
   lecturerArchiveOf,
-  lecturerBasicFieldsOf,
+  lecturerCertRecordsOf,
+  lecturerFieldLogsOf,
+  lecturerCultivationOf,
+  lecturerCultivationRecordsOf,
+  lecturerDutyTone,
   lecturerEvaluationsOf,
   lecturerIsReadyToTeach,
+  lecturerLevelLogsOf,
+  lecturerLevelOf,
   lecturerTeachingOf,
   lecturerTimelineOf,
   lecturerTitleOf,
@@ -55,6 +76,7 @@ import {
   type TeachingRecord,
   type TrialTimelineItem,
 } from '@/fixtures/lecturer';
+import { LECTURER_CERT_DISPLAY, lecturerCertDisplayOf } from '@/features/lecturer/lecturerDisplay';
 import './LecturerV2Page.css';
 
 /**
@@ -82,15 +104,40 @@ interface FieldPeek {
   fields: LecturerDetailField[];
 }
 
+interface LecturerPoolFilters {
+  query: string;
+  dept: string;
+  domain: string;
+  trial: string;
+  level: string;
+  cultivation: string;
+  cert: string;
+  duty: string;
+}
+
+const EMPTY_POOL_FILTERS: LecturerPoolFilters = {
+  query: '',
+  dept: '',
+  domain: '',
+  trial: '',
+  level: '',
+  cultivation: '',
+  cert: '',
+  duty: '',
+};
+
 interface LecturerV2ContextValue {
   regression: boolean;
   selectedId: string;
   selectLecturer: (id: string) => void;
   kpiId: LecturerKpiId;
   setKpiId: (id: LecturerKpiId) => void;
+  filters: LecturerPoolFilters;
+  setFilter: <K extends keyof LecturerPoolFilters>(key: K, value: LecturerPoolFilters[K]) => void;
   peek: FieldPeek | null;
   openPeek: (peek: FieldPeek) => void;
   closePeek: () => void;
+  requestEdit: (card: LecturerCard) => void;
 }
 
 const LecturerV2Context = createContext<LecturerV2ContextValue | null>(null);
@@ -107,13 +154,35 @@ export function LecturerV2Page() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useFocusSelection(LECTURER_SELECTED_ID);
   const [kpiId, setKpiId] = useState<LecturerKpiId>('poolSize');
+  const [filters, setFilters] = useState<LecturerPoolFilters>(EMPTY_POOL_FILTERS);
   const [peek, setPeek] = useState<FieldPeek | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState<Lecturer | undefined>();
+
+  const setFilter = useCallback(<K extends keyof LecturerPoolFilters>(key: K, value: LecturerPoolFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   useEffect(() => {
     if (regression) return;
     return registerShellCreate(() => setCreating(true));
   }, [regression]);
+
+  const requestEdit = useCallback(async (card: LecturerCard) => {
+    try {
+      const page = await lecturerApi.page({ keyword: card.id }, 1, 20);
+      const found = page.records.find((row) => row.lecturerNo === card.id);
+      if (!found) {
+        message.info('演示数据无法保存，请先「新建讲师」后再编辑');
+        return;
+      }
+      setEditTarget(found);
+      setEditing(true);
+    } catch {
+      message.info('演示数据无法保存，请先「新建讲师」后再编辑');
+    }
+  }, []);
 
   const value = useMemo<LecturerV2ContextValue>(
     () => ({
@@ -122,11 +191,14 @@ export function LecturerV2Page() {
       selectLecturer: setSelectedId,
       kpiId,
       setKpiId,
+      filters,
+      setFilter,
       peek,
       openPeek: setPeek,
       closePeek: () => setPeek(null),
+      requestEdit,
     }),
-    [regression, selectedId, setSelectedId, kpiId, peek],
+    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit],
   );
 
   return (
@@ -150,6 +222,19 @@ export function LecturerV2Page() {
             setCreating(false);
             void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
             navigate(`/lecturers/${id}`);
+          }}
+        />
+        <LecturerFormModal
+          open={editing}
+          lecturer={editTarget}
+          onClose={() => {
+            setEditing(false);
+            setEditTarget(undefined);
+          }}
+          onUpdated={() => {
+            setEditing(false);
+            setEditTarget(undefined);
+            void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
           }}
         />
       </div>
@@ -195,7 +280,7 @@ function KpiRow() {
               <div className="lct-kpi-text">
                 <p className="lct-kpi-label">{kpi.label}</p>
                 <p className="lct-kpi-value">
-                  {kpi.value}
+                  <AnimatedNumber value={kpi.value} duration={520} />
                   {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
                 </p>
                 <p className="lct-kpi-delta">
@@ -231,7 +316,7 @@ function KpiRow() {
               </span>
             </div>
             <p className="lct-kpi-value">
-              {kpi.value}
+              <AnimatedNumber value={kpi.value} duration={520} />
               {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
             </p>
             <p className="lct-kpi-foot">
@@ -254,10 +339,15 @@ function activateOnKey(event: KeyboardEvent, action: () => void): void {
 /**
  * R4 筛选器：252,203,812,45。
  *
- * <p>45px 装的是「字段名 + 控件」两层：16 + 28 = 44。四个下拉各带字段名，
- * 搜索框与日期范围没有 —— 它们的 placeholder 已经说明了自己是什么。
+ * <p>回归模式钉死「搜索 + 四下拉 + 日期」，45px 装的是「字段名 + 控件」两层。
+ * 产品模式换成七个筛选项 + 按讲师ID／姓名搜索，控件真过滤，行高放开可换行。
  */
 function FilterBar() {
+  const { regression } = useLecturerV2();
+  return regression ? <RegressionFilterBar /> : <ProductFilterBar />;
+}
+
+function RegressionFilterBar() {
   return (
     <section className="lct-filters" data-region="R4" aria-label="讲师筛选">
       <div className="lct-search">
@@ -286,20 +376,147 @@ function FilterBar() {
   );
 }
 
+function ProductFilterBar() {
+  const { filters, setFilter } = useLecturerV2();
+  return (
+    <section className="lct-filters" data-region="R4" aria-label="讲师筛选">
+      <div className="lct-search">
+        <Search size={14} color={colorV2.textTertiary} aria-hidden />
+        <input
+          type="search"
+          placeholder="搜索ID / 姓名"
+          aria-label="搜索讲师"
+          value={filters.query}
+          onChange={(event) => setFilter('query', event.target.value)}
+        />
+      </div>
+
+      <ProductFilterField
+        id="sourceDept"
+        label="来源部门"
+        value={filters.dept}
+        options={LECTURER_SOURCE_DEPTS}
+        onChange={(value) => setFilter('dept', value)}
+      />
+      <ProductFilterField
+        id="expertise"
+        label="擅长领域"
+        value={filters.domain}
+        options={LECTURER_DOMAINS}
+        onChange={(value) => setFilter('domain', value)}
+      />
+      <ProductFilterField
+        id="trial"
+        label="试讲情况"
+        value={filters.trial}
+        options={[TRIAL_CONCLUSION_QUALIFIED, TRIAL_CONCLUSION_UNQUALIFIED]}
+        onChange={(value) => setFilter('trial', value)}
+      />
+      <ProductFilterField
+        id="level"
+        label="讲师等级"
+        value={filters.level}
+        options={LECTURER_LEVELS}
+        onChange={(value) => setFilter('level', value)}
+      />
+      <ProductFilterField
+        id="cultivation"
+        label="培养状态"
+        value={filters.cultivation}
+        options={LECTURER_CULTIVATION_STATES}
+        onChange={(value) => setFilter('cultivation', value)}
+      />
+      <ProductFilterField
+        id="cert"
+        label="认证状态"
+        value={filters.cert}
+        options={LECTURER_CERT_DISPLAY}
+        onChange={(value) => setFilter('cert', value)}
+      />
+      <ProductFilterField
+        id="duty"
+        label="上岗状态"
+        value={filters.duty}
+        options={LECTURER_DUTY_STATES}
+        onChange={(value) => setFilter('duty', value)}
+      />
+    </section>
+  );
+}
+
+function ProductFilterField({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="lct-field" data-testid="lecturer-filter" data-filter={id}>
+      <span className="lct-field-label">{label}</span>
+      <span className="lct-select">
+        <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)}>
+          <option value="">全部</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={14} color={colorV2.textTertiary} aria-hidden />
+      </span>
+    </label>
+  );
+}
+
 function matchesKpi(card: LecturerCard, kpiId: LecturerKpiId): boolean {
   if (kpiId === 'qualified') return card.trialQualified;
   if (kpiId === 'readyToTeach') return lecturerIsReadyToTeach(card);
   return true;
 }
 
+function matchesPoolFilters(card: LecturerCard, filters: LecturerPoolFilters): boolean {
+  const query = filters.query.trim().toLowerCase();
+  if (query && !card.id.toLowerCase().includes(query) && !card.name.toLowerCase().includes(query)) {
+    return false;
+  }
+  if (filters.dept && card.dept !== filters.dept) return false;
+  if (filters.domain && !card.domains.includes(filters.domain)) return false;
+  if (filters.trial) {
+    const trial = card.trialQualified ? TRIAL_CONCLUSION_QUALIFIED : TRIAL_CONCLUSION_UNQUALIFIED;
+    if (trial !== filters.trial) return false;
+  }
+  if (filters.level && lecturerLevelOf(card.teachingCount) !== filters.level) return false;
+  if (filters.cultivation && lecturerCultivationOf(card) !== filters.cultivation) return false;
+  if (filters.cert && lecturerCertDisplayOf(card.trialQualified, card.cultivationStatus) !== filters.cert) return false;
+  if (filters.duty && lecturerArchiveOf(card).dutyState !== filters.duty) return false;
+  return true;
+}
+
+function matchesVisibleCard(
+  card: LecturerCard,
+  kpiId: LecturerKpiId,
+  filters: LecturerPoolFilters,
+  regression: boolean,
+): boolean {
+  if (!matchesKpi(card, kpiId)) return false;
+  return regression || matchesPoolFilters(card, filters);
+}
+
 /** R5 讲师池：252,264,812,484 */
 function PoolPanel() {
-  const { kpiId } = useLecturerV2();
+  const { kpiId, filters, regression } = useLecturerV2();
   const groups = LECTURER_GROUPS.map((group) => ({
     ...group,
-    cards: group.cards.filter((card) => matchesKpi(card, kpiId)),
+    cards: group.cards.filter((card) => matchesVisibleCard(card, kpiId, filters, regression)),
   })).filter((group) => group.cards.length > 0);
-  const visibleTotal = LECTURER_POOL.filter((card) => matchesKpi(card, kpiId)).length;
+  const visibleTotal = LECTURER_POOL.filter((card) => matchesVisibleCard(card, kpiId, filters, regression)).length;
 
   return (
     <section className="panel lct-pool" data-region="R5" aria-label="讲师池">
@@ -375,6 +592,15 @@ function LecturerCardView({ card }: { card: LecturerCard }) {
       onClick={regression ? undefined : () => selectLecturer(card.id)}
       onKeyDown={regression ? undefined : (event) => activateOnKey(event, () => selectLecturer(card.id))}
     >
+      {regression ? <RegressionCardBody card={card} /> : <ProductCardBody card={card} />}
+    </article>
+  );
+}
+
+/** 回归模式卡面：头像／姓名／部门／领域／四行指标。几何由 p04 钉死，不要改。 */
+function RegressionCardBody({ card }: { card: LecturerCard }) {
+  return (
+    <>
       <div className="lct-card-top">
         <Avatar name={card.name} size={40} />
         <div className="lct-card-identity">
@@ -436,7 +662,67 @@ function LecturerCardView({ card }: { card: LecturerCard }) {
           </dd>
         </div>
       </dl>
-    </article>
+    </>
+  );
+}
+
+/**
+ * 产品模式卡面：头像、ID、姓名、部门、等级、领域、试讲、上岗、
+ * 培养、认证展示、综合评分。授课次数／人次进详情。
+ *
+ * <p>认证三值只是卡上的展示，由试讲合格与培养状态推出，不落库、没有认证流程
+ * （一期禁区 F-1）。培养状态是真字段。
+ */
+function ProductCardBody({ card }: { card: LecturerCard }) {
+  const archive = lecturerArchiveOf(card);
+  const trial = card.trialQualified ? TRIAL_CONCLUSION_QUALIFIED : TRIAL_CONCLUSION_UNQUALIFIED;
+  const cert = lecturerCertDisplayOf(card.trialQualified, card.cultivationStatus);
+  return (
+    <>
+      <div className="lct-card-top">
+        <Avatar name={card.name} size={40} />
+        <div className="lct-card-identity">
+          <p className="lct-card-name">
+            <span className="lct-card-name-text">{card.name}</span>
+            <span className="lct-card-level">{archive.lecturerLevel}</span>
+          </p>
+          <p className="lct-card-idline" title={`${card.id} · ${card.dept}`}>
+            <span className="lct-card-id">{card.id}</span>
+            <span className="lct-card-dept">{card.dept}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="lct-card-domains">
+        {card.domains.map((domain) => (
+          <span className="lct-tag" key={domain}>
+            {domain}
+          </span>
+        ))}
+      </div>
+
+      <div className="lct-card-status">
+        <span className="lct-card-chip" data-tone={card.trialQualified ? 'ok' : 'muted'}>
+          {trial}
+        </span>
+        <span className="lct-card-chip" data-tone={lecturerDutyTone(card)}>
+          {archive.dutyState}
+        </span>
+      </div>
+
+      <p className="lct-card-score">
+        <span>培养状态</span>
+        <span className="lct-card-score-value">{lecturerCultivationOf(card)}</span>
+      </p>
+      <p className="lct-card-score">
+        <span>认证状态</span>
+        <span className="lct-card-score-value">{cert}</span>
+      </p>
+      <p className="lct-card-score">
+        <span>综合评分</span>
+        <span className="lct-card-score-value">{card.avgScore} / 5</span>
+      </p>
+    </>
   );
 }
 
@@ -447,7 +733,9 @@ function LecturerCardView({ card }: { card: LecturerCard }) {
  * 「必须照抄」，而这组数<b>自己是自洽的</b>（P03 的看板那组差 10px）。因此表格左右不留内边距。
  */
 function LedgerPanel() {
-  const { regression, selectLecturer, openPeek } = useLecturerV2();
+  const { regression, selectLecturer } = useLecturerV2();
+  const location = useLocation();
+  const columns = regression ? TRIAL_LEDGER_COLUMNS : TRIAL_LEDGER_PRODUCT_COLUMNS;
 
   return (
     <section className="panel lct-ledger" data-region="R6" aria-label="试讲台账">
@@ -462,13 +750,13 @@ function LedgerPanel() {
 
       <table className="lct-table">
         <colgroup>
-          {TRIAL_LEDGER_COLUMNS.map((column) => (
+          {columns.map((column) => (
             <col key={column.id} style={{ width: `${column.width}px` }} />
           ))}
         </colgroup>
         <thead>
           <tr>
-            {TRIAL_LEDGER_COLUMNS.map((column) => (
+            {columns.map((column) => (
               <th key={column.id} scope="col" data-column={column.id}>
                 {column.label}
               </th>
@@ -499,21 +787,23 @@ function LedgerPanel() {
                   )}
                 </td>
                 <td>
-                  <Conclusion value={row.lecturerConclusion} />
+                  <Conclusion value={row.lecturerConclusion} yesNo={!regression} />
                 </td>
                 <td>
-                  <Conclusion value={row.courseConclusion} />
+                  <Conclusion value={row.courseConclusion} yesNo={!regression} />
                 </td>
-                <td>
-                  <span className="lct-consistent">
-                    {consistent ? (
-                      <CircleCheck size={13} color={colorV2.success} aria-hidden />
-                    ) : (
-                      <CircleX size={13} color={colorV2.danger} aria-hidden />
-                    )}
-                    {consistent ? '一致' : '不一致'}
-                  </span>
-                </td>
+                {regression ? (
+                  <td>
+                    <span className="lct-consistent">
+                      {consistent ? (
+                        <CircleCheck size={13} color={colorV2.success} aria-hidden />
+                      ) : (
+                        <CircleX size={13} color={colorV2.danger} aria-hidden />
+                      )}
+                      {consistent ? '一致' : '不一致'}
+                    </span>
+                  </td>
+                ) : null}
                 <td>{row.reviewedAt}</td>
                 <td>
                   {regression ? (
@@ -521,25 +811,9 @@ function LedgerPanel() {
                       查看
                     </a>
                   ) : (
-                    <button
-                      className="lct-link-btn"
-                      type="button"
-                      onClick={() =>
-                        openPeek({
-                          title: `${row.course} · ${row.round}`,
-                          fields: [
-                            { label: '课程名称', value: row.course },
-                            { label: '轮次', value: row.round },
-                            { label: '讲师', value: row.lecturer },
-                            { label: '讲师结论', value: row.lecturerConclusion },
-                            { label: '课程结论', value: row.courseConclusion },
-                            { label: '评审日期', value: row.reviewedAt },
-                          ],
-                        })
-                      }
-                    >
+                    <a className="lct-link" href={courseTrialHref(row.course, location.search)}>
                       查看
-                    </button>
+                    </a>
                   )}
                 </td>
               </tr>
@@ -558,11 +832,11 @@ function LedgerPanel() {
  * 页面里出现 {@code === '合格'} 就是 STK-1 要防的那件事 —— 后端改了结论用词，
  * 页面不报错，只是所有结论都按「不合格」着色。
  */
-function Conclusion({ value }: { value: string }) {
+function Conclusion({ value, yesNo }: { value: string; yesNo?: boolean }) {
   const positive = value === TRIAL_CONCLUSION_QUALIFIED;
   return (
     <span className="lct-conclusion" data-positive={positive}>
-      {value}
+      {yesNo ? trialLedgerYesNoOf(value) : value}
     </span>
   );
 }
@@ -576,18 +850,19 @@ function selectedCardOf(selectedId: string): LecturerCard | undefined {
 
 /** R7 讲师详情：1081,203,481,753 */
 function DetailPanel() {
-  const { regression, selectedId, selectLecturer, openPeek } = useLecturerV2();
+  const { regression, selectedId, selectLecturer } = useLecturerV2();
   const focusedId = useFocusedId(LECTURER_SELECTED_ID);
   const cards = LECTURER_GROUPS.flatMap((group) => group.cards);
   const selected = regression
     ? (cards.find((card) => card.id === focusedId) ?? cards.find((card) => card.id === LECTURER_SELECTED_ID))
     : selectedCardOf(selectedId);
-  const [activeTab, setActiveTab] = useState<(typeof LECTURER_DETAIL_TABS)[number]>(
-    regression ? LECTURER_DETAIL_TABS[LECTURER_DETAIL_ACTIVE_TAB]! : '基本信息',
+  const tabs = regression ? LECTURER_DETAIL_TABS : LECTURER_PRODUCT_TABS;
+  const [activeTab, setActiveTab] = useState<string>(
+    regression ? LECTURER_DETAIL_TABS[LECTURER_DETAIL_ACTIVE_TAB]! : LECTURER_PRODUCT_TABS[0],
   );
 
   useEffect(() => {
-    if (!regression) setActiveTab('基本信息');
+    if (!regression) setActiveTab(LECTURER_PRODUCT_TABS[0]);
   }, [selectedId, regression]);
 
   const title = regression ? LECTURER_DETAIL_TITLE : lecturerTitleOf(selected?.name ?? '');
@@ -596,39 +871,14 @@ function DetailPanel() {
   return (
     <section className="panel lct-detail" data-region="R7" aria-label="讲师详情">
       <header className="lct-detail-head">
-        {regression ? (
-          <>
-            <Avatar name={selected?.name ?? ''} size={56} />
-            <div className="lct-detail-identity">
-              <p className="lct-detail-name">
-                {selected?.name}
-                {selected?.trialQualified && <span className="lct-badge-ok">试讲合格</span>}
-              </p>
-              <p className="lct-detail-title">{title}</p>
-            </div>
-          </>
-        ) : (
-          <button
-            className="lct-detail-identity-btn"
-            type="button"
-            onClick={() =>
-              selected &&
-              openPeek({
-                title: selected.name,
-                fields: lecturerBasicFieldsOf(selected),
-              })
-            }
-          >
-            <Avatar name={selected?.name ?? ''} size={56} />
-            <div className="lct-detail-identity">
-              <p className="lct-detail-name">
-                {selected?.name}
-                {selected?.trialQualified && <span className="lct-badge-ok">试讲合格</span>}
-              </p>
-              <p className="lct-detail-title">{title}</p>
-            </div>
-          </button>
-        )}
+        <Avatar name={selected?.name ?? ''} size={56} />
+        <div className="lct-detail-identity">
+          <p className="lct-detail-name">
+            {selected?.name}
+            {selected?.trialQualified && <span className="lct-badge-ok">试讲合格</span>}
+          </p>
+          <p className="lct-detail-title">{title}</p>
+        </div>
 
         <button
           className="lct-detail-close"
@@ -643,27 +893,16 @@ function DetailPanel() {
       </header>
 
       <div className="lct-detail-domains">
-        {regression
-          ? domains.map((domain) => (
-              <span className="lct-tag" key={domain}>
-                {domain}
-              </span>
-            ))
-          : domains.map((domain) => (
-              <button
-                className="lct-tag"
-                key={domain}
-                type="button"
-                onClick={() => openPeek({ title: '擅长领域', fields: [{ label: '擅长领域', value: domain }] })}
-              >
-                {domain}
-              </button>
-            ))}
+        {domains.map((domain) => (
+          <span className="lct-tag" key={domain}>
+            {domain}
+          </span>
+        ))}
         {regression && <span className="lct-tag lct-tag-more">+ {LECTURER_DETAIL_DOMAINS_MORE}</span>}
       </div>
 
       <nav className="lct-tabs" aria-label="讲师详情页签">
-        {LECTURER_DETAIL_TABS.map((tab, index) => (
+        {tabs.map((tab, index) => (
           <button
             className="lct-tab"
             key={tab}
@@ -690,37 +929,258 @@ function DetailPanel() {
   );
 }
 
-function LiveDetailBody({
-  tab,
-  card,
-}: {
-  tab: (typeof LECTURER_DETAIL_TABS)[number];
-  card: LecturerCard;
-}) {
-  if (tab === '基本信息') return <BasicInfoBlock card={card} />;
-  if (tab === '试讲记录') return <TrialTimeline items={lecturerTimelineOf(card)} />;
-  if (tab === '授课记录') return <TeachingBlock records={lecturerTeachingOf(card)} />;
-  return <EvaluationBlock items={lecturerEvaluationsOf(card)} />;
-}
-
-function BasicInfoBlock({ card }: { card: LecturerCard }) {
-  const { openPeek } = useLecturerV2();
+function LiveDetailBody({ tab, card }: { tab: string; card: LecturerCard }) {
+  const { requestEdit } = useLecturerV2();
+  const isOperator = useIsOperator();
   return (
-    <LecturerBasicInfo
-      profile={lecturerArchiveOf(card)}
-      interactive
-      onFieldClick={(field) => openPeek({ title: field.label, fields: [field] })}
-    />
+    <>
+      {isOperator && <LecturerTabEdit onEdit={() => requestEdit(card)} />}
+      {tab === '基本信息' ? <BasicInfoBlock card={card} /> : null}
+      {tab === '试讲记录' ? <TrialTimeline items={lecturerTimelineOf(card)} /> : null}
+      {tab === '培养计划与培养记录' ? <CultivationBlock card={card} /> : null}
+      {tab === '认证记录' ? <CertRecordBlock card={card} /> : null}
+      {tab === '等级变更记录' ? <LevelLogBlock card={card} /> : null}
+      {tab === '授课记录与学员反馈' ? (
+        <>
+          <TeachingBlock records={lecturerTeachingOf(card)} card={card} />
+          <EvaluationBlock items={lecturerEvaluationsOf(card)} />
+        </>
+      ) : null}
+      {tab === '状态流转日志' ? <StateLogBlock card={card} /> : null}
+    </>
   );
 }
 
+function CultivationBlock({ card }: { card: LecturerCard }) {
+  const records = lecturerCultivationRecordsOf(card);
+  const archive = lecturerArchiveOf(card);
+  return (
+    <div className="lct-block" data-testid="cultivation-block">
+      <h3 className="lct-block-title">培养计划与培养记录</h3>
+      <p className="lct-record-now">
+        <span>讲师ID</span>
+        <strong>{archive.lecturerNo}</strong>
+      </p>
+      <p className="lct-record-now">
+        <span>讲师姓名</span>
+        <strong>{archive.name}</strong>
+      </p>
+      {records.length === 0 ? (
+        <p className="lct-empty">只记录培养结果，不做培养计划引擎。暂无培养计划与培养记录。</p>
+      ) : (
+        records.map((row, index) => (
+          <dl className="lct-profile-grid" key={`${row.planState}-${index}`}>
+            <div className="lct-profile-field">
+              <dt>培养计划</dt>
+              <dd>{row.planText || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>计划培养周期</dt>
+              <dd>
+                {row.plannedFrom} 至 {row.plannedTo}
+              </dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>培养类型</dt>
+              <dd>{row.cultivationTypes.join('、') || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>培养记录</dt>
+              <dd>{row.recordText || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>实际培养周期</dt>
+              <dd>
+                {row.actualFrom} 至 {row.actualTo}
+              </dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>培养状态</dt>
+              <dd>{row.planState}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>培养评价</dt>
+              <dd>{row.evaluation || '—'}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>备注</dt>
+              <dd>{row.remark || '—'}</dd>
+            </div>
+          </dl>
+        ))
+      )}
+    </div>
+  );
+}
+
+function CertRecordBlock({ card }: { card: LecturerCard }) {
+  const records = lecturerCertRecordsOf(card);
+  const archive = lecturerArchiveOf(card);
+  return (
+    <div className="lct-block" data-testid="cert-block">
+      <h3 className="lct-block-title">认证记录</h3>
+      <p className="lct-record-now">
+        <span>讲师ID</span>
+        <strong>{archive.lecturerNo}</strong>
+      </p>
+      <p className="lct-record-now">
+        <span>讲师姓名</span>
+        <strong>{archive.name}</strong>
+      </p>
+      <p className="lct-record-now">
+        <span>当前认证状态</span>
+        <strong>{lecturerCertDisplayOf(card.trialQualified, card.cultivationStatus)}</strong>
+      </p>
+      {records.length === 0 ? (
+        <p className="lct-empty">只记录认证结果，不做认证审批。暂无认证记录。</p>
+      ) : (
+        records.map((row, index) => (
+          <dl className="lct-profile-grid" key={`${row.certBatch}-${index}`}>
+            <div className="lct-profile-field">
+              <dt>认证批次</dt>
+              <dd>{row.certBatch || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>讲师等级</dt>
+              <dd>{row.lecturerLevel || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>认证状态</dt>
+              <dd>{row.certState}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>认证通过时间</dt>
+              <dd>{row.passedOn || '—'}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>评审人</dt>
+              <dd>{row.reviewers || '—'}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>认证意见</dt>
+              <dd>{row.opinion || '—'}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>认证有效期</dt>
+              <dd>
+                {row.validFrom} 至 {row.validTo}
+              </dd>
+            </div>
+          </dl>
+        ))
+      )}
+    </div>
+  );
+}
+
+function LevelLogBlock({ card }: { card: LecturerCard }) {
+  const records = lecturerLevelLogsOf(card);
+  const archive = lecturerArchiveOf(card);
+  return (
+    <div className="lct-block" data-testid="level-log-block">
+      <h3 className="lct-block-title">等级变更记录</h3>
+      <p className="lct-record-now">
+        <span>讲师ID</span>
+        <strong>{archive.lecturerNo}</strong>
+      </p>
+      <p className="lct-record-now">
+        <span>讲师姓名</span>
+        <strong>{archive.name}</strong>
+      </p>
+      <p className="lct-record-now">
+        <span>当前等级</span>
+        <strong>{lecturerLevelOf(card.teachingCount)}</strong>
+      </p>
+      {records.length === 0 ? (
+        <p className="lct-empty">只记录等级变更结果，不做评估模型。暂无等级变更记录。</p>
+      ) : (
+        records.map((row) => (
+          <dl className="lct-profile-grid" key={row.changeNo}>
+            <div className="lct-profile-field">
+              <dt>变更记录编号</dt>
+              <dd>{row.changeNo}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>变更后等级</dt>
+              <dd>{row.levelAfter}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>变更触发原因</dt>
+              <dd>{row.triggerReason || '—'}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>等级变更说明</dt>
+              <dd>{row.changeDesc || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>等级变更时间</dt>
+              <dd>{row.changedOn || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>评审人</dt>
+              <dd>{row.reviewer || '—'}</dd>
+            </div>
+            <div className="lct-profile-field" data-span="full">
+              <dt>评审意见</dt>
+              <dd>{row.reviewComment || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>记录创建人</dt>
+              <dd>{row.createdBy || '—'}</dd>
+            </div>
+            <div className="lct-profile-field">
+              <dt>记录更新时间</dt>
+              <dd>{row.updatedAt || '—'}</dd>
+            </div>
+          </dl>
+        ))
+      )}
+    </div>
+  );
+}
+
+function StateLogBlock({ card }: { card: LecturerCard }) {
+  const items = lecturerFieldLogsOf(card);
+  return (
+    <div className="lct-block" data-testid="state-log-block">
+      <h3 className="lct-block-title">状态流转日志</h3>
+      <p className="lct-record-now">
+        <span>讲师ID</span>
+        <strong>{card.id}</strong>
+      </p>
+      <p className="lct-record-now">
+        <span>讲师姓名</span>
+        <strong>{card.name}</strong>
+      </p>
+      {items.length === 0 ? (
+        <p className="lct-empty">档案字段改值自动留痕，不是状态机。还没有状态变更记录。</p>
+      ) : (
+        <ol className="lct-state-list">
+          {items.map((row, index) => (
+            <li className="lct-state-row" key={`${row.operatedAt}-${row.fieldName}-${index}`}>
+              <p className="lct-state-when">{row.operatedAt}</p>
+              <p className="lct-state-change">{`【${row.fieldName}】由 [${row.oldValue}] 变更为 [${row.newValue}]`}</p>
+              <p className="lct-state-who">操作人：{row.operator}</p>
+              <p className="lct-state-note">关联备注：{row.remark || '无'}</p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function BasicInfoBlock({ card }: { card: LecturerCard }) {
+  return <LecturerBasicInfo profile={lecturerArchiveOf(card)} />;
+}
+
 function TrialTimeline({ items }: { items: TrialTimelineItem[] }) {
-  const { regression, openPeek } = useLecturerV2();
+  const { regression } = useLecturerV2();
   return (
     <div className="lct-block lct-timeline" data-testid="trial-timeline">
       {items.map((item) => {
         const positive = item.conclusion === TRIAL_CONCLUSION_QUALIFIED;
-        const body = (
+        const body = regression ? (
           <>
             <span className="lct-round-dot" aria-hidden />
             <div className="lct-round-body">
@@ -734,47 +1194,50 @@ function TrialTimeline({ items }: { items: TrialTimelineItem[] }) {
               <p className="lct-round-line">参与人：{item.participants}</p>
             </div>
           </>
-        );
-        if (regression) {
-          return (
-            <div className="lct-round" key={item.round} data-testid="trial-round" data-positive={positive}>
-              {body}
+        ) : (
+          <>
+            <span className="lct-round-dot" aria-hidden />
+            <div className="lct-round-body">
+              <p className="lct-round-head">
+                <span className="lct-round-no">{item.round}</span>
+                <span className="lct-round-date">{item.date}</span>
+              </p>
+              <p className="lct-round-line">试讲结果：{item.conclusion}</p>
+              <p className="lct-round-line">课程名称：{item.courseName || '—'}</p>
+              <p className="lct-round-line">整体满意度：{item.satisfaction || '—'}</p>
+              <p className="lct-round-line">优化建议：{item.optimizeAdvice || '—'}</p>
+              <p className="lct-round-line">试讲时间：{item.date}</p>
             </div>
-          );
-        }
+          </>
+        );
         return (
-          <button
-            className="lct-round lct-round-btn"
-            key={item.round}
-            type="button"
-            data-testid="trial-round"
-            data-positive={positive}
-            onClick={() =>
-              openPeek({
-                title: `${item.round}（${item.conclusion}）`,
-                fields: [
-                  { label: '轮次', value: item.round },
-                  { label: '结论', value: item.conclusion },
-                  { label: '评审日期', value: item.date },
-                  { label: '专家意见', value: item.opinion },
-                  { label: '参与人', value: item.participants },
-                ],
-              })
-            }
-          >
+          <div className="lct-round" key={item.round} data-testid="trial-round" data-positive={positive}>
             {body}
-          </button>
+          </div>
         );
       })}
     </div>
   );
 }
 
-function TeachingBlock({ records }: { records: TeachingRecord[] }) {
-  const { regression, openPeek } = useLecturerV2();
+function TeachingBlock({ records, card }: { records: TeachingRecord[]; card?: LecturerCard }) {
+  const [allOpen, setAllOpen] = useState(false);
   return (
     <div className="lct-block lct-teaching" data-testid="teaching-block">
       <h3 className="lct-block-title">近期授课记录</h3>
+
+      {card ? (
+        <>
+          <p className="lct-record-now">
+            <span>讲师ID</span>
+            <strong>{card.id}</strong>
+          </p>
+          <p className="lct-record-now">
+            <span>讲师姓名</span>
+            <strong>{card.name}</strong>
+          </p>
+        </>
+      ) : null}
 
       <table className="lct-teaching-table">
         <thead>
@@ -787,42 +1250,7 @@ function TeachingBlock({ records }: { records: TeachingRecord[] }) {
         </thead>
         <tbody>
           {records.map((record) => (
-            <tr
-              key={record.session}
-              data-testid="teaching-row"
-              role={regression ? undefined : 'button'}
-              tabIndex={regression ? undefined : 0}
-              onClick={
-                regression
-                  ? undefined
-                  : () =>
-                      openPeek({
-                        title: record.course,
-                        fields: [
-                          { label: '课程名称', value: record.course },
-                          { label: '场次', value: record.session },
-                          { label: '授课日期', value: record.taughtOn },
-                          { label: '本场评分', value: record.score },
-                        ],
-                      })
-              }
-              onKeyDown={
-                regression
-                  ? undefined
-                  : (event) =>
-                      activateOnKey(event, () =>
-                        openPeek({
-                          title: record.course,
-                          fields: [
-                            { label: '课程名称', value: record.course },
-                            { label: '场次', value: record.session },
-                            { label: '授课日期', value: record.taughtOn },
-                            { label: '本场评分', value: record.score },
-                          ],
-                        }),
-                      )
-              }
-            >
+            <tr key={record.session} data-testid="teaching-row">
               <td title={record.course}>{record.course}</td>
               <td>{record.session}</td>
               <td>{record.taughtOn}</td>
@@ -834,16 +1262,53 @@ function TeachingBlock({ records }: { records: TeachingRecord[] }) {
 
       {records.length === 0 && <p className="lct-empty">暂无授课记录</p>}
 
-      <a className="panel-action lct-teaching-more" href="/lecturers">
-        查看全部授课记录
-        <ChevronRight size={14} aria-hidden />
-      </a>
+      {card && allOpen
+        ? records.map((record) => (
+            <dl className="lct-profile-grid" key={`${record.session}-extra`} data-testid="teaching-extra">
+              <div className="lct-profile-field">
+                <dt>课程名称</dt>
+                <dd>{record.course}</dd>
+              </div>
+              <div className="lct-profile-field">
+                <dt>授课类型</dt>
+                <dd>{record.trainingForm || '—'}</dd>
+              </div>
+              <div className="lct-profile-field">
+                <dt>综合评分</dt>
+                <dd>{record.score} / 5</dd>
+              </div>
+              <div className="lct-profile-field">
+                <dt>记录创建人</dt>
+                <dd>{record.createdBy || '—'}</dd>
+              </div>
+              <div className="lct-profile-field">
+                <dt>记录更新时间</dt>
+                <dd>{record.updatedAt || '—'}</dd>
+              </div>
+            </dl>
+          ))
+        : null}
+
+      {card ? (
+        <button
+          className="panel-action lct-teaching-more"
+          type="button"
+          onClick={() => setAllOpen((open) => !open)}
+        >
+          {allOpen ? '收起授课记录' : '查看全部授课记录'}
+          <ChevronRight size={14} aria-hidden />
+        </button>
+      ) : (
+        <a className="panel-action lct-teaching-more" href="/lecturers">
+          查看全部授课记录
+          <ChevronRight size={14} aria-hidden />
+        </a>
+      )}
     </div>
   );
 }
 
 function EvaluationBlock({ items }: { items: StudentEvaluation[] }) {
-  const { openPeek } = useLecturerV2();
   return (
     <div className="lct-block lct-evals" data-testid="evaluation-block">
       <h3 className="lct-block-title">学员评价</h3>
@@ -851,28 +1316,13 @@ function EvaluationBlock({ items }: { items: StudentEvaluation[] }) {
         <p className="lct-empty">暂无学员评价</p>
       ) : (
         items.map((item) => (
-          <button
-            className="lct-eval"
-            key={`${item.student}-${item.session}`}
-            type="button"
-            onClick={() =>
-              openPeek({
-                title: `${item.student} · ${item.session}`,
-                fields: [
-                  { label: '学员', value: item.student },
-                  { label: '场次', value: item.session },
-                  { label: '评分', value: item.score },
-                  { label: '评价', value: item.comment },
-                ],
-              })
-            }
-          >
+          <div className="lct-eval" key={`${item.student}-${item.session}`}>
             <p className="lct-eval-head">
               <span>{item.student}</span>
               <span>{item.score} / 5</span>
             </p>
             <p className="lct-eval-body">{item.comment}</p>
-          </button>
+          </div>
         ))
       )}
     </div>
@@ -904,20 +1354,21 @@ function GrowthAdvice() {
 
 function FieldPeekModal() {
   const { peek, closePeek } = useLecturerV2();
+  const { closing, requestClose } = useDialogMotion(closePeek);
 
   useEffect(() => {
     if (!peek) return undefined;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') closePeek();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [peek, closePeek]);
+  }, [peek, requestClose]);
 
   if (!peek) return null;
 
   return (
-    <div className="crs-modal-mask" role="presentation" onClick={closePeek}>
+    <div className="crs-modal-mask" data-closing={closing} role="presentation" onClick={requestClose}>
       <div
         className="lct-peek"
         role="dialog"
@@ -926,7 +1377,7 @@ function FieldPeekModal() {
         data-testid="lecturer-field-peek"
         onClick={(event) => event.stopPropagation()}
       >
-        <button className="crs-modal-close" type="button" aria-label="关闭字段详情" onClick={closePeek}>
+        <button className="crs-modal-close" type="button" aria-label="关闭字段详情" onClick={requestClose}>
           <X size={16} aria-hidden />
         </button>
         <h2 className="lct-peek-title">{peek.title}</h2>

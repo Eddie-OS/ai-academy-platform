@@ -52,12 +52,10 @@ public interface LecturerImportMapper {
     @Select("""
             INSERT INTO biz_lecturer (lecturer_no, lecturer_name, employee_no, source_dept,
                                       expertise_domains, teaching_direction, join_type, joined_date,
-                                      training_state, trial_qualified, pool_state, duty_state,
-                                      lecturer_level, profile_maintainer, import_batch_no, created_by)
+                                      training_state, trial_qualified, pool_state, import_batch_no, created_by)
             VALUES (#{lecturerNo}, #{lecturerName}, #{employeeNo}, #{sourceDept},
                     #{expertiseDomains}::jsonb, #{teachingDirection}, '批量导入', #{joinedDate},
-                    #{trainingState}, FALSE, #{poolState}, #{dutyState},
-                    #{lecturerLevel}, #{operator}, #{batchNo}, #{operator})
+                    #{trainingState}, FALSE, #{poolState}, #{batchNo}, #{operator})
             RETURNING id
             """)
     long insertLecturer(@Param("lecturerNo") String lecturerNo,
@@ -69,8 +67,6 @@ public interface LecturerImportMapper {
                         @Param("joinedDate") LocalDate joinedDate,
                         @Param("trainingState") String trainingState,
                         @Param("poolState") String poolState,
-                        @Param("dutyState") String dutyState,
-                        @Param("lecturerLevel") String lecturerLevel,
                         @Param("batchNo") String batchNo,
                         @Param("operator") String operator);
 
@@ -89,7 +85,6 @@ public interface LecturerImportMapper {
                    teaching_direction = #{teachingDirection},
                    training_state = #{trainingState},
                    pool_state = #{poolState},
-                   duty_state = #{dutyState},
                    import_batch_no = #{batchNo},
                    updated_at = NOW(),
                    updated_by = #{operator}
@@ -102,7 +97,6 @@ public interface LecturerImportMapper {
                        @Param("teachingDirection") String teachingDirection,
                        @Param("trainingState") String trainingState,
                        @Param("poolState") String poolState,
-                       @Param("dutyState") String dutyState,
                        @Param("batchNo") String batchNo,
                        @Param("operator") String operator);
 }

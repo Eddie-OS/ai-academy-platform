@@ -1,0 +1,20 @@
+.lct-tab-edit-bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.lct-tab-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-v2-1);
+  height: 24px;
+  padding: 0 var(--space-v2-2);
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  background: var(--bg-page);
+  color: var(--brand-action);
+  font-family: inherit;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  cursor: pointer;
+}

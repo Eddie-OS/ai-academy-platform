@@ -10,7 +10,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { App } from 'antd';
+import { App, Button } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -51,6 +51,8 @@ import { transitionApi } from '@/shared/api/transitions';
 import { invalidateDemandGraph } from '@/shared/query/invalidateGraph';
 import type { ActionAvailability } from '@/shared/api/types';
 import { Chart } from '@/shared/ui/v2/Chart';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
+import { useDialogMotion } from '@/shared/motion/useDialogMotion';
 import { Avatar } from '@/shared/ui/v2/Avatar';
 import { ActionGuard } from '@/shared/ui/ActionGuard';
 import { redLightReasonOf, WarningLight } from '@/shared/ui/WarningLight';
@@ -859,7 +861,7 @@ function KpiRow() {
                 <Icon size={16} strokeWidth={1.8} />
               </span>
             </div>
-            <p className="dmd-kpi-value">{kpi.value}</p>
+            <p className="dmd-kpi-value"><AnimatedNumber value={kpi.value} duration={520} /></p>
             <p className="dmd-kpi-foot">
               <span className="dmd-kpi-delta">{kpi.delta}</span>
               <span className="dmd-kpi-baseline">{DELTA_BASELINE_LABEL}</span>
@@ -1701,53 +1703,173 @@ function Blank() {
 
 const DEMAND_FUNNEL_COLORS = ['#9DB5FF', '#87A2FF', '#7191FF', '#5B82FF', '#4E70DB', '#3E5AB0'];
 
+type SituationChartKind = 'donut' | 'hbar' | 'bar';
+
 /**
- * 产品模式三张态势图。
+ * 产品模式三张态势图：按数据语义各用一种图，不再三张都画横条。
  *
- * <p>不再复用回归版「左漏斗 + 右图例」：三列并排时图例数字会溢出到下一列左侧，
- * 评审图的 3 / 2 / 15 看起来就像解决方案图的数据。这里改成<b>一行一个状态</b>：
- * 一行三列：状态名｜数量+占比｜条。数字不压在条上，也不会串到隔壁卡。
+ * <ul>
+ *   <li>评审状态：每条需求必有一态，是全集的构成 → 环形图</li>
+ *   <li>解决方案：出口三态条数对比，状态名横着读 → 条形图</li>
+ *   <li>开发状态：五个工位上各坐多少条，比存量 → 柱状图</li>
+ * </ul>
+ *
+ * 数量与占比同时写在图例里，图表不是唯一信息载体。
  */
-function SituationFunnel({ title, items }: { title: string; items: FunnelItem[] }) {
+function SituationChart({
+  title,
+  items,
+  kind,
+}: {
+  title: string;
+  items: FunnelItem[];
+  kind: SituationChartKind;
+}) {
   const total = sliceTotal(items);
-  const max = Math.max(...items.map((item) => item.value), 1);
+  const option = useMemo<EChartsOption>(() => situationChartOption(kind, items), [kind, items]);
+  const caption = items.map((item) => `${item.state} ${item.value}，占 ${shareOf(item.value, total)}`).join('；');
 
   return (
-    <article
-      className="dmd-situation"
-      aria-label={`${title}：${items.map((item) => `${item.state} ${item.value}，占 ${shareOf(item.value, total)}`).join('；')}`}
-    >
+    <article className="dmd-situation" aria-label={`${title}：${caption}`}>
       <h2 className="panel-title dmd-analysis-title">{title}</h2>
       {items.length === 0 ? (
         <p className="dmd-situation-empty">还没有可统计的数据</p>
       ) : (
-        <ul className="dmd-situation-list">
-          {items.map((item, index) => {
-            const share = shareOf(item.value, total);
-            const width = item.value <= 0 ? 0 : Math.max((item.value / max) * 100, 8);
-            return (
+        <>
+          <div className="dmd-situation-chart" data-kind={kind}>
+            <Chart option={option} height="100%" ariaLabel={caption} />
+            {kind === 'donut' && (
+              <div className="dmd-situation-donut-center" aria-hidden>
+                <strong>{total}</strong>
+                <span>条</span>
+              </div>
+            )}
+          </div>
+          <ul className="dmd-situation-legend">
+            {items.map((item, index) => (
               <li className="dmd-situation-row" key={item.state} data-testid="demand-situation-row">
+                <span
+                  className="dmd-situation-swatch"
+                  style={{ background: situationPalette(items.length)[index] ?? DEMAND_FUNNEL_COLORS[0] }}
+                  aria-hidden
+                />
                 <span className="dmd-situation-name">{item.state}</span>
                 <span className="dmd-situation-metrics">
                   <span className="dmd-situation-value">{item.value}</span>
-                  <span className="dmd-situation-share">{share}</span>
-                </span>
-                <span className="dmd-situation-track" aria-hidden>
-                  <span
-                    className="dmd-situation-bar"
-                    style={{
-                      width: `${width}%`,
-                      background: DEMAND_FUNNEL_COLORS[index] ?? DEMAND_FUNNEL_COLORS[0],
-                    }}
-                  />
+                  <span className="dmd-situation-share">{shareOf(item.value, total)}</span>
                 </span>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </>
       )}
     </article>
   );
+}
+
+function situationPalette(count: number): string[] {
+  if (count <= 3) return ['#9DB5FF', '#5B82FF', '#4E70DB'];
+  return DEMAND_FUNNEL_COLORS;
+}
+
+function situationChartOption(kind: SituationChartKind, items: FunnelItem[]): EChartsOption {
+  const palette = situationPalette(items.length);
+  const data = items.map((item, index) => ({
+    name: item.state,
+    value: item.value,
+    itemStyle: { color: palette[index] ?? palette[0] },
+  }));
+
+  if (kind === 'donut') {
+    return {
+      tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
+      series: [
+        {
+          type: 'pie',
+          radius: ['52%', '78%'],
+          center: ['50%', '50%'],
+          avoidLabelOverlap: true,
+          label: { show: false },
+          data,
+        },
+      ],
+    };
+  }
+
+  if (kind === 'hbar') {
+    const xMax = Math.max(1, ...items.map((item) => item.value));
+    const step = xMax <= 4 ? 1 : xMax <= 10 ? 2 : 5;
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 0, right: 28, top: 4, bottom: 0, containLabel: true },
+      xAxis: {
+        type: 'value',
+        min: 0,
+        max: Math.ceil(xMax / step) * step,
+        minInterval: 1,
+        axisLabel: { fontSize: 10, color: colorV2.textTertiary },
+        splitLine: { lineStyle: { color: colorV2.borderLight } },
+      },
+      yAxis: {
+        type: 'category',
+        inverse: true,
+        data: items.map((item) => item.state),
+        axisLabel: { fontSize: 11, color: colorV2.textSecondary },
+        axisLine: { show: false },
+        axisTick: { show: false },
+      },
+      series: [
+        {
+          type: 'bar',
+          data: data.map((item) => ({ value: item.value, itemStyle: item.itemStyle })),
+          barWidth: 14,
+          itemStyle: { borderRadius: [0, 3, 3, 0] },
+          label: { show: true, position: 'right', fontSize: 10, color: colorV2.textSecondary },
+        },
+      ],
+    };
+  }
+
+  const yMax = Math.max(1, ...items.map((item) => item.value));
+  const step = yMax <= 4 ? 1 : yMax <= 10 ? 2 : 5;
+  const axisMax = Math.ceil(yMax / step) * step;
+
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 0, right: 4, top: 22, bottom: 0, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: items.map((item) => item.state),
+      axisLabel: {
+        fontSize: 10,
+        color: colorV2.textTertiary,
+        interval: 0,
+        margin: 6,
+        lineHeight: 13,
+        formatter: (value: string) =>
+          value.length <= 3 ? value : `${value.slice(0, 2)}\n${value.slice(2)}`,
+      },
+      axisLine: { lineStyle: { color: colorV2.borderDefault } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: axisMax,
+      minInterval: 1,
+      axisLabel: { fontSize: 10, color: colorV2.textTertiary, margin: 4 },
+      splitLine: { lineStyle: { color: colorV2.borderLight } },
+    },
+    series: [
+      {
+        type: 'bar',
+        data: data.map((item) => ({ value: item.value, itemStyle: item.itemStyle })),
+        barWidth: 16,
+        itemStyle: { borderRadius: [3, 3, 0, 0] },
+        label: { show: true, position: 'top', fontSize: 10, color: colorV2.textSecondary },
+      },
+    ],
+  };
 }
 
 const TREND_TAB_ICONS: Record<(typeof DEMAND_TREND_TABS)[number]['id'], LucideIcon> = {
@@ -1770,9 +1892,9 @@ function SituationAnalysisPanel() {
   const { reviewFunnel, solutionFunnel, devFunnel } = useDemandV2();
   return (
     <section className="panel dmd-analysis dmd-analysis-split" data-region="R6" aria-label="需求分析">
-      <SituationFunnel title="按需求评审状态" items={reviewFunnel} />
-      <SituationFunnel title="按解决方案状态" items={solutionFunnel} />
-      <SituationFunnel title="按需求开发状态" items={devFunnel} />
+      <SituationChart title="按需求评审状态" kind="donut" items={reviewFunnel} />
+      <SituationChart title="按解决方案状态" kind="hbar" items={solutionFunnel} />
+      <SituationChart title="按需求开发状态" kind="bar" items={devFunnel} />
     </section>
   );
 }
@@ -1972,17 +2094,18 @@ function RegressionAnalysisPanel() {
  */
 function DemandDetailModal({ onClose }: { onClose: () => void }) {
   const { selected } = useDemandV2();
+  const { closing, requestClose } = useDialogMotion(onClose);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [requestClose]);
 
   return (
-    <div className="crs-modal-mask" role="presentation" onClick={onClose}>
+    <div className="crs-modal-mask" data-closing={closing} role="presentation" onClick={requestClose}>
       <div
         className="crs-modal"
         role="dialog"
@@ -1991,7 +2114,7 @@ function DemandDetailModal({ onClose }: { onClose: () => void }) {
         data-testid="demand-detail-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <button className="crs-modal-close" type="button" aria-label="关闭需求详情" onClick={onClose}>
+        <button className="crs-modal-close" type="button" aria-label="关闭需求详情" onClick={requestClose}>
           <X size={16} aria-hidden />
         </button>
         <DetailPanel />
@@ -2156,7 +2279,7 @@ function DetailPanel() {
   return (
     <section className="panel dmd-detail" data-region="R7" aria-label="需求详情">
       <header className="dmd-detail-head">
-        <p className="dmd-detail-id">{selected.id}</p>
+        {regression && <p className="dmd-detail-id">{selected.id}</p>}
         <h2 className="dmd-detail-name">{selected.name}</h2>
         <ReviewStateTag state={selected.reviewState} />
         <button
@@ -2216,14 +2339,13 @@ function DetailPanel() {
           }))}
         />
         {!regression && liveDemand && isOperator && (
-          <button
-            className="dmd-close-loop dmd-close-loop-footer"
-            type="button"
+          <Button
+            className="dmd-close-loop-footer"
             data-testid="demand-close-loop-footer"
             onClick={() => onAction('闭环')}
           >
             闭环
-          </button>
+          </Button>
         )}
       </footer>
     </section>
@@ -2263,33 +2385,35 @@ function BasicInfoHeading() {
 function LiveTabBody({ tab, demand }: { tab: (typeof LIVE_DETAIL_TABS)[number]; demand: Demand }) {
   if (tab === '基本信息') {
     return (
-      <section className="dmd-group">
-        <BasicInfoHeading />
-        <dl className="dmd-fields dmd-fields-register">
-          {demandRegisterFields({
-            id: demand.demandNo,
-            domain: demand.domainCode,
-            proposer: demand.proposerName ?? demand.proposerNo,
-            proposerDept: demand.proposerDept,
-            proposedDate: demand.proposedDate,
-            expectedDate: demand.expectFinishDate,
-            owner: demand.ownerNames ?? demand.ownerName ?? demand.ownerNo,
-            priority: demand.priority,
-            demandSource: demand.demandSource,
-            demandType: demand.demandType,
-            businessBackground: demand.businessBackground,
-            roiAnalysis: demand.roiAnalysis,
-            remark: demand.remark,
-          }).map((field) => (
-            <div className="dmd-field" key={field.label} data-testid="demand-field">
-              <dt>
-                <Diamond size={12} color={colorV2.textPlaceholder} aria-hidden />
-                {field.label}
-              </dt>
-              <dd>{field.value ? field.value : <Blank />}</dd>
-            </div>
-          ))}
-        </dl>
+      <div className="dmd-live-stack">
+        <section className="dmd-group">
+          <BasicInfoHeading />
+          <dl className="dmd-fields dmd-fields-register">
+            {demandRegisterFields({
+              id: demand.demandNo,
+              domain: demand.domainCode,
+              proposer: demand.proposerName ?? demand.proposerNo,
+              proposerDept: demand.proposerDept,
+              proposedDate: demand.proposedDate,
+              expectedDate: demand.expectFinishDate,
+              owner: demand.ownerNames ?? demand.ownerName ?? demand.ownerNo,
+              priority: demand.priority,
+              demandSource: demand.demandSource,
+              demandType: demand.demandType,
+              businessBackground: demand.businessBackground,
+              roiAnalysis: demand.roiAnalysis,
+              remark: demand.remark,
+            }).map((field) => (
+              <div className="dmd-field" key={field.label} data-testid="demand-field">
+                <dt>
+                  <Diamond size={12} color={colorV2.textPlaceholder} aria-hidden />
+                  {field.label}
+                </dt>
+                <dd>{field.value ? field.value : <Blank />}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
         <section className="dmd-group dmd-desc">
           <h3 className="dmd-detail-section">需求描述</h3>
           <p className="dmd-desc-text" data-expanded="true">{demand.description}</p>
@@ -2303,15 +2427,33 @@ function LiveTabBody({ tab, demand }: { tab: (typeof LIVE_DETAIL_TABS)[number]; 
             accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
           />
         </section>
+      </div>
+    );
+  }
+  if (tab === '催办记录') {
+    return (
+      <div className="dmd-live-stack">
+        <h3 className="dmd-detail-section">催办记录</h3>
+        <DemandEscalationsTab demand={demand} />
+      </div>
+    );
+  }
+  if (tab === '状态流转日志') {
+    return (
+      <section className="dmd-group">
+        <h3 className="dmd-detail-section">状态流转日志</h3>
+        <DemandStateLogTab demandId={demand.id} />
       </section>
     );
   }
-  if (tab === '评审信息') return <DemandReviewsTab demand={demand} />;
-  if (tab === '分流与处理') return <DemandOutletTab demand={demand} />;
-  if (tab === '业务验收') return <DemandAcceptanceTab demand={demand} />;
-  if (tab === '关联课程') return <DemandCoursesTab demand={demand} />;
-  if (tab === '催办记录') return <DemandEscalationsTab demand={demand} />;
-  return <DemandStateLogTab demandId={demand.id} />;
+  return (
+    <div className="dmd-live-stack">
+      {tab === '评审信息' && <DemandReviewsTab demand={demand} />}
+      {tab === '分流与处理' && <DemandOutletTab demand={demand} />}
+      {tab === '业务验收' && <DemandAcceptanceTab demand={demand} />}
+      {tab === '关联课程' && <DemandCoursesTab demand={demand} />}
+    </div>
+  );
 }
 
 function MockTabBody({

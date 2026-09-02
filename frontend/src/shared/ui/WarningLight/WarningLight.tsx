@@ -1,8 +1,7 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Button } from 'antd';
 import { CircleAlert, CircleCheck, TriangleAlert } from 'lucide-react';
 import {
-  elevation,
   fontSize,
   lineHeight,
   neutral,
@@ -14,6 +13,7 @@ import {
   RED_LIGHT_SUMMARY_LABEL,
   type RedLightReason,
 } from '@/shared/theme/designTokens';
+import './WarningLight.css';
 
 /**
  * 三色灯（设计规范 2.5、6.4；语义见 {@link warningLight} 的说明）。
@@ -252,6 +252,7 @@ type SummaryProps = {
   /**
    * 紧凑排版。P01 预警区只有 499×282，三张卡各 150×207，
    * 用默认字号阶梯装不下「色名 + 数字 + 副文案 + 三条样例 + 更多 + 按钮」七块内容。
+   * 字号档位在 WarningLight.css，按 --type-unit 与卡宽计价，不在这里写死 px。
    */
   compact?: boolean;
 };
@@ -281,99 +282,41 @@ export function WarningSummaryCard({
 }: SummaryProps) {
   const drillable = color !== 'NONE' && onDrillDown !== undefined;
   const label = color === 'RED' ? RED_LIGHT_SUMMARY_LABEL : warningLight[color].label;
-  const solid = warningLight[color].solid;
+  const theme = {
+    '--wsc-bg': color === 'NONE' ? HEALTH_BG : warningLight[color].bg,
+    '--wsc-ink': TEXT_ON_BG[color],
+    '--wsc-solid': warningLight[color].solid,
+  } as CSSProperties;
 
   return (
     <div
       data-testid="warning-summary-card"
       data-color={color}
-      style={{
-        background: color === 'NONE' ? HEALTH_BG : warningLight[color].bg,
-        borderRadius: radius.lg,
-        boxShadow: elevation[1],
-        padding: compact ? space.sm : space.lg,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: compact ? space['2xs'] : space.xs,
-      }}
+      className={compact ? 'wsc wsc--compact' : 'wsc'}
+      style={theme}
     >
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: space['2xs'],
-          color: TEXT_ON_BG[color],
-          fontSize: compact ? fontSize.caption : fontSize.body,
-          lineHeight: lineHeight.caption,
-        }}
-      >
+      <span className="wsc-label">
         <LightIcon color={color} size={compact ? 14 : 20} />
         {label}
       </span>
 
-      <span
-        style={{
-          color: TEXT_ON_BG[color],
-          // 紧凑档不用 fontSize.metric（28/36）：150px 宽的卡里 28px 数字加上
-          // 七块内容会超出 207px 的卡高。24/30 是能同时容下七块的最大一档
-          fontSize: compact ? 24 : fontSize.metric,
-          lineHeight: compact ? '30px' : lineHeight.metric,
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
+      <span className="wsc-count">
         {/* 3.3：千分位。锁死 en-US 而不是跟随浏览器语言：
             zh-CN 在部分环境下会输出不同的分组方式，那会让视觉基线在不同机器上不一致 */}
         {count == null ? '—' : count.toLocaleString('en-US')}
       </span>
 
-      <span
-        style={{
-          color: neutral[600],
-          fontSize: compact ? 11 : fontSize.caption,
-          lineHeight: compact ? '15px' : lineHeight.caption,
-        }}
-      >
-        {caption}
-      </span>
+      <span className="wsc-caption">{caption}</span>
 
       {samples !== undefined && samples.length > 0 && (
-        <div style={{ marginTop: space['3xs'] }}>
-          <div
-            style={{
-              color: neutral[600],
-              fontSize: 11,
-              lineHeight: '15px',
-              marginBottom: space['3xs'],
-            }}
-          >
-            示例对象
-          </div>
+        <div className="wsc-samples">
+          <div className="wsc-samples-title">示例对象</div>
           {samples.map((sample) => (
-            <div
-              key={sample.id}
-              data-testid="warning-sample"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: space['3xs'],
-                fontSize: 11,
-                lineHeight: '16px',
-                color: neutral[700],
-              }}
-            >
-              <span
-                style={{
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  textOverflow: 'ellipsis',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-                title={sample.id}
-              >
+            <div key={sample.id} data-testid="warning-sample" className="wsc-sample">
+              <span className="wsc-sample-id" title={sample.id}>
                 {sample.id}
               </span>
-              <span style={{ flex: '0 0 auto', color: solid }}>{sample.type}</span>
+              <span className="wsc-sample-type">{sample.type}</span>
             </div>
           ))}
         </div>
@@ -381,19 +324,13 @@ export function WarningSummaryCard({
 
       {/* 三块底部内容整体压到卡片底部：三张卡的样例条数相同，但副文案的行数可能不同，
           不贴底会让三个按钮高低不齐 */}
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: space['3xs'] }}>
+      <div className="wsc-foot">
         {moreCount !== undefined && onMore !== undefined && (
           <Button
             type="link"
             size="small"
             data-testid="warning-more"
-            style={{
-              padding: 0,
-              alignSelf: 'flex-start',
-              height: 'auto',
-              fontSize: 11,
-              color: solid,
-            }}
+            className="wsc-more"
             onClick={onMore}
           >
             {`更多（${moreCount.toLocaleString('en-US')}）`}
@@ -401,29 +338,13 @@ export function WarningSummaryCard({
         )}
 
         {onUrge !== undefined && (
-          <Button
-            size="small"
-            data-testid="warning-urge"
-            style={{
-              height: compact ? 24 : 28,
-              fontSize: compact ? 11 : fontSize.bodySm,
-              borderColor: solid,
-              color: solid,
-              background: 'transparent',
-            }}
-            onClick={onUrge}
-          >
+          <Button size="small" data-testid="warning-urge" className="wsc-urge" onClick={onUrge}>
             一键催办
           </Button>
         )}
 
         {drillable && (
-          <Button
-            type="link"
-            size="small"
-            style={{ padding: 0, alignSelf: 'flex-start', height: 'auto' }}
-            onClick={onDrillDown}
-          >
+          <Button type="link" size="small" className="wsc-drill" onClick={onDrillDown}>
             查看明细
           </Button>
         )}

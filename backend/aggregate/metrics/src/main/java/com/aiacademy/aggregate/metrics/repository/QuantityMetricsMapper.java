@@ -68,12 +68,26 @@ public interface QuantityMetricsMapper {
             @Param("poolState") String poolState,
             @Param("trainingStates") List<String> trainingStates);
 
-    // ---- 培训 15.1 #13～#16b + 7.4 本周计划 + 任务派生 ----
+    // ---- 培训 15.1 #13～#16b + 驾驶舱四累计／当月卡 ----
 
     long countPlansOverlapping(@Param("rangeStart") LocalDate rangeStart,
                                @Param("rangeEnd") LocalDate rangeEnd);
 
+    /** 未删除培训计划全量（产品卡「累计培训计划数」）。 */
+    long countPlans();
+
+    long countPlansCreatedBefore(@Param("before") LocalDate before);
+
+    /** 未删除培训场次全量（产品卡「累计培训场次」）。 */
+    long countSessions();
+
+    long countSessionsCreatedBefore(@Param("before") LocalDate before);
+
     long countSessionsByState(@Param("sessionState") String sessionState);
+
+    /** 上月末已处于该状态的场次：{@code last_state_changed_at} 早于本月 1 日。 */
+    long countSessionsByStateChangedBefore(@Param("sessionState") String sessionState,
+                                           @Param("before") LocalDate before);
 
     long countSessionsInMonth(@Param("monthStart") LocalDate monthStart,
                               @Param("monthEnd") LocalDate monthEnd);
@@ -83,6 +97,10 @@ public interface QuantityMetricsMapper {
                                        @Param("monthEnd") LocalDate monthEnd);
 
     long countAttendancePresent(@Param("attendStatus") String attendStatus);
+
+    /** 授课日早于 {@code before} 的已签到人次（累计卡的上月末存量）。 */
+    long countAttendancePresentBefore(@Param("attendStatus") String attendStatus,
+                                      @Param("before") LocalDate before);
 
     long countDistinctAttendeesPresent(@Param("attendStatus") String attendStatus);
 

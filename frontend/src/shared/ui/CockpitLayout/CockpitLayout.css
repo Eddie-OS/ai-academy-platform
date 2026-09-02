@@ -1,0 +1,77 @@
+@keyframes cockpit-metric-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cockpit-detail-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cockpit-metric-card {
+  box-shadow: var(--shadow-card);
+  animation: cockpit-metric-enter var(--motion-base) var(--ease-enter) both;
+  animation-delay: calc(var(--metric-index, 0) * 40ms);
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-quick) var(--ease-standard),
+    border-color var(--motion-quick) var(--ease-standard);
+}
+
+.cockpit-metric-card[role='button']:active {
+  transform: translateY(1px);
+}
+
+.cockpit-metric-card[role='button']:focus-visible {
+  outline: 2px solid var(--brand-action);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cockpit-metric-card[role='button']:hover {
+    box-shadow: var(--shadow-selected);
+    transform: translateY(-1px);
+  }
+}
+
+.cockpit-detail-column {
+  transition: width var(--motion-quick) var(--ease-standard);
+}
+
+.cockpit-detail-motion {
+  animation: cockpit-detail-enter var(--motion-quick) var(--ease-enter) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cockpit-metric-card,
+  .cockpit-detail-motion {
+    animation: none !important;
+  }
+
+  .cockpit-metric-card,
+  .cockpit-detail-column {
+    transition: none !important;
+  }
+}
+
+html[data-regression] .cockpit-metric-card,
+html[data-regression] .cockpit-detail-motion {
+  animation: none !important;
+}
+
+html[data-regression] .cockpit-metric-card,
+html[data-regression] .cockpit-detail-column {
+  transition: none !important;
+}

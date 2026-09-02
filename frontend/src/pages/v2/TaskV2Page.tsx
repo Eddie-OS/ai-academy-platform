@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Avatar } from '@/shared/ui/v2/Avatar';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { ASSETS } from '@/shared/theme/designTokensV2';
 import { isRegressionMode } from '@/app/regressionMode';
 import { formatMetricInt } from '@/shared/metrics/cockpitMetrics';
@@ -216,7 +217,7 @@ function KpiRow({
           >
             <div className="tsk-kpi-text">
               <p className="tsk-kpi-label">{kpi.label}</p>
-              <p className="tsk-kpi-value">{value}</p>
+              <p className="tsk-kpi-value"><AnimatedNumber value={value} duration={520} /></p>
               {/* 环比是冻结数据里的设计稿数值，接口没有同比口径，真实数据下整行不渲染 */}
               {useMock && (
                 <p className="tsk-kpi-delta" data-warn={warn}>

@@ -140,7 +140,10 @@
                  WHERE a.session_id = s.id AND a.deleted = FALSE
                    AND a.attend_status = #{attendPresent}) AS attendee_count,
                (SELECT ROUND(AVG(f.score)::NUMERIC, 1) FROM dtl_training_feedback f
-                 WHERE f.session_id = s.id AND f.deleted = FALSE) AS avg_score
+                 WHERE f.session_id = s.id AND f.deleted = FALSE) AS avg_score,
+               s.training_form,
+               s.created_by,
+               s.updated_at
           FROM biz_training_session s
           LEFT JOIN biz_course c ON c.id = s.course_id AND c.deleted = FALSE
          WHERE s.lecturer_id = #{lecturerId}

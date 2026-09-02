@@ -411,7 +411,7 @@ WHERE d.description LIKE '【造数】%' AND d.review_state = '已评审' AND d.
 ON CONFLICT (demand_id, course_id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 培训计划 20 + 场次 20。JH2026070001-01 已结束，可导入反馈
+-- 培训计划 20 + 场次 20，场次铺在 2026 年 9 月工作日。JH2026070001-01 已结束，可导入反馈
 -- -----------------------------------------------------------------------------
 INSERT INTO biz_training_plan (
     plan_no, plan_name, course_id, owner_no, target_scope,
@@ -429,13 +429,8 @@ SELECT
     c.id,
     'E0001',
     '全员',
-    CURRENT_DATE - 20,
-    CASE
-        WHEN n = 3 THEN CURRENT_DATE + 2
-        WHEN n = 4 THEN CURRENT_DATE - 3
-        WHEN n >= 15 THEN CURRENT_DATE - 5
-        ELSE CURRENT_DATE + 20
-    END,
+    DATE '2026-09-01',
+    DATE '2026-09-30',
     1,
     CASE WHEN n = 1 THEN '执行中' WHEN n <= 4 THEN '待执行' WHEN n <= 14 THEN '执行中' ELSE '已完成' END,
     CASE WHEN n >= 15 THEN CURRENT_DATE - 5 ELSE NULL END,
@@ -463,14 +458,16 @@ SELECT
          ELSE p.plan_name || ' 第1场' END,
     p.course_id,
     l.id,
-    CASE
-        WHEN n = 1 THEN CURRENT_DATE - 7
-        WHEN n <= 5 THEN CURRENT_DATE + n
-        WHEN n <= 10 THEN CURRENT_DATE
-        WHEN n <= 15 THEN CURRENT_DATE - n
-        ELSE CURRENT_DATE - 20
-    END,
-    '14:00', '16:00', 2.0,
+    (ARRAY[
+        DATE '2026-09-01', DATE '2026-09-02', DATE '2026-09-03', DATE '2026-09-04',
+        DATE '2026-09-07', DATE '2026-09-08', DATE '2026-09-09', DATE '2026-09-10',
+        DATE '2026-09-11', DATE '2026-09-14', DATE '2026-09-15', DATE '2026-09-16',
+        DATE '2026-09-17', DATE '2026-09-18', DATE '2026-09-21', DATE '2026-09-22',
+        DATE '2026-09-23', DATE '2026-09-24', DATE '2026-09-25', DATE '2026-09-28'
+    ])[n],
+    (ARRAY['09:00','14:00','09:30','13:30','16:00']::time[])[1 + ((n - 1) % 5)],
+    ((ARRAY['09:00','14:00','09:30','13:30','16:00']::time[])[1 + ((n - 1) % 5)] + INTERVAL '2 hours')::time,
+    2.0,
     (ARRAY['线下', '线上', '混合'])[1 + ((n - 1) % 3)],
     '培训室 ' || chr(64 + 1 + ((n - 1) % 5)),
     '全员', 20,

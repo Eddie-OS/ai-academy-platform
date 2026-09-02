@@ -1,21 +1,35 @@
 import { useEffect, useState } from 'react';
-import { App, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { App, Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ApiError } from '@/shared/api/client';
 import { courseApi } from '@/shared/api/courses';
 import { trainingApi, type TrainingPlan, type TrainingPlanForm } from '@/shared/api/trainings';
-import { useEmployees } from './trainingMeta';
+import {
+  TRAINING_OBJECT_TYPE_CODES,
+  TRAINING_STATE_FIELDS,
+  useEmployees,
+  useStates,
+} from './trainingMeta';
+import './trainingPlanFormModal.css';
 
 /**
  * 新建与编辑培训计划（需求 11.3）。
  *
- * <p><b>关联课程这里不限已发布</b>（需求 11.3 第 3 项，V1.2）：计划常常在课程还没发布时就先排上了，
- * 在计划这一级拦下来会逼运营等课程发布后再补录，而那时计划的开始日期已经过去了。
- * 「课程可发布」的校验在<b>建场次</b>时执行。
+ * <p>产品表单按「培训计划基本信息」字段序铺：编号、名称、状态、介绍、课程、负责人、
+ * 计划场次、实际场次、实际人次、计划时间、实际时间、备注。能落库的走 {@link TrainingPlanForm}；
+ * 系统生成或实时汇总的只展示。
  *
- * <p><b>没有版本号。</b>培训计划不在带 {@code version} 的三张表里（规则 K1），
- * 编辑时不回传版本，冲突以最后保存的为准。
+ * <p><b>状态不在表单里改。</b>新建由状态机写入初始状态，之后走统一转换接口（需求 5.7）。
+ * 下拉选项来自 {@code /api/meta/enums}，不手写状态值（纪律 STK-1）。
+ *
+ * <p><b>一门计划只关联一门课</b>（需求 3.3 R8）。授课讲师挂在场次上，计划这一级不绑人。
+ * 实际场次是下属场次 COUNT，实际完成时间在计划首次进入完成态时写入，都不允许手填
+ * （需求 11.3 第 10、12 项）。
+ *
+ * <p><b>计划时间是日期不是时分。</b>三色灯按自然日算计划结束日；钟点在场次上填。
+ *
+ * <p><b>没有版本号。</b>培训计划不在带 {@code version} 的三张表里（规则 K1）。
  */
 
 interface TrainingPlanFormModalProps {
@@ -47,6 +61,7 @@ export function TrainingPlanFormModal({
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const employees = useEmployees();
+  const planStates = useStates(TRAINING_OBJECT_TYPE_CODES.plan, TRAINING_STATE_FIELDS.plan);
   const [courseKeyword, setCourseKeyword] = useState('');
 
   // 课程是数百量级：按关键字搜前 20 条，长下拉帮不上忙（运营记得住课名，记不住课程ID）
@@ -114,76 +129,161 @@ export function TrainingPlanFormModal({
     });
   }
 
+  const employeeOptions = (employees.data?.records ?? []).map((item) => ({
+    value: item.employeeNo,
+    label: `${item.employeeName}（${item.employeeNo}·${item.deptName}·${item.personState}）`,
+  }));
+
   return (
     <Modal
       open={open}
       title={plan ? `编辑培训计划 ${plan.planNo}` : '新建培训计划'}
       okText="保存"
       cancelText="取消"
-      width={640}
+      width="59.8vw"
+      className="training-plan-form-modal"
+      rootClassName="training-plan-form-modal-root"
       confirmLoading={save.isPending}
+      destroyOnHidden
       onCancel={onClose}
       // 校验不通过时 validateFields 会 reject，错误已由表单在字段下显示，这里咽掉即可
       onOk={() => void form.validateFields().then((values) => save.mutateAsync(values)).catch(() => undefined)}
     >
-      <Form form={form} layout="vertical" requiredMark={false}>
-        <Form.Item label="计划名称" name="planName" rules={[{ required: true, message: '请填写计划名称' }]}>
-          <Input maxLength={100} showCount />
-        </Form.Item>
-        <Form.Item
-          label="关联课程"
-          name="courseId"
-          extra="计划这一级不校验课程状态，排课时才校验——计划常常在课程还没做完时就先排上了"
-          rules={[{ required: true, message: '请选择关联课程' }]}
-        >
-          <Select
-            showSearch
-            filterOption={false}
-            onSearch={setCourseKeyword}
-            notFoundContent={courses.isLoading ? '加载中' : '没有匹配的课程'}
-            options={courseOptions}
-          />
-        </Form.Item>
-        <Form.Item
-          label="培训负责人"
-          name="ownerNo"
-          extra="负责人只是台账信息，不影响谁能编辑这个计划——运营账号可以编辑任何计划"
-          rules={[{ required: true, message: '请选择培训负责人' }]}
-        >
-          <Select
-            showSearch
-            optionFilterProp="label"
-            options={(employees.data?.records ?? []).map((item) => ({
-              value: item.employeeNo,
-              label: `${item.employeeName}（${item.employeeNo}·${item.deptName}·${item.personState}）`,
-            }))}
-          />
-        </Form.Item>
-        <Form.Item
-          label="面向人群范围"
-          name="targetScope"
-          extra="文本描述，如「MSS 三层部门全体」"
-          rules={[{ required: true, message: '请填写面向人群范围' }]}
-        >
-          <Input.TextArea rows={2} maxLength={500} showCount />
-        </Form.Item>
-        <Form.Item
-          label="计划起止日期"
-          name="planRange"
-          rules={[{ required: true, message: '请选择计划起止日期' }]}
-        >
-          <DatePicker.RangePicker style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item
-          label="计划场次数"
-          name="planSessionCount"
-          extra="留空表示还没定。实际场次数由下属场次实时统计，不需要手工维护"
-        >
-          <InputNumber min={1} max={999} style={{ width: '100%' }} addonAfter="场" />
-        </Form.Item>
-        <Form.Item label="备注" name="remark">
-          <Input.TextArea rows={3} maxLength={1000} showCount />
-        </Form.Item>
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        data-testid="training-plan-form"
+      >
+        <Row gutter={[16, 4]}>
+          <Col span={12}>
+            <Form.Item
+              label="培训计划编号"
+              extra="保存后自动生成，规则为 JH + 年月 + 3 位流水"
+            >
+              <Input disabled value={plan?.planNo ?? ''} placeholder="保存后自动生成" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="培训计划状态"
+              extra="新建后写入初始状态，之后在详情里手动流转，不在这里改"
+            >
+              <Select
+                disabled
+                value={plan?.planState}
+                placeholder="保存后由系统写入初始状态"
+                options={planStates.map((state) => ({ value: state, label: state }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item
+              label="培训计划名称"
+              name="planName"
+              rules={[{ required: true, message: '请填写培训计划名称' }]}
+            >
+              <Input maxLength={100} showCount placeholder="请填写培训计划全称" />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item
+              label="培训介绍"
+              name="targetScope"
+              extra="面向人群、培训目标等，如「MSS 三层部门全体」"
+              rules={[{ required: true, message: '请填写培训介绍' }]}
+            >
+              <Input.TextArea rows={4} maxLength={500} showCount placeholder="请填写面向人群、培训目标等" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="培训课程"
+              name="courseId"
+              extra="一门计划对应一门课；同一门课可另建计划。计划级不校验课程是否已发布"
+              rules={[{ required: true, message: '请选择培训课程' }]}
+            >
+              <Select
+                showSearch
+                filterOption={false}
+                placeholder="请从课程工作台选择"
+                onSearch={setCourseKeyword}
+                notFoundContent={courses.isLoading ? '加载中' : '没有匹配的课程'}
+                options={courseOptions}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="授课讲师" extra="讲师挂在场次上，排场次时从讲师池选择，可按场换人">
+              <Select disabled mode="multiple" placeholder="排场次时从讲师池选择" options={[]} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="运营负责人"
+              name="ownerNo"
+              extra="台账字段，不影响谁能编辑这个计划——运营账号可以编辑任何计划"
+              rules={[{ required: true, message: '请选择运营负责人' }]}
+            >
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="请选择运营负责人"
+                options={employeeOptions}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="计划培训场次"
+              name="planSessionCount"
+              extra="预计要办几场。留空表示还没定"
+            >
+              <InputNumber min={1} max={999} style={{ width: '100%' }} placeholder="请输入" addonAfter="场" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="实际完成场次" extra="下属场次记录数，关联场次后由系统汇总">
+              <InputNumber
+                disabled
+                style={{ width: '100%' }}
+                value={plan ? plan.actualSessionCount : undefined}
+                placeholder="关联场次后自动汇总"
+                addonAfter="场"
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="实际参训人数" extra="各场签到人数合计，导入签到后由系统汇总">
+              <InputNumber disabled style={{ width: '100%' }} placeholder="导入签到后自动汇总" addonAfter="人" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="计划培训时间"
+              name="planRange"
+              extra="按自然日选择；钟点在场次上填。结束日是三色灯的判定基准"
+              rules={[{ required: true, message: '请选择计划培训时间' }]}
+            >
+              <DatePicker.RangePicker style={{ width: '100%' }} placeholder={['开始日期', '结束日期']} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="实际培训时间" extra="计划首次完成后自动写入，不在这里手填">
+              <DatePicker
+                disabled
+                style={{ width: '100%' }}
+                value={plan?.actualFinishDate ? dayjs(plan.actualFinishDate) : undefined}
+                placeholder="完成后自动写入"
+              />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item label="备注" name="remark">
+              <Input.TextArea rows={4} maxLength={1000} showCount placeholder="补充说明，选填" />
+            </Form.Item>
+          </Col>
+        </Row>
       </Form>
     </Modal>
   );

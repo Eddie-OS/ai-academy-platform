@@ -23,13 +23,13 @@ public interface CourseRefMapper {
      * @param mainState       课程主状态。排课校验二要它（需求 11.4.1 校验二）
      * @param validityEndDate 有效期截止日。已过期的课程仍可排课，但要给非阻断提示（规则 EX6）
      */
-    record CourseRef(long id, String courseNo, String courseName, String mainState,
-                     LocalDate validityEndDate) {
+    record CourseRef(long id, String courseNo, String courseName, String outlineSummary,
+                     String mainState, LocalDate validityEndDate) {
     }
 
     @Select("""
             <script>
-            SELECT id, course_no, course_name, main_state, validity_end_date
+            SELECT id, course_no, course_name, outline_summary, main_state, validity_end_date
               FROM biz_course
              WHERE deleted = FALSE AND id IN
              <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
@@ -38,7 +38,7 @@ public interface CourseRefMapper {
     List<CourseRef> findByIds(@Param("ids") Collection<Long> ids);
 
     @Select("""
-            SELECT id, course_no, course_name, main_state, validity_end_date
+            SELECT id, course_no, course_name, outline_summary, main_state, validity_end_date
               FROM biz_course
              WHERE deleted = FALSE AND id = #{id}
             """)
@@ -54,7 +54,7 @@ public interface CourseRefMapper {
      */
     @Select("""
             <script>
-            SELECT id, course_no, course_name, main_state, validity_end_date
+            SELECT id, course_no, course_name, outline_summary, main_state, validity_end_date
               FROM biz_course
              WHERE deleted = FALSE
                AND main_state IN

@@ -14,7 +14,17 @@
         WHERE s.deleted = FALSE
         <if test="q.keywordLike != null">
             AND (s.session_no ILIKE #{q.keywordLike} ESCAPE '\'
-              OR s.session_name ILIKE #{q.keywordLike} ESCAPE '\')
+              OR s.session_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR p.plan_name ILIKE #{q.keywordLike} ESCAPE '\'
+              OR EXISTS (SELECT 1 FROM biz_course c
+                          WHERE c.id = s.course_id AND c.deleted = FALSE
+                            AND c.course_name ILIKE #{q.keywordLike} ESCAPE '\')
+              OR EXISTS (SELECT 1 FROM biz_lecturer l
+                          WHERE l.id = s.lecturer_id AND l.deleted = FALSE
+                            AND l.lecturer_name ILIKE #{q.keywordLike} ESCAPE '\')
+              OR EXISTS (SELECT 1 FROM org_employee e
+                          WHERE e.employee_no = p.owner_no AND e.deleted = FALSE
+                            AND e.employee_name ILIKE #{q.keywordLike} ESCAPE '\'))
         </if>
         <if test="q.planId != null">
             AND s.plan_id = #{q.planId}
@@ -27,6 +37,19 @@
         </if>
         <if test="q.sessionState != null and q.sessionState != ''">
             AND s.session_state = #{q.sessionState}
+        </if>
+        <if test="q.planState != null and q.planState != ''">
+            AND p.plan_state = #{q.planState}
+        </if>
+        <if test="q.archived != null">
+            <choose>
+                <when test="q.archived">
+                    AND s.session_state = #{q.archivedState}
+                </when>
+                <otherwise>
+                    AND s.session_state &lt;&gt; #{q.archivedState}
+                </otherwise>
+            </choose>
         </if>
         <if test="q.trainingForm != null and q.trainingForm != ''">
             AND s.training_form = #{q.trainingForm}
@@ -68,6 +91,7 @@
 
     <select id="countPage" resultType="long">
         SELECT COUNT(*) FROM biz_training_session s
+          JOIN biz_training_plan p ON p.id = s.plan_id
         <include refid="sessionWhere"/>
     </select>
 

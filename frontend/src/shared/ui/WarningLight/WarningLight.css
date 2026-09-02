@@ -139,22 +139,18 @@
 }
 
 /*
- * 产品模式把紧凑档的辅文案抬一档。11px 是画布上硬塞七块的下限，
- * 产品行高已经按 282 的权重随窗口长高，再锁 11px 就是「字太小」。
- * 回归模式不进这一节，L1 仍是画布原值。
+ * 产品模式：辅文案与右侧待办清单同一档（--type-table-size）。
+ * 清单已经按 --type-unit 随窗口长，卡上再按卡宽另算一档就会比右边大一号。
+ * 回归模式不进这一节，L1 仍是画布上的 11px。
  */
-html:not([data-regression]) .wsc--compact .wsc-label {
-  font-size: var(--type-table-size);
-  line-height: var(--type-table-line);
-}
-
+html:not([data-regression]) .wsc--compact .wsc-label,
 html:not([data-regression]) .wsc--compact .wsc-caption,
 html:not([data-regression]) .wsc--compact .wsc-samples-title,
 html:not([data-regression]) .wsc--compact .wsc-sample,
 html:not([data-regression]) .wsc--compact .wsc-more.ant-btn,
 html:not([data-regression]) .wsc--compact .wsc-urge.ant-btn {
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 html:not([data-regression]) .wsc--compact .wsc-urge.ant-btn {

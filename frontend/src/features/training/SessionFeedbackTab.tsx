@@ -177,7 +177,7 @@ export function SessionFeedbackTab({ sessionId }: SessionFeedbackTabProps) {
       />
 
       {remarking && (
-        <RemarkModal
+        <FeedbackRemarkModal
           sessionId={sessionId}
           item={remarking}
           onClose={() => setRemarking(null)}
@@ -191,7 +191,7 @@ export function SessionFeedbackTab({ sessionId }: SessionFeedbackTabProps) {
   );
 }
 
-function RemarkModal({
+export function FeedbackRemarkModal({
   sessionId,
   item,
   onClose,

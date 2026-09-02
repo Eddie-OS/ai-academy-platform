@@ -22,9 +22,11 @@ public enum AttachmentOwnerType {
     TRAINING_PLAN("training_plan"),
     TRAINING_SESSION("training_session"),
     CASE("case"),
-    TASK("task"),
-    /** 讲师没有状态机，但头像要挂附件。词表比状态机对象多这一项，见 AttachmentOwnerTypeTest。 */
-    LECTURER("lecturer");
+    /** 讲师头像（V5_020）。讲师无状态机（TS1），但附件引用仍走 sys_attachment_ref */
+    LECTURER("lecturer"),
+    /** 培养计划附件。无状态机，与档案培养状态分开 */
+    LECTURER_CULTIVATION("lecturer_cultivation"),
+    TASK("task");
 
     private final String directory;
 

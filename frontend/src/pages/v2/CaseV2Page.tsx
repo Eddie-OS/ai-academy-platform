@@ -17,6 +17,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
 import { Chart } from '@/shared/ui/v2/Chart';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
 import {
   CASE_CARDS,
@@ -101,7 +102,7 @@ function KpiRow() {
           <article className="cse-kpi" key={kpi.id} data-testid="case-kpi" data-kpi={kpi.id}>
             <div className="cse-kpi-text">
               <p className="cse-kpi-label">{kpi.label}</p>
-              <p className="cse-kpi-value">{kpi.value}</p>
+              <p className="cse-kpi-value"><AnimatedNumber value={kpi.value} duration={520} /></p>
               <p className="cse-kpi-delta">
                 <span>{kpi.delta}</span>
                 <span className="cse-kpi-period">较上周期</span>

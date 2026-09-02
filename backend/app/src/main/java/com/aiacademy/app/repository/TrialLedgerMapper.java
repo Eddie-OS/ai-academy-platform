@@ -37,6 +37,8 @@ public interface TrialLedgerMapper {
                           long lecturerId, String lecturerNo, String lecturerName,
                           String participants, String courseConclusion, String lecturerConclusion,
                           boolean inconsistent, String expertOpinion, String issueList,
-                          String recordState) {
+                          String recordState,
+                          String trialSatisfaction, String trialOptimizeAdvice,
+                          LocalDate trialScheduledDate) {
     }
 }

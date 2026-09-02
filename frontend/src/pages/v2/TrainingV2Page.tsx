@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   Bell,
   Briefcase,
@@ -13,14 +13,42 @@ import {
   Plus,
   Search,
   Star,
+  UserCheck,
   Users,
   Video,
   X,
 } from 'lucide-react';
 import { isRegressionMode } from '@/app/regressionMode';
+import { usesFixtureData } from '@/app/fixtureSource';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { metricsApi } from '@/shared/api/metrics';
+import { trainingApi } from '@/shared/api/trainings';
+import { TrainingPlanFormModal } from '@/features/training/TrainingPlanFormModal';
+import { TrainingProductDetail } from '@/features/training/TrainingProductDetail';
+import { useIsOperator } from '@/shared/store/authStore';
+import { formatKpiDelta, formatMetricInt, monthOverMonth } from '@/shared/metrics/cockpitMetrics';
+import {
+  TRAINING_OBJECT_TYPE_CODES,
+  TRAINING_STATE_FIELDS,
+  useStates,
+} from '@/features/training/trainingMeta';
+import {
+  CALENDAR_PAGE_SIZE,
+  EMPTY_TRAINING_FILTER,
+  fixtureCalendarSessions,
+  sessionCourseName,
+  sessionIntro,
+  sessionLecturer,
+  sessionsOnDay,
+  sessionsOnPrevPad,
+  toCalendarSession,
+  visibleDateRange,
+  type TrainingProductFilter,
+} from '@/features/training/trainingCalendarView';
 import type { LucideIcon } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
 import { Chart } from '@/shared/ui/v2/Chart';
+import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
 import {
   ATTENDANCE_LABELS,
@@ -34,8 +62,11 @@ import {
   TRAINING_DETAIL,
   TRAINING_DETAIL_ACTIVE_TAB,
   TRAINING_DETAIL_TABS,
+  TRAINING_ARCHIVE_FILTERS,
   TRAINING_FILTERS,
   TRAINING_KPIS,
+  TRAINING_PRODUCT_FILTERS,
+  TRAINING_PRODUCT_KPIS,
   TRAINING_SELECTED_SESSION_ID,
   TRAINING_VIEWS,
   resolveTrainingCalendar,
@@ -50,7 +81,8 @@ import './TrainingV2Page.css';
  * P05 培训运营地图（《设计文档 V2.0》第 9 章）。
  *
  * <p>五个区域各带 {@code data-region}，编号与文档 9「区域坐标」表一一对应。
- * 这一页与 P04 同构：KPI 独占顶带，下方左栏（工具条／月历／计划列表）与右侧详情同起同止。
+ * 回归模式与 P04 同构：KPI 独占顶带，下方左栏（月历／计划列表）与右侧详情同起同止。
+ * 产品模式改为全宽日历：点场次开弹窗，月／周／日逐级加字段。
  *
  * <p>字段口径与 V2.0 表面文字的出入逐条写在 {@link file://./../../fixtures/training.ts} 头注里。
  * 核心三条：场次状态只有四值合法枚举、导入结果三词对齐 14.4、培训形式不用「线上直播」。
@@ -58,10 +90,10 @@ import './TrainingV2Page.css';
  * <p>产品模式的月历学总裁日程看板：单行场次条、周末底、格子至少能放下数条；
  * 全屏收起 KPI／计划表／详情，把高度还给格子（单格 ≥5 条）。回归模式几何不动。
  */
-/** 回归模式锁 2 条，避免撑破 455px 格子。产品常态 3 条；全屏按日程看板放到 5 条 */
+/** 回归模式锁 2 条，避免撑破 455px 格子。产品两行卡常态 2 条；全屏 4 条 */
 const REGRESSION_MONTH_CHIPS = 2;
-const PRODUCT_MONTH_CHIPS = 3;
-const FULLSCREEN_MONTH_CHIPS = 5;
+const PRODUCT_MONTH_CHIPS = 2;
+const FULLSCREEN_MONTH_CHIPS = 4;
 
 export function TrainingV2Page() {
   const regression = isRegressionMode();
@@ -72,7 +104,43 @@ export function TrainingV2Page() {
   const [month, setMonth] = useState(anchor.month);
   const [selectedDay, setSelectedDay] = useState(anchor.selectedDay);
   const [selectedId, setSelectedId] = useState(TRAINING_SELECTED_SESSION_ID);
+  const [openedId, setOpenedId] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [filters, setFilters] = useState<TrainingProductFilter>(EMPTY_TRAINING_FILTER);
+  const [creating, setCreating] = useState(false);
+  const fixture = usesFixtureData();
+  const isOperator = useIsOperator();
+  const queryClient = useQueryClient();
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'trainings'],
+    queryFn: () => metricsApi.quantity('trainings'),
+    enabled: !regression && !fixture,
+  });
+  const range = useMemo(
+    () => visibleDateRange(view, year, month, selectedDay),
+    [view, year, month, selectedDay],
+  );
+  const liveSessions = useQuery({
+    queryKey: ['training-sessions', 'v2-calendar', range, filters],
+    queryFn: () =>
+      trainingApi.sessions(
+        {
+          keyword: filters.keyword || null,
+          planState: filters.planState || null,
+          sessionState: filters.sessionState || null,
+          archived: filters.archived === '' ? null : filters.archived === 'true',
+          ...range,
+        },
+        1,
+        CALENDAR_PAGE_SIZE,
+      ),
+    enabled: !regression && !fixture,
+  });
+  const calendarSessions = useMemo(() => {
+    if (regression) return CALENDAR_SESSIONS;
+    if (fixture) return fixtureCalendarSessions(filters);
+    return (liveSessions.data?.records ?? []).map(toCalendarSession);
+  }, [regression, fixture, filters, liveSessions.data]);
 
   const calendarFullscreen = fullscreen && !regression;
   const monthChipLimit = regression
@@ -129,9 +197,14 @@ export function TrainingV2Page() {
     setSelectedDay(current.today);
   };
 
+  const selectSession = (id: string) => {
+    setSelectedId(id);
+    if (!regression) setOpenedId(id);
+  };
+
   return (
-    <div className="trn v2-page" data-fullscreen={calendarFullscreen}>
-      {!calendarFullscreen && <KpiRow />}
+    <div className="trn v2-page" data-fullscreen={calendarFullscreen} data-fullcal={!regression || undefined}>
+      {!calendarFullscreen && <KpiRow quantity={quantity.data} />}
       <Toolbar
         view={view}
         year={year}
@@ -139,11 +212,15 @@ export function TrainingV2Page() {
         selectedDay={selectedDay}
         fullscreen={calendarFullscreen}
         showFullscreen={!regression}
+        filters={filters}
+        onFiltersChange={setFilters}
         onViewChange={setView}
         onPrev={() => shiftCursor(-1)}
         onNext={() => shiftCursor(1)}
         onToday={backToToday}
         onToggleFullscreen={() => setFullscreen((value) => !value)}
+        showCreate={regression || isOperator}
+        onCreate={!regression && isOperator ? () => setCreating(true) : undefined}
       />
 
       <div className="trn-main">
@@ -156,13 +233,30 @@ export function TrainingV2Page() {
             selectedDay={selectedDay}
             selectedId={selectedId}
             monthChipLimit={monthChipLimit}
+            sessions={calendarSessions}
             onSelectDay={setSelectedDay}
-            onSelectSession={setSelectedId}
+            onSelectSession={selectSession}
           />
-          {!calendarFullscreen && <PlanListPanel selectedId={selectedId} onSelect={setSelectedId} />}
+          {regression && !calendarFullscreen && (
+            <PlanListPanel selectedId={selectedId} onSelect={setSelectedId} />
+          )}
         </div>
-        {!calendarFullscreen && <DetailPanel selectedId={selectedId} />}
+        {regression && !calendarFullscreen && <DetailPanel selectedId={selectedId} />}
       </div>
+      {!regression && openedId && (
+        <TrainingProductDetail sessionId={openedId} onClose={() => setOpenedId(null)} />
+      )}
+      {!regression && (
+        <TrainingPlanFormModal
+          open={creating}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            void queryClient.invalidateQueries({ queryKey: ['training-sessions'] });
+            void queryClient.invalidateQueries({ queryKey: ['metrics'] });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -172,35 +266,96 @@ const KPI_ICONS: Record<string, LucideIcon> = {
   Briefcase,
   Video,
   Users,
+  UserCheck,
   FileInput,
   FolderOpen,
 };
 
-/** R3 六张 KPI：273,70,1289,111。正文宽 1289，这一行铺满 */
-function KpiRow() {
+type ProductKpiId = (typeof TRAINING_PRODUCT_KPIS)[number]['id'];
+
+const PRODUCT_KPI_TONES: Record<ProductKpiId, string> = {
+  plans: '#5B82FF',
+  sessions: '#4E70DB',
+  attendeesTotal: '#3974FA',
+  attendees: '#7C6CF0',
+  archived: '#3FA9C9',
+};
+
+const KPI_DELTA_BASELINE = '月度环比（较上月）';
+
+/**
+ * R3 KPI。回归模式六张冻结卡（p05 几何）；产品模式五张：累计计划／场次／人次、
+ * 本月人次、已归档，脚注一律「月度环比（较上月）」。
+ */
+function KpiRow({ quantity }: { quantity?: Record<string, number> }) {
+  const regression = isRegressionMode();
+  const fixture = usesFixtureData();
+
+  if (regression) {
+    return (
+      <section className="trn-kpis" data-region="R3" aria-label="培训指标概览">
+        {TRAINING_KPIS.map((kpi) => {
+          const Icon = KPI_ICONS[kpi.icon]!;
+          const down = 'down' in kpi && kpi.down;
+          return (
+            <article
+              className="trn-kpi"
+              key={kpi.id}
+              data-testid="training-kpi"
+              data-kpi={kpi.id}
+              data-down={down ? 'true' : 'false'}
+            >
+              <div className="trn-kpi-text">
+                <p className="trn-kpi-label">{kpi.label}</p>
+                <p className="trn-kpi-value"><AnimatedNumber value={kpi.value} duration={520} /></p>
+                <p className="trn-kpi-delta">
+                  <span>{kpi.delta}</span>
+                  <span className="trn-kpi-period">{kpi.period}</span>
+                </p>
+              </div>
+              <span className="trn-kpi-plate" aria-hidden>
+                <Icon size={18} strokeWidth={1.75} />
+              </span>
+            </article>
+          );
+        })}
+      </section>
+    );
+  }
+
   return (
     <section className="trn-kpis" data-region="R3" aria-label="培训指标概览">
-      {TRAINING_KPIS.map((kpi) => {
+      {TRAINING_PRODUCT_KPIS.map((kpi) => {
         const Icon = KPI_ICONS[kpi.icon]!;
+        const tone = PRODUCT_KPI_TONES[kpi.id];
+        const liveValue = fixture ? kpi.value : formatMetricInt(quantity?.[kpi.id]);
+        const liveDelta = fixture
+          ? formatKpiDelta(kpi.deltaPercent)
+          : monthOverMonth(quantity?.[kpi.id], quantity?.[`${kpi.id}Prev`]);
+        const down = liveDelta.startsWith('↓');
         return (
           <article
             className="trn-kpi"
             key={kpi.id}
             data-testid="training-kpi"
             data-kpi={kpi.id}
-            data-down={'down' in kpi && kpi.down ? 'true' : 'false'}
+            data-down={down ? 'true' : 'false'}
           >
-            <div className="trn-kpi-text">
+            <div className="trn-kpi-top">
               <p className="trn-kpi-label">{kpi.label}</p>
-              <p className="trn-kpi-value">{kpi.value}</p>
-              <p className="trn-kpi-delta">
-                <span>{kpi.delta}</span>
-                <span className="trn-kpi-period">{kpi.period}</span>
-              </p>
+              <span
+                className="trn-kpi-plate"
+                style={{ color: tone, background: `${tone}33` }}
+                aria-hidden
+              >
+                <Icon size={16} strokeWidth={1.8} />
+              </span>
             </div>
-            <span className="trn-kpi-plate" aria-hidden>
-              <Icon size={18} strokeWidth={1.75} />
-            </span>
+            <p className="trn-kpi-value"><AnimatedNumber value={liveValue} duration={520} /></p>
+            <p className="trn-kpi-foot">
+              <span className="trn-kpi-delta">{liveDelta}</span>
+              <span className="trn-kpi-baseline">{KPI_DELTA_BASELINE}</span>
+            </p>
           </article>
         );
       })}
@@ -234,11 +389,15 @@ function Toolbar({
   selectedDay,
   fullscreen,
   showFullscreen,
+  filters,
+  onFiltersChange,
   onViewChange,
   onPrev,
   onNext,
   onToday,
   onToggleFullscreen,
+  showCreate,
+  onCreate,
 }: {
   view: TrainingView;
   year: number;
@@ -246,12 +405,17 @@ function Toolbar({
   selectedDay: number;
   fullscreen: boolean;
   showFullscreen: boolean;
+  showCreate: boolean;
+  filters: TrainingProductFilter;
+  onFiltersChange: (next: TrainingProductFilter) => void;
   onViewChange: (next: TrainingView) => void;
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
   onToggleFullscreen: () => void;
+  onCreate?: () => void;
 }) {
+  const regression = isRegressionMode();
   return (
     <section className="trn-toolbar" data-region="R4" aria-label="日历工具条">
       <div className="trn-view-switch" role="tablist" aria-label="日历视图">
@@ -286,17 +450,7 @@ function Toolbar({
         </button>
       </div>
 
-      <label className="trn-search">
-        <Search size={14} aria-hidden />
-        <input type="search" placeholder="搜索计划 / 场次" readOnly />
-      </label>
-
-      {TRAINING_FILTERS.map((filter) => (
-        <button key={filter.id} type="button" className="trn-select" data-testid="training-filter">
-          <span className="trn-select-placeholder">{filter.label}</span>
-          <ChevronDown size={12} aria-hidden />
-        </button>
-      ))}
+      {regression ? <RegressionFilters /> : <ProductFilters value={filters} onChange={onFiltersChange} />}
 
       {showFullscreen && (
         <button
@@ -313,14 +467,126 @@ function Toolbar({
         </button>
       )}
 
-      <button type="button" className="trn-create">
-        <Plus size={14} aria-hidden />
-        新建培训计划
-      </button>
-      <button type="button" className="trn-import">
-        导入签到
-      </button>
+      {showCreate && (
+        <button type="button" className="trn-create" onClick={onCreate}>
+          <Plus size={14} aria-hidden />
+          新建培训计划
+        </button>
+      )}
+      {regression && (
+        <button type="button" className="trn-import">
+          导入签到
+        </button>
+      )}
     </section>
+  );
+}
+
+function RegressionFilters() {
+  return (
+    <>
+      <label className="trn-search">
+        <Search size={14} aria-hidden />
+        <input type="search" placeholder="搜索计划 / 场次" readOnly />
+      </label>
+      {TRAINING_FILTERS.map((filter) => (
+        <button key={filter.id} type="button" className="trn-select" data-testid="training-filter">
+          <span className="trn-select-placeholder">{filter.label}</span>
+          <ChevronDown size={12} aria-hidden />
+        </button>
+      ))}
+    </>
+  );
+}
+
+function ProductFilters({
+  value,
+  onChange,
+}: {
+  value: TrainingProductFilter;
+  onChange: (next: TrainingProductFilter) => void;
+}) {
+  const planStates = useStates(TRAINING_OBJECT_TYPE_CODES.plan, TRAINING_STATE_FIELDS.plan);
+  const sessionStates = useStates(TRAINING_OBJECT_TYPE_CODES.session, TRAINING_STATE_FIELDS.session);
+  const patch = <K extends keyof TrainingProductFilter>(key: K, next: TrainingProductFilter[K]) =>
+    onChange({ ...value, [key]: next });
+
+  return (
+    <>
+      <label className="trn-search">
+        <Search size={14} aria-hidden />
+        <input
+          type="search"
+          placeholder="课程名称 / 讲师 / 运营负责人"
+          aria-label="搜索课程名称、讲师或运营负责人"
+          value={value.keyword}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => patch('keyword', event.target.value)}
+        />
+      </label>
+      <TrainingFilterSelect
+        id="planState"
+        label={TRAINING_PRODUCT_FILTERS[0].label}
+        value={value.planState}
+        options={planStates}
+        onChange={(next) => patch('planState', next)}
+      />
+      <TrainingFilterSelect
+        id="sessionState"
+        label={TRAINING_PRODUCT_FILTERS[1].label}
+        value={value.sessionState}
+        options={sessionStates}
+        onChange={(next) => patch('sessionState', next)}
+      />
+      <label className="trn-select trn-filter-select" data-testid="training-filter">
+        <span className="trn-filter-label">{TRAINING_PRODUCT_FILTERS[2].label}</span>
+        <select
+          aria-label={TRAINING_PRODUCT_FILTERS[2].label}
+          value={value.archived}
+          data-empty={value.archived === '' ? 'true' : 'false'}
+          onChange={(event) => patch('archived', event.target.value as TrainingProductFilter['archived'])}
+        >
+          <option value="">全部</option>
+          {TRAINING_ARCHIVE_FILTERS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+}
+
+function TrainingFilterSelect({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (next: string) => void;
+}) {
+  return (
+    <label className="trn-select trn-filter-select" data-testid="training-filter" data-filter={id}>
+      <span className="trn-filter-label">{label}</span>
+      <select
+        aria-label={label}
+        value={value}
+        data-empty={value === '' ? 'true' : 'false'}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <option value="">全部</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -333,6 +599,7 @@ function CalendarPanel({
   selectedDay,
   selectedId,
   monthChipLimit,
+  sessions,
   onSelectDay,
   onSelectSession,
 }: {
@@ -343,6 +610,7 @@ function CalendarPanel({
   selectedDay: number;
   selectedId: string;
   monthChipLimit: number;
+  sessions: readonly CalendarSession[];
   onSelectDay: (day: number) => void;
   onSelectSession: (id: string) => void;
 }) {
@@ -356,6 +624,7 @@ function CalendarPanel({
           selectedDay={selectedDay}
           selectedId={selectedId}
           chipLimit={monthChipLimit}
+          sessions={sessions}
           onSelectDay={onSelectDay}
           onSelectSession={onSelectSession}
         />
@@ -367,6 +636,7 @@ function CalendarPanel({
           today={today}
           selectedDay={selectedDay}
           selectedId={selectedId}
+          sessions={sessions}
           onSelectDay={onSelectDay}
           onSelectSession={onSelectSession}
         />
@@ -377,6 +647,7 @@ function CalendarPanel({
           month={month}
           selectedDay={selectedDay}
           selectedId={selectedId}
+          sessions={sessions}
           onSelectSession={onSelectSession}
         />
       )}
@@ -392,11 +663,6 @@ function buildPrevMonthTail(year: number, month: number, count: number) {
   return Array.from({ length: count }, (_, index) => lastDayOfPrevMonth - count + 1 + index);
 }
 
-function sessionsOn(day: number, monthOffset = 0) {
-  return CALENDAR_SESSIONS.filter(
-    (session) => session.day === day && (session.monthOffset ?? 0) === monthOffset,
-  );
-}
 
 /**
  * 当月月历格子。
@@ -412,6 +678,7 @@ function MonthGrid({
   selectedDay,
   selectedId,
   chipLimit,
+  sessions,
   onSelectDay,
   onSelectSession,
 }: {
@@ -421,6 +688,7 @@ function MonthGrid({
   selectedDay: number;
   selectedId: string;
   chipLimit: number;
+  sessions: readonly CalendarSession[];
   onSelectDay: (day: number) => void;
   onSelectSession: (id: string) => void;
 }) {
@@ -443,18 +711,16 @@ function MonthGrid({
       <div
         className="trn-month-body"
         style={{
-          gridTemplateRows: `repeat(${weekCount}, minmax(${chipLimit >= FULLSCREEN_MONTH_CHIPS ? 160 : 0}px, 1fr))`,
+          gridTemplateRows: `repeat(${weekCount}, minmax(${
+            isRegressionMode() ? 0 : chipLimit >= FULLSCREEN_MONTH_CHIPS ? 200 : 128
+          }px, 1fr))`,
         }}
       >
         {prevMonthTail.map((day, index) => {
           /* 上月场次按格位挂：上月天数逐月变，按日号挂会在 30／31 天月之间漂 */
-          const sessions = CALENDAR_SESSIONS.filter(
-            (session) =>
-              (session.monthOffset ?? 0) === -1 &&
-              (session.prevWeekday != null ? session.prevWeekday === index : session.day === day),
-          );
-          const visible = sessions.slice(0, chipLimit);
-          const more = sessions.length - visible.length;
+          const padSessions = sessionsOnPrevPad(sessions, year, month, day, index);
+          const visible = padSessions.slice(0, chipLimit);
+          const more = padSessions.length - visible.length;
 
           return (
             <div
@@ -469,6 +735,7 @@ function MonthGrid({
                   key={session.id}
                   session={session}
                   selected={session.id === selectedId}
+                  density={isRegressionMode() ? 'full' : 'month'}
                   onSelect={onSelectSession}
                 />
               ))}
@@ -480,9 +747,9 @@ function MonthGrid({
         {Array.from({ length: daysInMonth }, (_, index) => {
           const day = index + 1;
           const weekday = (firstWeekday + index) % 7;
-          const sessions = sessionsOn(day, 0);
-          const visible = sessions.slice(0, chipLimit);
-          const more = sessions.length - visible.length;
+          const daySessions = sessionsOnDay(sessions, year, month, day, 0);
+          const visible = daySessions.slice(0, chipLimit);
+          const more = daySessions.length - visible.length;
           const isToday = today != null && day === today;
 
           return (
@@ -506,6 +773,7 @@ function MonthGrid({
                   key={session.id}
                   session={session}
                   selected={session.id === selectedId}
+                  density={isRegressionMode() ? 'full' : 'month'}
                   onSelect={onSelectSession}
                 />
               ))}
@@ -545,6 +813,7 @@ function WeekGrid({
   today,
   selectedDay,
   selectedId,
+  sessions,
   onSelectDay,
   onSelectSession,
 }: {
@@ -553,6 +822,7 @@ function WeekGrid({
   today: number | null;
   selectedDay: number;
   selectedId: string;
+  sessions: readonly CalendarSession[];
   onSelectDay: (day: number) => void;
   onSelectSession: (id: string) => void;
 }) {
@@ -570,7 +840,7 @@ function WeekGrid({
   return (
     <div className="trn-week" data-testid="week-grid" role="grid" aria-label="周视图">
       {days.map(({ day, weekday, weekend }) => {
-        const sessions = day == null ? [] : sessionsOn(day, 0);
+        const daySessions = day == null ? [] : sessionsOnDay(sessions, year, month, day, 0);
         return (
           <div
             className="trn-week-col"
@@ -591,16 +861,17 @@ function WeekGrid({
               <span className="trn-week-day">{day ?? '—'}</span>
             </button>
             <div className="trn-week-list">
-              {sessions.length === 0 ? (
+              {daySessions.length === 0 ? (
                 <p className="trn-week-empty">无场次</p>
               ) : (
-                sessions.map((session) => (
+                daySessions.map((session) => (
                   <SessionChip
                     key={session.id}
                     session={session}
                     selected={session.id === selectedId}
+                    density={isRegressionMode() ? 'full' : 'week'}
+                    expanded={isRegressionMode()}
                     onSelect={onSelectSession}
-                    expanded
                   />
                 ))
               )}
@@ -618,35 +889,48 @@ function DayGrid({
   month,
   selectedDay,
   selectedId,
+  sessions,
   onSelectSession,
 }: {
   year: number;
   month: number;
   selectedDay: number;
   selectedId: string;
+  sessions: readonly CalendarSession[];
   onSelectSession: (id: string) => void;
 }) {
-  const sessions = sessionsOn(selectedDay, 0).sort((a, b) => a.time.localeCompare(b.time));
+  const daySessions = sessionsOnDay(sessions, year, month, selectedDay, 0).sort((a, b) =>
+    a.time.localeCompare(b.time),
+  );
+  const regression = isRegressionMode();
 
   return (
     <div className="trn-day" data-testid="day-grid" aria-label={`${selectedDay} 日排期`}>
       <p className="trn-day-title">
         {year}-{String(month).padStart(2, '0')}-{String(selectedDay).padStart(2, '0')} · 共{' '}
-        {sessions.length} 场
+        {daySessions.length} 场
       </p>
       <ul className="trn-day-list">
-        {sessions.map((session) => (
+        {daySessions.map((session) => (
           <li key={session.id}>
             <button
               type="button"
               className="trn-day-row"
               data-testid="day-session"
               data-selected={session.id === selectedId}
+              data-density={regression ? 'full' : 'day'}
               onClick={() => onSelectSession(session.id)}
             >
               <span className="trn-day-time">{session.time}</span>
-              <span className="trn-day-title-text">{session.title}</span>
-              <span className="trn-day-meta">{session.meta}</span>
+              <span className="trn-day-title-text">{sessionCourseName(session)}</span>
+              {regression ? (
+                <span className="trn-day-meta">{session.meta}</span>
+              ) : (
+                <>
+                  <span className="trn-day-intro">{sessionIntro(session)}</span>
+                  <span className="trn-day-meta">{sessionLecturer(session) || '—'}</span>
+                </>
+              )}
               <StateTag state={session.state} />
             </button>
           </li>
@@ -656,17 +940,27 @@ function DayGrid({
   );
 }
 
+type ChipDensity = 'month' | 'week' | 'day' | 'full';
+
 function SessionChip({
   session,
   selected,
   onSelect,
+  density = 'full',
   expanded = false,
 }: {
   session: CalendarSession;
   selected: boolean;
   onSelect: (id: string) => void;
+  density?: ChipDensity;
   expanded?: boolean;
 }) {
+  const courseName = sessionCourseName(session);
+  const lecturer = sessionLecturer(session);
+  const productCard = !isRegressionMode() && (density === 'month' || density === 'week');
+  const showMeta = density !== 'month' || productCard;
+  const showState = density === 'full' || productCard;
+  const metaText = density === 'full' || productCard ? session.meta || '—' : lecturer || '—';
   return (
     <span
       className="trn-chip"
@@ -674,6 +968,7 @@ function SessionChip({
       data-state={session.state}
       data-selected={selected}
       data-expanded={expanded}
+      data-density={density}
       role="button"
       tabIndex={0}
       onClick={(event) => {
@@ -690,10 +985,10 @@ function SessionChip({
     >
       <span className="trn-chip-head">
         <span className="trn-chip-time">{session.time}</span>
-        <span className="trn-chip-title">{session.title}</span>
+        <span className="trn-chip-title">{courseName}</span>
       </span>
-      <span className="trn-chip-meta">{session.meta}</span>
-      <StateTag state={session.state} />
+      {showMeta && <span className="trn-chip-meta">{metaText}</span>}
+      {showState && <StateTag state={session.state} />}
     </span>
   );
 }
@@ -811,7 +1106,7 @@ function PlanListPanel({
 }
 
 /** R7 培训详情：1102,257,450,669 */
-function DetailPanel({ selectedId }: { selectedId: string }) {
+function DetailPanel({ selectedId, onClose }: { selectedId: string; onClose?: () => void }) {
   /*
    * 详情主体始终用默认场次的冻结内容——文档只冻结了这一场。
    * selectedId 只驱动标题区的选中态与列表高亮；换一场不改圆环数字，
@@ -851,7 +1146,7 @@ function DetailPanel({ selectedId }: { selectedId: string }) {
           </h2>
           <StateTag state={TRAINING_DETAIL.state} />
         </div>
-        <button type="button" className="trn-detail-close" aria-label="关闭详情">
+        <button type="button" className="trn-detail-close" aria-label="关闭详情" onClick={onClose}>
           <X size={14} />
         </button>
       </header>
