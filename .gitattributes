@@ -1,0 +1,10 @@
+# Git for Windows 装好后 core.autocrlf 默认是 true，检出时会把 LF 换成 CRLF。
+#
+# pre-commit 由 /bin/sh 执行，带 CRLF 时每行都会多一个 \r，报 $'\r': command not found。
+# 也就是说：类型门禁在每一台新 clone 的机器上都是坏的，而且坏法是「执行时刷一串报错」，
+# 很容易被当成环境噪音忽略掉，于是回到「没有门禁」的状态——正是加这个钩子要避免的事。
+#
+# 只钉这两条，不给 .ps1 加 text 属性：那会触发一次全仓库行尾重整，
+# 且 PowerShell 5.1 靠 UTF-8 BOM 识别中文脚本，行尾重整没必要冒这个风险。
+scripts/git-hooks/* text eol=lf
+*.sh text eol=lf
