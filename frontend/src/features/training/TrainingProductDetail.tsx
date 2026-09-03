@@ -69,7 +69,8 @@ export function TrainingProductDetail({ sessionId, onClose }: TrainingProductDet
         ?? '培训详情'
       }
       footer={null}
-      width="59.8vw"
+      centered
+      width={1100}
       className="training-plan-form-modal"
       rootClassName="training-plan-form-modal-root training-product-detail-root"
       destroyOnHidden
@@ -213,22 +214,22 @@ function BasicInfoFields({
 
       <section className="trn-prod-section">
         <h3 className="trn-prod-section-title">场次与人数</h3>
-        <div className="trn-prod-metrics">
-          <MetricCard
+        <dl className="trn-prod-kv">
+          <InfoField
             label="计划培训场次"
             value={plan.planSessionCount == null ? '—' : `${plan.planSessionCount} 场`}
           />
-          <MetricCard
+          <InfoField
             label="实际完成场次"
             value={`${plan.actualSessionCount} 场`}
             extra="由培训场次记录自动汇总"
           />
-          <MetricCard
+          <InfoField
             label="实际参训人数"
             value={attendeeTotal == null ? '—' : `${attendeeTotal} 人`}
             extra="由培训场次记录的签到人数自动汇总"
           />
-        </div>
+        </dl>
       </section>
 
       <section className="trn-prod-section">
@@ -249,34 +250,21 @@ function BasicInfoFields({
 function InfoField({
   label,
   value,
+  extra,
   wide,
 }: {
   label: string;
   value: ReactNode;
+  extra?: string;
   wide?: boolean;
 }) {
   return (
     <div className="trn-prod-field" data-span={wide ? '2' : undefined} data-testid="product-training-field">
       <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  extra,
-}: {
-  label: string;
-  value: string;
-  extra?: string;
-}) {
-  return (
-    <div className="trn-prod-metric" data-testid="product-training-field">
-      <p className="trn-prod-metric-label">{label}</p>
-      <p className="trn-prod-metric-value">{value}</p>
-      {extra ? <p className="trn-prod-metric-extra">{extra}</p> : null}
+      <dd>
+        {value}
+        {extra ? <span className="trn-prod-field-extra">{extra}</span> : null}
+      </dd>
     </div>
   );
 }

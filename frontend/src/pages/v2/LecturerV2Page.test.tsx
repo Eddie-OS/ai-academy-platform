@@ -98,6 +98,20 @@ describe('P04 成长建议的模式开关', () => {
       '状态流转日志',
     ]);
     expect(screen.getAllByTestId('lecturer-card')).toHaveLength(LECTURER_POOL.length);
+    expect(screen.queryByTestId('lecturer-group')).toBeNull();
+  });
+
+  it('产品模式讲师池平铺全部卡片，回归模式仍按领域分组', () => {
+    setMode(false);
+    renderPage();
+    expect(screen.queryByTestId('lecturer-group')).toBeNull();
+    expect(screen.getAllByTestId('lecturer-card')).toHaveLength(LECTURER_POOL.length);
+    cleanup();
+
+    setMode(true);
+    renderPage();
+    expect(screen.getAllByTestId('lecturer-group').length).toBe(7);
+    expect(screen.getAllByTestId('lecturer-card')).toHaveLength(LECTURER_POOL.length);
   });
 
   it('产品模式七个详情页签能切开，流转日志说明讲师没有状态机', () => {

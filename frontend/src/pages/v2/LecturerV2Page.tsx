@@ -512,17 +512,17 @@ function matchesVisibleCard(
 /** R5 讲师池：252,264,812,484 */
 function PoolPanel() {
   const { kpiId, filters, regression } = useLecturerV2();
+  const visible = LECTURER_POOL.filter((card) => matchesVisibleCard(card, kpiId, filters, regression));
   const groups = LECTURER_GROUPS.map((group) => ({
     ...group,
     cards: group.cards.filter((card) => matchesVisibleCard(card, kpiId, filters, regression)),
   })).filter((group) => group.cards.length > 0);
-  const visibleTotal = LECTURER_POOL.filter((card) => matchesVisibleCard(card, kpiId, filters, regression)).length;
 
   return (
     <section className="panel lct-pool" data-region="R5" aria-label="讲师池">
       <div className="panel-head lct-pool-head">
         <h2 className="panel-title lct-sub-title">讲师池</h2>
-        <span className="lct-pool-total">共 {visibleTotal.toLocaleString('en-US')} 人</span>
+        <span className="lct-pool-total">共 {visible.length.toLocaleString('en-US')} 人</span>
 
         <span className="lct-pager">
           <button type="button" aria-label="上一页">
@@ -539,9 +539,17 @@ function PoolPanel() {
       </div>
 
       <div className="lct-pool-body">
-        {groups.map((group) => (
-          <PoolGroup key={group.id} group={group} />
-        ))}
+        {regression ? (
+          groups.map((group) => <PoolGroup key={group.id} group={group} />)
+        ) : visible.length === 0 ? (
+          <p className="lct-empty">没有符合条件的讲师</p>
+        ) : (
+          <div className="lct-cards">
+            {visible.map((card) => (
+              <LecturerCardView key={card.id} card={card} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

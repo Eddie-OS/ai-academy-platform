@@ -1414,6 +1414,10 @@ html:not([data-regression]) .panel.lct-pool {
   min-height: 484px;
 }
 
+html:not([data-regression]) .lct-pool-body > .lct-cards {
+  margin-top: 0;
+}
+
 html:not([data-regression]) .panel.lct-ledger {
   height: auto;
   flex: 178 1 0;

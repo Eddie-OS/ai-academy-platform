@@ -2087,20 +2087,43 @@ html:not([data-regression]) .crs-modal .crs-detail-meta {
 }
 
 html:not([data-regression]) .crs-modal .crs-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   margin-top: var(--space-v2-2);
   padding: var(--space-v2-2) var(--space-v2-3);
   border: var(--border-v2);
   border-radius: var(--radius-control);
   background: var(--bg-page);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+html:not([data-regression]) .crs-modal .crs-field {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-v2-2);
+  padding: 5px 0;
+  border-top: var(--border-v2);
+}
+
+html:not([data-regression]) .crs-modal .crs-field:first-child {
+  border-top: 0;
 }
 
 html:not([data-regression]) .crs-modal .crs-field dt {
-  font-size: var(--type-caption-size);
-  line-height: var(--type-caption-line);
+  flex: 0 0 108px;
+  color: var(--text-tertiary);
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 html:not([data-regression]) .crs-modal .crs-field dd {
+  flex: 1;
+  overflow: visible;
+  white-space: normal;
   font-size: var(--type-table-size);
+  font-weight: var(--type-table-weight);
   line-height: var(--type-table-line);
 }
 
@@ -2175,6 +2198,7 @@ html:not([data-regression]) .crs-modal .crs-detail-body .ant-space-vertical {
 }
 
 html:not([data-regression]) .crs-modal .crs-detail-tab-pane > .ant-space > .ant-form,
+html:not([data-regression]) .crs-modal .crs-detail-tab-pane .ant-space-item > .ant-form,
 html:not([data-regression]) .crs-modal .crs-detail-tab-pane > .ant-form:not(.crs-basic-form) {
   border: var(--border-v2);
   border-radius: var(--radius-control);
@@ -2412,6 +2436,48 @@ html:not([data-regression]) .crs-modal .crs-mat-version-meta,
 html:not([data-regression]) .crs-modal .crs-mat-file-type,
 html:not([data-regression]) .crs-modal .crs-mat-change-at {
   color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-radio-wrapper,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-checkbox-wrapper,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-tag,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-statistic-title,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-statistic-content,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-pagination,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-pagination-item,
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-pagination-item a {
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+html:not([data-regression]) .crs-modal .crs-detail-body .ant-tag {
+  margin-inline-end: 4px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-tag);
+  background: var(--brand-100);
+  color: var(--brand-action);
+  font-size: var(--type-caption-size);
+  line-height: var(--lh-20);
+}
+
+html:not([data-regression]) .crs-modal .crs-detail-body .crs-module,
+html:not([data-regression]) .crs-modal .crs-detail-body .crs-check-board {
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  padding: var(--space-v2-2) var(--space-v2-3);
+}
+
+html:not([data-regression]) .crs-modal .crs-detail-body .crs-timeline {
+  margin: var(--space-v2-2) 0 0;
+  padding: 0 0 0 16px;
+}
+
+html:not([data-regression]) .crs-modal .crs-detail-body .crs-mini-at,
+html:not([data-regression]) .crs-modal .crs-detail-body .crs-block-subtitle,
+html:not([data-regression]) .crs-modal .crs-detail-body .crs-percent {
   font-size: var(--type-caption-size);
   line-height: var(--type-caption-line);
 }

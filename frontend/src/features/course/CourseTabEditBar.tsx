@@ -41,7 +41,7 @@ export function CourseTabEditBar({
     );
   }
   return (
-    <Button size="small" icon={<Pencil size={14} />} onClick={onEdit} className="crs-tab-edit-bar">
+    <Button size="small" icon={<Pencil size={13} />} onClick={onEdit} className="crs-tab-edit-bar">
       编辑
     </Button>
   );

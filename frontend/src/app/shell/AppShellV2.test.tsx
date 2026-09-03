@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { AppShellV2 } from './AppShellV2';
+import { LOGIN_HINT_KEY, LOGIN_HINT_SWITCH } from './loginHint';
 import { registerShellCreate } from './shellCreate';
 import { SHELL_NAV_OPERATION } from './shellNav';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -86,6 +87,26 @@ describe('AppShellV2（壳层的写操作入口可见性）', () => {
       (page) => screen.queryByRole('link', { name: page.label }) !== null,
     ).map((page) => page.path);
     expect(visible.some((path) => operatorOnlyPaths.includes(path))).toBe(false);
+  });
+
+  it('点侧栏账号卡可切换或退出，两条都清会话', async () => {
+    const logout = vi.fn().mockResolvedValue(undefined);
+    sessionStorage.removeItem(LOGIN_HINT_KEY);
+    useAuthStore.setState({ account: account(true), resolved: true, logout });
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AppShellV2 />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '当前账号 运营，打开账号菜单' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '切换账号' }));
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem(LOGIN_HINT_KEY)).toBe(LOGIN_HINT_SWITCH);
+
+    fireEvent.click(screen.getByRole('button', { name: '当前账号 运营，打开账号菜单' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '退出登录' }));
+    expect(logout).toHaveBeenCalledTimes(2);
   });
 
   it('点顶栏新建会通知当前页，没人登记时不报错', () => {

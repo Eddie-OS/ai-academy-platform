@@ -1,0 +1,191 @@
+/* 登录页：左标语 + 右玻璃卡。只作用于本页。 */
+
+.login-page {
+  position: relative;
+  min-height: 100vh;
+  min-width: 1440px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.login-stage {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 760px 420px;
+  align-items: center;
+  column-gap: 80px;
+}
+
+.login-page__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand-900) 48%, transparent) 0%,
+    color-mix(in srgb, var(--color-brand-900) 16%, transparent) 46%,
+    transparent 72%
+  );
+}
+
+.login-slogan {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-family-v2);
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--color-neutral-0);
+  white-space: nowrap;
+}
+
+.login-slogan__line {
+  display: block;
+  min-height: 1.05em;
+}
+
+.login-slogan__cursor {
+  display: inline-block;
+  width: 6px;
+  height: 0.82em;
+  margin-left: 4px;
+  vertical-align: -0.04em;
+  background: var(--brand-action);
+}
+
+.login-slogan__cursor.is-blink {
+  animation: login-caret 1s step-end infinite;
+}
+
+@keyframes login-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.login-panel {
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-slogan__cursor.is-blink {
+    animation: none;
+  }
+}
+
+html[data-regression]:not([data-force-motion]) .login-slogan__cursor.is-blink {
+  animation: none;
+}
+
+/* 登录卡：浅色磨砂玻璃（参考胶囊输入 + 主题蓝主按钮）。只作用于本页。 */
+
+.login-card {
+  width: 420px;
+  padding: var(--space-2xl);
+  border-radius: 40px;
+  background: rgb(255 255 255 / 28%);
+  backdrop-filter: blur(28px) saturate(1.2);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
+  border: 1px solid rgb(255 255 255 / 42%);
+  box-shadow: 0 24px 48px color-mix(in srgb, var(--color-brand-900) 16%, transparent);
+}
+
+.login-card .login-card__title.ant-typography,
+.login-card h2.ant-typography {
+  color: var(--text-primary);
+}
+
+.login-card .login-card__subtitle.ant-typography,
+.login-card .login-card__footnote.ant-typography {
+  color: var(--text-secondary);
+}
+
+.login-card .ant-form-item .ant-form-item-label > label {
+  color: var(--text-primary);
+}
+
+.login-card .ant-input,
+.login-card .ant-input-affix-wrapper,
+.login-card .ant-input-outlined,
+.login-card .ant-input-affix-wrapper-outlined,
+.login-card .ant-input-borderless,
+.login-card .ant-input-affix-wrapper-borderless {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid rgb(255 255 255 / 40%);
+  color: var(--text-primary);
+  border-radius: var(--radius-full);
+  box-shadow: none;
+  padding-inline: var(--space-md);
+}
+
+.login-card .ant-input::placeholder,
+.login-card .ant-input-affix-wrapper input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.login-card .ant-input-affix-wrapper > input.ant-input,
+.login-card .ant-input-affix-wrapper > input.ant-input:hover,
+.login-card .ant-input-affix-wrapper > input.ant-input:focus {
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.login-card .ant-input:hover,
+.login-card .ant-input-affix-wrapper:hover,
+.login-card .ant-input-outlined:hover,
+.login-card .ant-input-affix-wrapper-outlined:hover {
+  background: transparent !important;
+  border-color: rgb(255 255 255 / 62%);
+}
+
+.login-card .ant-input:focus,
+.login-card .ant-input-outlined:focus,
+.login-card .ant-input-affix-wrapper-focused,
+.login-card .ant-input-affix-wrapper:focus-within {
+  background: transparent !important;
+  border-color: var(--brand-action);
+  box-shadow: none;
+}
+
+.login-card .ant-input:-webkit-autofill,
+.login-card .ant-input-affix-wrapper input:-webkit-autofill {
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+  transition: background-color 99999s ease-in-out 0s;
+}
+
+.login-card .ant-input-password-icon,
+.login-card .ant-input-suffix {
+  color: var(--text-secondary);
+}
+
+.login-card .ant-btn-primary {
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--brand-action);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--brand-action) 32%, transparent);
+}
+
+.login-card .ant-btn-primary:hover,
+.login-card .ant-btn-primary:focus {
+  background: var(--brand-action-hover) !important;
+}
+
+.login-card .ant-alert {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-danger-solid) 35%, transparent);
+}
+
+.login-card .ant-alert-message {
+  color: var(--text-primary);
+}

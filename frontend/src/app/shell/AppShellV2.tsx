@@ -34,6 +34,7 @@ import {
   resolvePageKey,
 } from './shellNav';
 import { requestShellCreate } from './shellCreate';
+import { LOGIN_HINT_KEY, LOGIN_HINT_SWITCH } from './loginHint';
 import './AppShellV2.css';
 
 /**
@@ -178,20 +179,12 @@ export function AppShellV2() {
           ))}
         </nav>
 
-        <div className="shell-user">
-          <img className="shell-user-avatar" src={ASSETS.A09} alt="" />
-          {!sidebarCollapsed && (
-            <>
-              <div className="shell-user-text">
-                <div className="shell-user-name">{displayName}</div>
-                {/* 共享账号下使用者需要随时确认自己在用哪个账号。
-                    账号名与类型同名时（运营账号）只出一行——同一个词写两遍读不出第二行的用途 */}
-                {typeLabel !== displayName && <div className="shell-user-role">{typeLabel}</div>}
-              </div>
-              <ChevronRight size={ICON_SIZE} strokeWidth={ICON_STROKE} color="var(--text-tertiary)" />
-            </>
-          )}
-        </div>
+        <ShellAccountCard
+          displayName={displayName}
+          typeLabel={typeLabel}
+          collapsed={sidebarCollapsed}
+          frozen={regression}
+        />
 
         {!regression && (
           <button
@@ -259,6 +252,110 @@ export function AppShellV2() {
           </ErrorBoundary>
         </main>
       </div>
+    </div>
+  );
+}
+
+function AccountCardBody({
+  displayName,
+  typeLabel,
+  collapsed,
+}: {
+  displayName: string;
+  typeLabel: string;
+  collapsed: boolean;
+}) {
+  return (
+    <>
+      <img className="shell-user-avatar" src={ASSETS.A09} alt="" />
+      {!collapsed && (
+        <>
+          <div className="shell-user-text">
+            <div className="shell-user-name">{displayName}</div>
+            {/* 共享账号下使用者需要随时确认自己在用哪个账号。
+                账号名与类型同名时（运营账号）只出一行——同一个词写两遍读不出第二行的用途 */}
+            {typeLabel !== displayName && <div className="shell-user-role">{typeLabel}</div>}
+          </div>
+          <ChevronRight size={ICON_SIZE} strokeWidth={ICON_STROKE} color="var(--text-tertiary)" />
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * 侧栏底部账号卡。回归模式保持静态 div，避免九页基线被菜单撑高；
+ * 产品模式点开后只有「切换账号 / 退出登录」，两条都清会话并落到登录页。
+ */
+function ShellAccountCard({
+  displayName,
+  typeLabel,
+  collapsed,
+  frozen,
+}: {
+  displayName: string;
+  typeLabel: string;
+  collapsed: boolean;
+  frozen: boolean;
+}) {
+  const logout = useAuthStore((state) => state.logout);
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  if (frozen) {
+    return (
+      <div className="shell-user">
+        <AccountCardBody displayName={displayName} typeLabel={typeLabel} collapsed={collapsed} />
+      </div>
+    );
+  }
+
+  async function leave(intent: 'switch' | 'logout') {
+    if (intent === 'switch') {
+      sessionStorage.setItem(LOGIN_HINT_KEY, LOGIN_HINT_SWITCH);
+    }
+    setOpen(false);
+    await logout();
+  }
+
+  return (
+    <div className="shell-user-wrap" ref={rootRef}>
+      {open && (
+        <div className="shell-user-menu" role="menu" aria-label="账号">
+          <button type="button" role="menuitem" onClick={() => void leave('switch')}>
+            切换账号
+          </button>
+          <button type="button" role="menuitem" onClick={() => void leave('logout')}>
+            退出登录
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        className="shell-user"
+        aria-label={`当前账号 ${displayName}，打开账号菜单`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <AccountCardBody displayName={displayName} typeLabel={typeLabel} collapsed={collapsed} />
+      </button>
     </div>
   );
 }

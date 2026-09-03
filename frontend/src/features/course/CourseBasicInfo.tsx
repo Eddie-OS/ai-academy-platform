@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import { App, Col, DatePicker, Form, Input, InputNumber, Row, Select } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Diamond } from 'lucide-react';
 import { ApiError } from '@/shared/api/client';
+import { colorV2 } from '@/shared/theme/designTokensV2';
 import { courseApi, type Course, type CourseForm } from '@/shared/api/courses';
 import { AttachmentField, ATTACHMENT_SCENE_GENERAL } from '@/shared/ui/AttachmentField';
 import { useIsOperator } from '@/shared/store/authStore';
@@ -49,19 +51,20 @@ function EmptyValue() {
 function BasicField({
   label,
   children,
-  span,
   emphasize,
   mono,
 }: {
   label: string;
   children: ReactNode;
-  span?: 'full';
   emphasize?: boolean;
   mono?: boolean;
 }) {
   return (
-    <div className="crs-basic-field" data-span={span} data-emphasize={emphasize} data-mono={mono}>
-      <dt>{label}</dt>
+    <div className="crs-basic-field" data-emphasize={emphasize} data-mono={mono}>
+      <dt>
+        <Diamond size={12} color={colorV2.textPlaceholder} aria-hidden />
+        {label}
+      </dt>
       <dd>{children}</dd>
     </div>
   );
@@ -184,12 +187,12 @@ export function CourseBasicInfo({ course }: { course: Course }) {
           <section className="crs-basic-card">
             <h4>身份与归属</h4>
             <Row gutter={[16, 0]}>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item label="课程ID" extra="系统生成，不可改">
                   <Input value={course.courseNo} disabled />
                 </Form.Item>
               </Col>
-              <Col span={16}>
+              <Col span={12}>
                 <Form.Item
                   label="课程名称"
                   name="courseName"
@@ -198,7 +201,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   <Input maxLength={100} showCount />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="课程所属领域"
                   name="domainCode"
@@ -211,7 +214,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="课程类型"
                   name="categoryCode"
@@ -227,7 +230,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="预计课时"
                   name="classHours"
@@ -236,7 +239,16 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   <InputNumber min={0} max={999} step={0.5} style={{ width: '100%' }} addonAfter="h" />
                 </Form.Item>
               </Col>
-              <Col span={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="课程来源"
+                  name="source"
+                  rules={[{ required: true, message: '请填写课程来源' }]}
+                >
+                  <Input maxLength={200} />
+                </Form.Item>
+              </Col>
+              <Col span={24}>
                 <Form.Item
                   label="课程负责人"
                   name="ownerNos"
@@ -252,15 +264,6 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                       label: `${item.employeeName}（${item.employeeNo}·${item.deptName}）`,
                     }))}
                   />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  label="课程来源"
-                  name="source"
-                  rules={[{ required: true, message: '请填写课程来源' }]}
-                >
-                  <Input maxLength={200} />
                 </Form.Item>
               </Col>
             </Row>
@@ -298,7 +301,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
           <section className="crs-basic-card">
             <h4>周期与标准</h4>
             <Row gutter={[16, 0]}>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="评审轨道"
                   name="reviewTrack"
@@ -308,7 +311,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   <Select options={selectOptions(fieldEnums.data?.[FIELD_ENUM_KEYS.reviewTrack])} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="课程有效期"
                   name="validityPeriod"
@@ -317,7 +320,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   <Select options={selectOptions(fieldEnums.data?.[FIELD_ENUM_KEYS.validityPeriod])} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item label="质量标注" name="qualityMarks" extra="由线下评审决定后标注">
                   <Select
                     mode="multiple"
@@ -326,7 +329,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="立项时间"
                   name="initiatedDate"
@@ -335,7 +338,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="预计发布时间"
                   name="expectPublishDate"
@@ -345,7 +348,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item label="首次发布时间" extra="课程首次进入发布时由系统写入">
                   <Input value={course.firstPublishDate ?? '—'} disabled />
                 </Form.Item>
@@ -393,23 +396,15 @@ export function CourseBasicInfo({ course }: { course: Course }) {
           <section className="crs-basic-card">
             <h4>内容说明</h4>
             <dl className="crs-basic-grid">
-              <BasicField label="课程名称" span="full" emphasize>
+              <BasicField label="课程名称" emphasize>
                 {course.courseName}
               </BasicField>
-              <BasicField label="面向人群" span="full">
+              <BasicField label="面向人群">
                 {textOrEmpty(course.targetAudience)}
               </BasicField>
+              <BasicField label="简介">{textOrEmpty(course.summary)}</BasicField>
+              <BasicField label="备注">{textOrEmpty(course.remark)}</BasicField>
             </dl>
-            <div className="crs-basic-prose-row">
-              <div className="crs-basic-prose">
-                <span>简介</span>
-                <p data-empty={!course.summary?.trim()}>{course.summary?.trim() || '—'}</p>
-              </div>
-              <div className="crs-basic-prose">
-                <span>备注</span>
-                <p data-empty={!course.remark?.trim()}>{course.remark?.trim() || '—'}</p>
-              </div>
-            </div>
           </section>
 
           <section className="crs-basic-card">
@@ -437,7 +432,7 @@ export function CourseBasicInfo({ course }: { course: Course }) {
                   </ul>
                 )}
               </BasicField>
-              <BasicField label="外部链接" span="full">
+              <BasicField label="外部链接">
                 {course.externalLink ? (
                   <a className="crs-basic-link" href={course.externalLink} target="_blank" rel="noreferrer">
                     {course.externalLink}
