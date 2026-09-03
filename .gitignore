@@ -9,6 +9,17 @@ frontend/node_modules/
 frontend/playwright-report/
 frontend/test-results/
 
+# scripts/shot-product.mjs 与 probe-zoom.mjs 的截图输出目录
+frontend/shots/
+
+# 把测试与检查命令的控制台输出重定向到文件时留下的草稿
+backend/backend-test.txt
+frontend/full-test.txt
+frontend/lecturer-test.txt
+frontend/recheck.txt
+frontend/state-literal-violations.txt
+frontend/crs-measure.mjs
+
 # 敏感信息（规则 SEC4／CF：口令与凭据不进代码库）
 .env
 *.pem
