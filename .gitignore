@@ -21,9 +21,20 @@ frontend/state-literal-violations.txt
 frontend/crs-measure.mjs
 
 # 敏感信息（规则 SEC4／CF：口令与凭据不进代码库）
+# .env.example 是不含密值的模板，必须留在库里：服务器初始化要照它填 .env
 .env
+.env.*
+!.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+cookies.txt
+
+# 归档包：与同名目录内容重复，仅用于对外传输
+*.rar
+*.zip
+*.7z
 
 # IDE
 .idea/
