@@ -14,6 +14,7 @@ import java.time.OffsetDateTime;
  * @param lecturerName        授课讲师姓名，同上
  * @param actualAttendeeCount 实际签到人数（需求 11.4 第 14 项）：签到状态＝已签到的记录数，实时 COUNT
  * @param attendanceImported  是否已导入签到（需求 11.9 的筛选项）
+ * @param averageScore        学员反馈均分，一位小数；无反馈为 null，界面「—」
  */
 public record TrainingSessionVO(
         Long id,
@@ -39,6 +40,7 @@ public record TrainingSessionVO(
         Integer actualAttendeeCount,
         Boolean attendanceImported,
         String sessionState,
+        BigDecimal averageScore,
         String remark,
         OffsetDateTime createdAt,
         String createdBy,
@@ -54,7 +56,7 @@ public record TrainingSessionVO(
                 s.getTrainingDate(), s.getStartTime(), s.getEndTime(), s.getDurationHours(),
                 s.getTrainingForm(), s.getVenue(), s.getOnlineLink(), s.getStudentScope(),
                 s.getPlanAttendeeCount(), s.getActualAttendeeCount(), s.getAttendanceImported(),
-                s.getSessionState(), s.getRemark(),
+                s.getSessionState(), s.getAverageScore(), s.getRemark(),
                 s.getCreatedAt(), s.getCreatedBy(),
                 s.getLastStateChangedAt(), s.getUpdatedAt(), s.getUpdatedBy());
     }

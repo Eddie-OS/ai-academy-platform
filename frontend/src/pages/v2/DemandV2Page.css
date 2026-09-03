@@ -46,9 +46,14 @@ html:not([data-regression]) .dmd-search {
   height: var(--control-compact-h);
 }
 
+/*
+ * 字段名与它的下拉之间 4px，控件与控件之间 8px（行的 gap）。
+ * 这里原先也是 8px —— 两个间距一样大时，「所属领域」到底是左边那格的名还是
+ * 右边那格的名要靠猜。4px 与本页回归态、课程／培训产品态同值，四页一档。
+ */
 html:not([data-regression]) .dmd-filter {
   flex: 0 0 auto;
-  gap: var(--space-v2-2);
+  gap: var(--space-v2-1);
 }
 
 html:not([data-regression]) .dmd-filter .dmd-control,

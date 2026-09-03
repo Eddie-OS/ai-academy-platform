@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App, Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
+import { App, Button, Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ApiError } from '@/shared/api/client';
@@ -11,6 +11,7 @@ import {
   useEmployees,
   useStates,
 } from './trainingMeta';
+import '@/shared/theme/form-modal-v2.css';
 import './trainingPlanFormModal.css';
 
 /**
@@ -39,6 +40,7 @@ interface TrainingPlanFormModalProps {
   onClose: () => void;
   onCreated?: (id: number) => void;
   onUpdated?: () => void;
+  onDeleted?: () => void;
 }
 
 interface FormValues {
@@ -57,8 +59,9 @@ export function TrainingPlanFormModal({
   onClose,
   onCreated,
   onUpdated,
+  onDeleted,
 }: TrainingPlanFormModalProps) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const employees = useEmployees();
   const planStates = useStates(TRAINING_OBJECT_TYPE_CODES.plan, TRAINING_STATE_FIELDS.plan);
@@ -117,6 +120,15 @@ export function TrainingPlanFormModal({
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
   });
 
+  const remove = useMutation({
+    mutationFn: () => trainingApi.deletePlan(plan!.id),
+    onSuccess: () => {
+      message.success('培训计划已删除');
+      onDeleted?.();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '删除失败，请重试'),
+  });
+
   // 编辑时下拉里未必有这门课（关键字没命中），补一条当前值免得显示成空
   const courseOptions = (courses.data?.records ?? []).map((item) => ({
     value: item.id,
@@ -138,24 +150,56 @@ export function TrainingPlanFormModal({
     <Modal
       open={open}
       title={plan ? `编辑培训计划 ${plan.planNo}` : '新建培训计划'}
-      okText="保存"
-      cancelText="取消"
-      width="59.8vw"
-      className="training-plan-form-modal"
-      rootClassName="training-plan-form-modal-root"
-      confirmLoading={save.isPending}
+      width={1100}
+      centered
+      zIndex={1200}
+      className="training-plan-form-modal crs-form-modal"
+      rootClassName="crs-form-modal-root"
       destroyOnHidden
       onCancel={onClose}
-      // 校验不通过时 validateFields 会 reject，错误已由表单在字段下显示，这里咽掉即可
-      onOk={() => void form.validateFields().then((values) => save.mutateAsync(values)).catch(() => undefined)}
+      footer={
+        <>
+          {plan ? (
+            <Button
+              className="crs-form-modal-delete"
+              danger
+              disabled={save.isPending}
+              loading={remove.isPending}
+              onClick={() =>
+                modal.confirm({
+                  title: `删除培训计划「${plan.planNo}」？`,
+                  content: '该计划下还有场次时不能删除，请先在「培训场次记录」里删除场次。',
+                  okText: '删除',
+                  cancelText: '取消',
+                  okButtonProps: { danger: true },
+                  onOk: () => remove.mutateAsync(),
+                })
+              }
+            >
+              删除
+            </Button>
+          ) : null}
+          <Button onClick={onClose}>取消</Button>
+          <Button
+            type="primary"
+            loading={save.isPending}
+            disabled={remove.isPending}
+            onClick={() =>
+              void form.validateFields().then((values) => save.mutateAsync(values)).catch(() => undefined)
+            }
+          >
+            保存
+          </Button>
+        </>
+      }
     >
       <Form
         form={form}
         layout="vertical"
-        requiredMark={false}
+        requiredMark
         data-testid="training-plan-form"
       >
-        <Row gutter={[16, 4]}>
+        <Row gutter={[16, 0]}>
           <Col span={12}>
             <Form.Item
               label="培训计划编号"

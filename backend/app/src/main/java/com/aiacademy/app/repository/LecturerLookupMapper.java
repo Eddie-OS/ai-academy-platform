@@ -20,8 +20,8 @@ public interface LecturerLookupMapper {
     @Select("SELECT COUNT(1) FROM biz_lecturer WHERE id = #{lecturerId} AND deleted = FALSE")
     boolean exists(@Param("lecturerId") long lecturerId);
 
-    /** 试讲记录列表要显示讲师姓名，否则页面上只有一个 ID。 */
-    @Select("SELECT lecturer_name FROM biz_lecturer WHERE id = #{lecturerId} AND deleted = FALSE")
+    /** 试讲／场次列表要显示讲师姓名，否则页面上只有一个 ID。已逻辑删除的也查——历史场次还挂着这个人。 */
+    @Select("SELECT lecturer_name FROM biz_lecturer WHERE id = #{lecturerId}")
     String nameOf(@Param("lecturerId") long lecturerId);
 
     /**
@@ -68,7 +68,7 @@ public interface LecturerLookupMapper {
             <script>
             SELECT id, lecturer_no, lecturer_name, training_state, pool_state
               FROM biz_lecturer
-             WHERE deleted = FALSE AND id IN
+             WHERE id IN
              <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
             </script>
             """)
@@ -77,7 +77,7 @@ public interface LecturerLookupMapper {
     @Select("""
             SELECT id, lecturer_no, lecturer_name, training_state, pool_state
               FROM biz_lecturer
-             WHERE deleted = FALSE AND id = #{id}
+             WHERE id = #{id}
             """)
     LecturerRef findRefById(@Param("id") long id);
 

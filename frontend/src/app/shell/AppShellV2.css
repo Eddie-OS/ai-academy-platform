@@ -179,6 +179,12 @@ html[data-regression] .shell {
 /* 底部用户卡固定（4.1） */
 .shell-user-wrap {
   position: relative;
+  align-self: stretch;
+}
+
+.shell-user-wrap .shell-user {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--space-v2-2));
 }
 
 .shell-user {
@@ -193,8 +199,6 @@ html[data-regression] .shell {
 }
 
 button.shell-user {
-  box-sizing: border-box;
-  align-self: stretch;
   font-family: inherit;
   text-align: left;
   cursor: pointer;

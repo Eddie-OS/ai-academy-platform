@@ -84,6 +84,8 @@ export interface TrainingSession {
   actualAttendeeCount: number;
   attendanceImported: boolean;
   sessionState: string;
+  /** 学员反馈均分，一位小数；无反馈为 null → 界面「—」 */
+  averageScore?: string | null;
   remark: string | null;
   createdAt?: string | null;
   createdBy?: string | null;

@@ -814,6 +814,11 @@ export function DemandV2Page() {
             setEditing(false);
             invalidateDemandGraph(queryClient);
           }}
+          onDeleted={() => {
+            setEditing(false);
+            setDetailOpen(false);
+            invalidateDemandGraph(queryClient);
+          }}
         />
       )}
     </DemandV2Context.Provider>

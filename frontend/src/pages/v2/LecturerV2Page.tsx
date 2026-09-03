@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BadgeCheck,
   ChevronDown,
@@ -126,6 +126,8 @@ const EMPTY_POOL_FILTERS: LecturerPoolFilters = {
   duty: '',
 };
 
+type PoolCard = LecturerCard & { liveId?: number };
+
 interface LecturerV2ContextValue {
   regression: boolean;
   selectedId: string;
@@ -137,7 +139,8 @@ interface LecturerV2ContextValue {
   peek: FieldPeek | null;
   openPeek: (peek: FieldPeek) => void;
   closePeek: () => void;
-  requestEdit: (card: LecturerCard) => void;
+  requestEdit: (card: PoolCard) => void;
+  poolCards: PoolCard[];
 }
 
 const LecturerV2Context = createContext<LecturerV2ContextValue | null>(null);
@@ -159,20 +162,47 @@ export function LecturerV2Page() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTarget, setEditTarget] = useState<Lecturer | undefined>();
+  const livePool = useQuery({
+    queryKey: ['lecturers', 'v2-pool'],
+    queryFn: () => lecturerApi.page({}, 1, 200),
+    enabled: !regression,
+  });
+  const poolCards = useMemo<PoolCard[]>(() => {
+    if (regression) return LECTURER_POOL;
+    const records = livePool.data?.records;
+    if (records && records.length > 0) return records.map(lecturerToPoolCard);
+    return LECTURER_POOL;
+  }, [regression, livePool.data]);
 
   const setFilter = useCallback(<K extends keyof LecturerPoolFilters>(key: K, value: LecturerPoolFilters[K]) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   useEffect(() => {
+    if (regression || poolCards.length === 0) return;
+    if (!poolCards.some((card) => card.id === selectedId)) {
+      setSelectedId(poolCards[0]!.id);
+    }
+  }, [regression, poolCards, selectedId, setSelectedId]);
+
+  useEffect(() => {
     if (regression) return;
     return registerShellCreate(() => setCreating(true));
   }, [regression]);
 
-  const requestEdit = useCallback(async (card: LecturerCard) => {
+  const requestEdit = useCallback(async (card: PoolCard) => {
     try {
-      const page = await lecturerApi.page({ keyword: card.id }, 1, 20);
-      const found = page.records.find((row) => row.lecturerNo === card.id);
+      if (card.liveId) {
+        setEditTarget(await lecturerApi.detail(card.liveId));
+        setEditing(true);
+        return;
+      }
+      const byNo = await lecturerApi.page({ keyword: card.id }, 1, 20);
+      const found =
+        byNo.records.find((row) => row.lecturerNo === card.id)
+        ?? (await lecturerApi.page({ keyword: card.name }, 1, 20)).records.find(
+          (row) => row.lecturerName === card.name,
+        );
       if (!found) {
         message.info('演示数据无法保存，请先「新建讲师」后再编辑');
         return;
@@ -197,8 +227,9 @@ export function LecturerV2Page() {
       openPeek: setPeek,
       closePeek: () => setPeek(null),
       requestEdit,
+      poolCards,
     }),
-    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit],
+    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit, poolCards],
   );
 
   return (
@@ -236,6 +267,11 @@ export function LecturerV2Page() {
             setEditTarget(undefined);
             void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
           }}
+          onDeleted={() => {
+            setEditing(false);
+            setEditTarget(undefined);
+            void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
+          }}
         />
       </div>
     </LecturerV2Context.Provider>
@@ -268,12 +304,26 @@ const KPI_DELTA_BASELINE = '月度环比（较上月）';
  * 四个语义色不得出现在装饰图形里。产品模式改成与课程工作台同一套：标签顶左、
  * 28px 色底板顶右、大数字、脚注「↑ n% 月度环比（较上月）」。
  */
+function liveKpiValue(id: LecturerKpiId, cards: readonly PoolCard[]): string {
+  if (id === 'poolSize') return String(cards.length);
+  if (id === 'qualified') return String(cards.filter((card) => card.trialQualified).length);
+  if (id === 'readyToTeach') return String(cards.filter(lecturerIsReadyToTeach).length);
+  const scores = cards
+    .map((card) => Number(card.avgScore))
+    .filter((score) => Number.isFinite(score));
+  if (scores.length === 0) return '0.00';
+  return (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(2);
+}
+
 function KpiRow() {
-  const { regression, kpiId, setKpiId } = useLecturerV2();
+  const { regression, kpiId, setKpiId, poolCards } = useLecturerV2();
+  const live = !regression && poolCards.some((card) => card.liveId);
   return (
     <section className="lct-kpis" data-region="R3" aria-label="讲师指标概览">
       {LECTURER_KPIS.map((kpi) => {
         const Icon = KPI_ICONS[kpi.icon]!;
+        const value = live ? liveKpiValue(kpi.id, poolCards) : kpi.value;
+        const delta = live ? '—' : kpi.delta;
         if (regression) {
           return (
             <article className="lct-kpi" key={kpi.id} data-testid="lecturer-kpi" data-kpi={kpi.id}>
@@ -316,11 +366,11 @@ function KpiRow() {
               </span>
             </div>
             <p className="lct-kpi-value">
-              <AnimatedNumber value={kpi.value} duration={520} />
+              <AnimatedNumber value={value} duration={520} />
               {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
             </p>
             <p className="lct-kpi-foot">
-              <span className="lct-kpi-delta">{kpi.delta}</span>
+              <span className="lct-kpi-delta">{delta}</span>
               <span className="lct-kpi-baseline">{KPI_DELTA_BASELINE}</span>
             </p>
           </article>
@@ -475,6 +525,21 @@ function ProductFilterField({
   );
 }
 
+function lecturerToPoolCard(row: Lecturer): PoolCard {
+  return {
+    id: row.lecturerNo,
+    liveId: row.id,
+    name: row.lecturerName,
+    dept: row.sourceDept,
+    domains: row.expertiseDomains,
+    trialQualified: row.trialQualified,
+    cultivationStatus: row.trainingState || undefined,
+    teachingCount: row.teachingCount ?? 0,
+    avgScore: row.avgScore ?? '0.0',
+    attendees: row.attendeeCount ?? 0,
+  };
+}
+
 function matchesKpi(card: LecturerCard, kpiId: LecturerKpiId): boolean {
   if (kpiId === 'qualified') return card.trialQualified;
   if (kpiId === 'readyToTeach') return lecturerIsReadyToTeach(card);
@@ -511,8 +576,8 @@ function matchesVisibleCard(
 
 /** R5 讲师池：252,264,812,484 */
 function PoolPanel() {
-  const { kpiId, filters, regression } = useLecturerV2();
-  const visible = LECTURER_POOL.filter((card) => matchesVisibleCard(card, kpiId, filters, regression));
+  const { kpiId, filters, regression, poolCards } = useLecturerV2();
+  const visible = poolCards.filter((card) => matchesVisibleCard(card, kpiId, filters, regression));
   const groups = LECTURER_GROUPS.map((group) => ({
     ...group,
     cards: group.cards.filter((card) => matchesVisibleCard(card, kpiId, filters, regression)),
@@ -524,18 +589,22 @@ function PoolPanel() {
         <h2 className="panel-title lct-sub-title">讲师池</h2>
         <span className="lct-pool-total">共 {visible.length.toLocaleString('en-US')} 人</span>
 
-        <span className="lct-pager">
-          <button type="button" aria-label="上一页">
-            <ChevronLeft size={14} color={colorV2.textTertiary} aria-hidden />
-          </button>
-          <button type="button" aria-label="下一页">
-            <ChevronRight size={14} color={colorV2.textTertiary} aria-hidden />
-          </button>
-        </span>
-        <a className="panel-action" href="/lecturers">
-          查看全部
-          <ChevronRight size={14} aria-hidden />
-        </a>
+        {regression ? (
+          <>
+            <span className="lct-pager">
+              <button type="button" aria-label="上一页">
+                <ChevronLeft size={14} color={colorV2.textTertiary} aria-hidden />
+              </button>
+              <button type="button" aria-label="下一页">
+                <ChevronRight size={14} color={colorV2.textTertiary} aria-hidden />
+              </button>
+            </span>
+            <a className="panel-action" href="/lecturers">
+              查看全部
+              <ChevronRight size={14} aria-hidden />
+            </a>
+          </>
+        ) : null}
       </div>
 
       <div className="lct-pool-body">
@@ -849,21 +918,22 @@ function Conclusion({ value, yesNo }: { value: string; yesNo?: boolean }) {
   );
 }
 
-function selectedCardOf(selectedId: string): LecturerCard | undefined {
+function selectedCardOf(selectedId: string, poolCards: PoolCard[]): PoolCard | undefined {
   return (
-    LECTURER_POOL.find((card) => card.id === selectedId) ??
-    LECTURER_POOL.find((card) => card.id === LECTURER_SELECTED_ID)
+    poolCards.find((card) => card.id === selectedId) ??
+    poolCards.find((card) => card.id === LECTURER_SELECTED_ID) ??
+    poolCards[0]
   );
 }
 
 /** R7 讲师详情：1081,203,481,753 */
 function DetailPanel() {
-  const { regression, selectedId, selectLecturer } = useLecturerV2();
+  const { regression, selectedId, selectLecturer, poolCards } = useLecturerV2();
   const focusedId = useFocusedId(LECTURER_SELECTED_ID);
   const cards = LECTURER_GROUPS.flatMap((group) => group.cards);
   const selected = regression
     ? (cards.find((card) => card.id === focusedId) ?? cards.find((card) => card.id === LECTURER_SELECTED_ID))
-    : selectedCardOf(selectedId);
+    : selectedCardOf(selectedId, poolCards);
   const tabs = regression ? LECTURER_DETAIL_TABS : LECTURER_PRODUCT_TABS;
   const [activeTab, setActiveTab] = useState<string>(
     regression ? LECTURER_DETAIL_TABS[LECTURER_DETAIL_ACTIVE_TAB]! : LECTURER_PRODUCT_TABS[0],

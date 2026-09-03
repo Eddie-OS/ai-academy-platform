@@ -276,17 +276,18 @@ class LecturerPoolIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("SEC2：上过课的讲师不能删除，运营真正要做的是把在池状态改成「已移出」")
-    void 被引用的讲师不能删除() {
+    @DisplayName("SEC2：讲师逻辑删除，上过课也不挡；场次仍挂着原 lecturer_id")
+    void 被引用的讲师可以删除() {
         String employeeNo = 造人员("有课的人", "客服中心");
         long id = lecturers.createManually(表单("有课的人", employeeNo).build());
-        造场次(id, "已结束");
+        long sessionId = 造场次(id, "已结束");
 
-        assertThatThrownBy(() -> lecturers.softDelete(id))
-                .isInstanceOf(BizException.class)
-                .satisfies(e -> assertThat(((BizException) e).errorCode())
-                        .isEqualTo(ErrorCode.BIZ_RULE_VIOLATED))
-                .hasMessageContaining("已移出");
+        lecturers.softDelete(id);
+        assertThat(jdbc.queryForObject(
+                "SELECT deleted FROM biz_lecturer WHERE id = ?", Boolean.class, id)).isTrue();
+        assertThat(jdbc.queryForObject(
+                "SELECT lecturer_id FROM biz_training_session WHERE id = ?", Long.class, sessionId))
+                .isEqualTo(id);
 
         long 没课的 = lecturers.createManually(表单("没课的人", 造人员("没课的人", "客服中心")).build());
         lecturers.softDelete(没课的);

@@ -452,6 +452,11 @@ export function DemandCockpitPage() {
             setEditing(false);
             invalidateDemandGraph(queryClient);
           }}
+          onDeleted={() => {
+            setEditing(false);
+            invalidateDemandGraph(queryClient);
+            navigate('/demands');
+          }}
         />
       )}
     </>

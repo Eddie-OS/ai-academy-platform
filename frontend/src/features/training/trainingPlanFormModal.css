@@ -1,25 +1,20 @@
 /*
- * 新建／编辑培训计划：按标注红框落在主区中央。
- * 红框在 1024×524 截图上量得 234,66,612×368
- * → 22.9vw / 12.6vh / 59.8vw / 70.2vh。
- * 标题与底栏不滚；表体只纵向滚，禁止横向溢出。
+ * 培训弹窗的公共壳层，「新建／编辑培训计划」与「培训详情」（TrainingProductDetail）共用。
+ *
+ * ## 尺寸与字号已上交给 shared/theme/form-modal-v2.css
+ *
+ * 新建计划原先按标注红框绝对定位（top 12.6vh / left 22.9vw / 59.8vw × 70.2vh）。
+ * 那套值只在量它的那张 1024×524 截图上成立：换个窗口比例，弹窗就不在主区中央；
+ * 而同一个驾驶舱里的详情弹窗走的是 1100×1200 居中（TrainingProductDetail.css），
+ * 于是同一排按钮弹出两种大小、两个位置的窗口。现在两者的外框都由 .crs-form-modal 给。
+ *
+ * 本文件只留两类规则：撑满高度的 flex 骨架（详情弹窗的页签与正文分区靠它），
+ * 以及禁止横向溢出的栅格兜底。
  */
-.training-plan-form-modal-root .ant-modal.training-plan-form-modal {
-  top: 12.6vh !important;
-  left: 22.9vw !important;
-  width: 59.8vw !important;
-  max-width: none;
-  height: 70.2vh;
-  margin: 0 !important;
-  padding-bottom: 0;
-  overflow: hidden;
-}
 
 .training-plan-form-modal-root .ant-modal-content {
   display: flex;
   flex-direction: column;
-  height: 70.2vh;
-  max-height: 70.2vh;
   overflow: hidden;
 }
 
@@ -28,13 +23,13 @@
   flex-shrink: 0;
 }
 
+/* 表体只纵向滚，禁止横向溢出 */
 .training-plan-form-modal-root .ant-modal-body {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-top: 8px;
 }
 
 .training-plan-form-modal-root .ant-form,
@@ -45,10 +40,6 @@
 
 .training-plan-form-modal-root .ant-col {
   min-width: 0;
-}
-
-.training-plan-form-modal-root .ant-form-item {
-  margin-bottom: 16px;
 }
 
 .training-plan-form-modal-root .ant-select,

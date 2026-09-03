@@ -1,5 +1,7 @@
 package com.aiacademy.business.training.domain;
 
+import java.math.BigDecimal;
+
 /**
  * 培训场次列表的一行（需求 11.9 的默认展示列）与日历卡片的数据源（需求 11.8 P4-1）。
  *
@@ -17,6 +19,9 @@ public class TrainingSessionListItem extends TrainingSession {
 
     /** 是否已导入签到（需求 11.9 的筛选项之一）：本场次有没有任何签到记录。 */
     private Boolean attendanceImported;
+
+    /** 学员反馈均分，一位小数。无反馈为 null，界面显示「—」，不要当成 0。 */
+    private BigDecimal averageScore;
 
     public String getPlanNo() {
         return planNo;
@@ -48,5 +53,13 @@ public class TrainingSessionListItem extends TrainingSession {
 
     public void setAttendanceImported(Boolean attendanceImported) {
         this.attendanceImported = attendanceImported;
+    }
+
+    public BigDecimal getAverageScore() {
+        return averageScore;
+    }
+
+    public void setAverageScore(BigDecimal averageScore) {
+        this.averageScore = averageScore;
     }
 }

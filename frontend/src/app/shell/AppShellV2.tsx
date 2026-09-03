@@ -230,11 +230,12 @@ export function AppShellV2() {
               badge={PENDING_ESCALATION_TOTAL}
             />
             <ShellIconAction icon={ClipboardCheck} label="评审记录" to="/reviews" />
-            {/* 需求、课程、培训的登记入口在筛选行，顶栏再放一颗「新建」会被当成第二个入口。
-                培训回归页仍留顶栏按钮，避免改 p05 顶栏几何。 */}
+            {/* 需求、课程、培训的登记入口在筛选行；总看板没有可建对象，
+                顶栏再放一颗「新建」点下去什么都不发生。
+                培训／总看板的回归页仍留顶栏按钮，避免改 p01／p05 顶栏几何。 */}
             {pageKey !== 'requirement'
               && pageKey !== 'course'
-              && (regression || pageKey !== 'training')
+              && (regression || (pageKey !== 'training' && pageKey !== 'dashboard'))
               && <ShellCreateButton />}
             <button type="button" className="shell-help" aria-label="帮助">
               <HelpCircle size={ICON_SIZE} strokeWidth={ICON_STROKE} />

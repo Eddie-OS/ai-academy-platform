@@ -18,10 +18,10 @@ function account(operator: boolean): AccountInfo {
   };
 }
 
-function renderShell(operator: boolean) {
+function renderShell(operator: boolean, path = '/') {
   useAuthStore.setState({ account: account(operator), resolved: true });
   return render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={[path]}>
       <AppShellV2 />
     </MemoryRouter>,
   );
@@ -109,10 +109,15 @@ describe('AppShellV2（壳层的写操作入口可见性）', () => {
     expect(logout).toHaveBeenCalledTimes(2);
   });
 
+  it('总看板产品模式不渲染顶栏新建：总看板没有可建对象，按钮在等于坏了', () => {
+    renderShell(true, '/');
+    expect(screen.queryByRole('button', { name: '新建' })).toBeNull();
+  });
+
   it('点顶栏新建会通知当前页，没人登记时不报错', () => {
     const seen = vi.fn();
     const stop = registerShellCreate(seen);
-    renderShell(true);
+    renderShell(true, '/lecturers');
     fireEvent.click(screen.getByRole('button', { name: '新建' }));
     expect(seen).toHaveBeenCalledTimes(1);
     stop();

@@ -389,7 +389,7 @@ export function CourseCockpitPage() {
               activeKey={detailTab}
               onChange={setDetailTab}
               items={[
-                { key: 'basic', label: '基本信息', children: data ? <CourseBasicInfo course={data} /> : null },
+                { key: 'basic', label: '基本信息', children: data ? <CourseBasicInfo course={data} onDeleted={closeDetail} /> : null },
                 { key: 'initiate', label: '立项', children: data ? <CourseInitiateTab course={data} /> : null },
                 { key: 'develop', label: '开发', children: data ? <CourseDevelopTab course={data} /> : null },
                 { key: 'selfcheck', label: '自检', children: data ? <CourseSelfcheckTab course={data} /> : null },
@@ -421,6 +421,11 @@ export function CourseCockpitPage() {
           onUpdated={() => {
             setEditing(false);
             invalidateCourseListAndMetrics(queryClient);
+          }}
+          onDeleted={() => {
+            setEditing(false);
+            invalidateCourseListAndMetrics(queryClient);
+            closeDetail();
           }}
         />
       )}

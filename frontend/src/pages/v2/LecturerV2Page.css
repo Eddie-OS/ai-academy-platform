@@ -1326,32 +1326,58 @@ html:not([data-regression]) .lct-main {
   height: auto;
   flex: 753 1 0;
   min-height: 753px;
+  /* 与需求／课程同一档：KPI 行到筛选行 18px。回归态仍是画布量得的 27px */
+  margin-top: 18px;
   margin-bottom: var(--space-v2-6);
 }
 
 /*
- * 产品筛选：搜索只占短栏，七个下拉均分剩下的宽度。
- * min-width 按最长选项留够（市场营销部=5，暂停授课=4），选完不会裁字。
+ * 产品筛选行对齐需求／课程两个基准（用户口径：以 P02、P03 为标准）。四项差异：
+ *
+ * 1. <b>补上卡片外框。</b>原先 .lct-filters 是裸条：无边框、无底色、无内边距，
+ *    七个下拉直接浮在正文画布上，下面紧跟着的讲师池<b>是</b>一张白卡 ——
+ *    读起来筛选条像是讲师池的一部分，而它管的是整个左栏三块。
+ * 2. <b>字段名从「控件上方 11px」改成「控件左侧 13px」。</b>11px 已经低于设计规范
+ *    的正文最小档，且与需求／课程同一位置的字段名差两档，四页并排看时字号在跳。
+ * 3. 内边距 10px → 8px、字段名与控件间距 0 → 4px，与另外三页同值。
+ * 4. 高度不再锁 45px（那是"名在上"两行叠起来的高度），改成与需求／课程同一式
+ *    「8 + 控件 + 8」；装不下就按 flex-wrap 折成两行，与课程回归态的 80px 两行同形。
+ *
+ * 字段宽度仍按 --lct-chars 逐项算（市场营销部=5、暂停授课=4），只是 min-width 从
+ * .lct-field 挪到 .lct-select 上 —— 名在左之后，字段整体宽度里含字段名，
+ * 留在 .lct-field 上算会把字段名的宽度当成下拉的宽度，最长的选项仍会被裁。
  */
 html:not([data-regression]) .lct-filters {
   flex: 0 0 auto;
   height: auto;
+  align-items: center;
   flex-wrap: wrap;
   row-gap: var(--space-v2-2);
+  min-height: calc(var(--space-v2-2) * 2 + var(--control-compact-h));
+  padding: var(--space-v2-2) var(--card-pad);
+  border: var(--border-v2);
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
 }
 
 html:not([data-regression]) .lct-field {
   --lct-chars: 3;
-  flex: 1 1 0;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-v2-1);
+  flex: 0 0 auto;
   width: auto;
-  min-width: max(
-    calc(var(--type-table-size) * var(--lct-chars) + var(--control-compact-pad-x) + 24px),
-    calc(var(--fs-11) * 4 + 2px)
-  );
+  min-width: 0;
 }
 
 html:not([data-regression]) .lct-field:nth-of-type(3) {
-  flex: 1 1 0;
+  flex: 0 0 auto;
+}
+
+html:not([data-regression]) .lct-field-label {
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
 }
 
 html:not([data-regression]) .lct-field[data-filter='sourceDept'] { --lct-chars: 5; }
@@ -1367,10 +1393,15 @@ html:not([data-regression]) .lct-field-label {
   text-overflow: unset;
 }
 
+/*
+ * 搜索框定宽而不是 flex:1，与需求那一行同理（那边是 240px）。
+ * 它排在七个下拉之前，给它 grow 的话第一行会被它吃光，七个下拉整排被挤到第二行。
+ */
 html:not([data-regression]) .lct-search {
-  flex: 0 0 calc(var(--type-table-size) * 7 + 38px);
+  flex: 0 0 200px;
   min-width: 0;
-  max-width: calc(var(--type-table-size) * 7 + 38px);
+  max-width: 200px;
+  padding: 0 var(--space-v2-2);
 }
 
 html:not([data-regression]) .lct-search input {
@@ -1379,8 +1410,9 @@ html:not([data-regression]) .lct-search input {
 
 html:not([data-regression]) .lct-select {
   position: relative;
-  width: 100%;
-  padding-right: 22px;
+  width: auto;
+  min-width: calc(var(--type-table-size) * var(--lct-chars) + var(--space-v2-2) + 24px);
+  padding: 0 22px 0 var(--space-v2-2);
   cursor: default;
 }
 
@@ -1390,7 +1422,7 @@ html:not([data-regression]) .lct-select select {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 0 22px 0 var(--control-compact-pad-x);
+  padding: 0 22px 0 var(--space-v2-2);
   border: 0;
   background: transparent;
   color: inherit;

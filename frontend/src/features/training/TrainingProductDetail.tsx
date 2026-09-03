@@ -1,8 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Modal, Spin } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { Button, Modal, Spin } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pencil } from 'lucide-react';
 import { TRAINING_PRODUCT_DETAIL_TABS } from '@/fixtures/training';
 import { trainingApi, type TrainingPlan, type TrainingSession } from '@/shared/api/trainings';
+import { useIsOperator } from '@/shared/store/authStore';
+import { TrainingPlanFormModal } from './TrainingPlanFormModal';
 import { TrainingProductSessions } from './TrainingProductSessions';
 import { TrainingProductAttendees } from './TrainingProductAttendees';
 import { TrainingProductArchive } from './TrainingProductArchive';
@@ -20,27 +23,37 @@ type ProductTab = (typeof TRAINING_PRODUCT_DETAIL_TABS)[number];
  */
 
 interface TrainingProductDetailProps {
-  sessionId: string;
+  sessionId?: string | null;
+  planId?: number | null;
+  initialTab?: ProductTab;
   onClose: () => void;
 }
 
-export function TrainingProductDetail({ sessionId, onClose }: TrainingProductDetailProps) {
+export function TrainingProductDetail({
+  sessionId,
+  planId: openedPlanId,
+  initialTab,
+  onClose,
+}: TrainingProductDetailProps) {
+  const queryClient = useQueryClient();
   const numericId = Number(sessionId);
-  const live = Number.isFinite(numericId) && numericId > 0;
-  const [tab, setTab] = useState<ProductTab>('基本信息');
-  const [focusSessionId, setFocusSessionId] = useState<number | null>(live ? numericId : null);
+  const liveSession = Number.isFinite(numericId) && numericId > 0;
+  const [tab, setTab] = useState<ProductTab>(initialTab ?? '基本信息');
+  const [focusSessionId, setFocusSessionId] = useState<number | null>(liveSession ? numericId : null);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    setTab('基本信息');
-    setFocusSessionId(live ? numericId : null);
-  }, [live, numericId]);
+    setTab(initialTab ?? '基本信息');
+    setFocusSessionId(liveSession ? numericId : null);
+  }, [liveSession, numericId, openedPlanId, initialTab]);
 
   const session = useQuery({
     queryKey: ['training-sessions', numericId],
     queryFn: () => trainingApi.session(numericId),
-    enabled: live,
+    enabled: liveSession,
   });
-  const planId = session.data?.planId;
+  const planId = openedPlanId ?? session.data?.planId;
+  const hasTarget = liveSession || openedPlanId != null;
   const plan = useQuery({
     queryKey: ['training-plans', planId],
     queryFn: () => trainingApi.plan(planId!),
@@ -57,9 +70,10 @@ export function TrainingProductDetail({ sessionId, onClose }: TrainingProductDet
     ? rows.reduce((sum, row) => sum + (row.actualAttendeeCount ?? 0), 0)
     : null;
   const lecturers = planSessions.isSuccess ? uniqueLecturers(rows) : '—';
-  const activeSessionId = focusSessionId ?? (live ? numericId : null);
+  const activeSessionId = focusSessionId ?? (liveSession ? numericId : null);
 
   return (
+    <>
     <Modal
       open
       title={
@@ -93,13 +107,13 @@ export function TrainingProductDetail({ sessionId, onClose }: TrainingProductDet
         </nav>
 
         <div className="trn-prod-body">
-          {!live ? (
+          {!hasTarget ? (
             <p className="trn-prod-empty">这条场次没有可查询的计划编号，无法打开详情。</p>
-          ) : session.isLoading || (live && planId != null && plan.isLoading) ? (
+          ) : (liveSession && session.isLoading) || (planId != null && plan.isLoading) ? (
             <div className="trn-prod-loading">
               <Spin />
             </div>
-          ) : session.isError ? (
+          ) : liveSession && session.isError ? (
             <p className="trn-prod-empty">没有取到这场培训，可能已被删除。</p>
           ) : plan.isError || !plan.data ? (
             <p className="trn-prod-empty">没有取到这条培训计划，可能已被删除。</p>
@@ -112,11 +126,32 @@ export function TrainingProductDetail({ sessionId, onClose }: TrainingProductDet
               session={rows.find((row) => row.id === activeSessionId) ?? session.data ?? null}
               sessionId={activeSessionId}
               onSelectSession={(row) => setFocusSessionId(row.id)}
+              onEditPlan={() => setEditing(true)}
             />
           )}
         </div>
       </div>
     </Modal>
+      {editing && plan.data ? (
+        <TrainingPlanFormModal
+          open={editing}
+          plan={plan.data}
+          onClose={() => setEditing(false)}
+          onUpdated={() => {
+            setEditing(false);
+            void queryClient.invalidateQueries({ queryKey: ['training-plans'] });
+            void queryClient.invalidateQueries({ queryKey: ['training-sessions'] });
+          }}
+          onDeleted={() => {
+            setEditing(false);
+            void queryClient.invalidateQueries({ queryKey: ['training-plans'] });
+            void queryClient.invalidateQueries({ queryKey: ['training-sessions'] });
+            void queryClient.invalidateQueries({ queryKey: ['metrics'] });
+            onClose();
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -128,6 +163,7 @@ function ProductTabBody({
   session,
   sessionId,
   onSelectSession,
+  onEditPlan,
 }: {
   tab: ProductTab;
   plan: TrainingPlan;
@@ -136,10 +172,16 @@ function ProductTabBody({
   session: TrainingSession | null;
   sessionId: number | null;
   onSelectSession: (session: TrainingSession) => void;
+  onEditPlan: () => void;
 }) {
   if (tab === '基本信息') {
     return (
-      <BasicInfoFields plan={plan} attendeeTotal={attendeeTotal} lecturers={lecturers} />
+      <BasicInfoFields
+        plan={plan}
+        attendeeTotal={attendeeTotal}
+        lecturers={lecturers}
+        onEdit={onEditPlan}
+      />
     );
   }
   if (tab === '培训场次记录') {
@@ -183,13 +225,24 @@ function BasicInfoFields({
   plan,
   attendeeTotal,
   lecturers,
+  onEdit,
 }: {
   plan: TrainingPlan;
   attendeeTotal: number | null;
   lecturers: string;
+  onEdit: () => void;
 }) {
+  const isOperator = useIsOperator();
   return (
     <div className="trn-prod-info" aria-label="培训计划基本信息">
+      {isOperator ? (
+        <div className="trn-prod-info-head">
+          <h3 className="trn-prod-section-title">基本信息</h3>
+          <Button size="small" icon={<Pencil size={13} />} onClick={onEdit}>
+            编辑
+          </Button>
+        </div>
+      ) : null}
       <section className="trn-prod-section">
         <h3 className="trn-prod-section-title">计划标识</h3>
         <dl className="trn-prod-kv">

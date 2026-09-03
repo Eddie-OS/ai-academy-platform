@@ -78,6 +78,7 @@ describe('TrainingPlanFormModal', () => {
     expect(screen.getByText('保存后由系统写入初始状态')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('关联场次后自动汇总')).toBeDisabled();
     expect(screen.getByPlaceholderText('导入签到后自动汇总')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /删\s*除/ })).toBeNull();
     expect(screen.getByPlaceholderText('完成后自动写入')).toBeDisabled();
     expect(screen.getByText('排场次时从讲师池选择')).toBeInTheDocument();
   });

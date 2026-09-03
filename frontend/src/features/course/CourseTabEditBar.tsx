@@ -9,21 +9,30 @@ import { space } from '@/shared/theme/designTokens';
 export function CourseTabEditBar({
   editing,
   saving,
+  deleting,
   saveDisabled,
   onEdit,
   onCancel,
   onSave,
+  onDelete,
 }: {
   editing: boolean;
   saving?: boolean;
+  deleting?: boolean;
   saveDisabled?: boolean;
   onEdit: () => void;
   onCancel: () => void;
   onSave: () => void;
+  onDelete?: () => void;
 }) {
   if (editing) {
     return (
       <Space size={space.xs} className="crs-tab-edit-bar">
+        {onDelete ? (
+          <Button size="small" danger loading={deleting} disabled={saving} onClick={onDelete}>
+            删除
+          </Button>
+        ) : null}
         <Button size="small" icon={<X size={14} />} onClick={onCancel}>
           取消
         </Button>
@@ -32,7 +41,7 @@ export function CourseTabEditBar({
           type="primary"
           icon={<Save size={14} />}
           loading={saving}
-          disabled={saveDisabled}
+          disabled={saveDisabled || deleting}
           onClick={onSave}
         >
           保存

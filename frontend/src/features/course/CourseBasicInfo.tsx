@@ -78,8 +78,8 @@ function textOrEmpty(value: string | null | undefined) {
 /**
  * 课程详情「基本信息」页签。默认只读分三组卡；运营点编辑后按立项表单同一套字段保存。
  */
-export function CourseBasicInfo({ course }: { course: Course }) {
-  const { message } = App.useApp();
+export function CourseBasicInfo({ course, onDeleted }: { course: Course; onDeleted?: () => void }) {
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const isOperator = useIsOperator();
   const dicts = useDicts();
@@ -150,6 +150,17 @@ export function CourseBasicInfo({ course }: { course: Course }) {
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
   });
 
+  const remove = useMutation({
+    mutationFn: () => courseApi.remove(course.id),
+    onSuccess: () => {
+      message.success('课程已删除');
+      setEditing(false);
+      invalidateCourseListAndMetrics(queryClient);
+      onDeleted?.();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '删除失败，请重试'),
+  });
+
   const startEdit = () => {
     fill();
     setEditing(true);
@@ -166,12 +177,23 @@ export function CourseBasicInfo({ course }: { course: Course }) {
           <CourseTabEditBar
             editing={editing}
             saving={save.isPending}
+            deleting={remove.isPending}
             onEdit={startEdit}
             onCancel={() => {
               fill();
               setEditing(false);
             }}
             onSave={() => form.submit()}
+            onDelete={() =>
+              modal.confirm({
+                title: `删除课程「${course.courseNo}」？`,
+                content: '删除后课程工作台不再显示这门课。已发生的培训与案例不会被删。',
+                okText: '删除',
+                cancelText: '取消',
+                okButtonProps: { danger: true },
+                onOk: () => remove.mutateAsync(),
+              })
+            }
           />
         )}
       </header>

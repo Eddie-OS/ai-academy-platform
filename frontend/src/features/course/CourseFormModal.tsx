@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { App, Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
+import { App, Button, Col, DatePicker, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ApiError } from '@/shared/api/client';
@@ -14,6 +14,7 @@ import {
   useEmployees,
   useFieldEnums,
 } from './courseMeta';
+import '@/shared/theme/form-modal-v2.css';
 import './courseFormModal.css';
 
 const ATTACHMENT_ACCEPT = '.doc,.docx,.ppt,.pptx,.pdf,.xls,.xlsx,.zip';
@@ -39,6 +40,7 @@ interface CourseFormModalProps {
   onClose: () => void;
   onCreated?: (id: number) => void;
   onUpdated?: () => void;
+  onDeleted?: () => void;
 }
 
 interface FormValues {
@@ -59,8 +61,8 @@ interface FormValues {
   qualityMarks?: string[];
 }
 
-export function CourseFormModal({ open, course, onClose, onCreated, onUpdated }: CourseFormModalProps) {
-  const { message } = App.useApp();
+export function CourseFormModal({ open, course, onClose, onCreated, onUpdated, onDeleted }: CourseFormModalProps) {
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const fieldEnums = useFieldEnums();
   const dicts = useDicts();
@@ -143,22 +145,61 @@ export function CourseFormModal({ open, course, onClose, onCreated, onUpdated }:
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
   });
 
+  const remove = useMutation({
+    mutationFn: () => courseApi.remove(course!.id),
+    onSuccess: () => {
+      message.success('课程已删除');
+      onDeleted?.();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '删除失败，请重试'),
+  });
+
   return (
     <Modal
       open={open}
       title={course ? `编辑课程 ${course.courseNo}` : '新建课程'}
-      okText="保存"
-      cancelText="取消"
-      width={1120}
+      width={1100}
       centered
-      className="course-form-modal"
+      zIndex={1200}
+      className="course-form-modal crs-form-modal"
+      rootClassName="crs-form-modal-root"
       destroyOnHidden
-      confirmLoading={save.isPending}
       onCancel={onClose}
-      onOk={() => {
-        void form.validateFields().then((values) => save.mutateAsync(values));
-      }}
-      styles={{ body: { paddingTop: 8 } }}
+      footer={
+        <>
+          {course ? (
+            <Button
+              className="crs-form-modal-delete"
+              danger
+              disabled={save.isPending}
+              loading={remove.isPending}
+              onClick={() =>
+                modal.confirm({
+                  title: `删除课程「${course.courseNo}」？`,
+                  content: '删除后课程工作台不再显示这门课。已发生的培训与案例不会被删。',
+                  okText: '删除',
+                  cancelText: '取消',
+                  okButtonProps: { danger: true },
+                  onOk: () => remove.mutateAsync(),
+                })
+              }
+            >
+              删除
+            </Button>
+          ) : null}
+          <Button onClick={onClose}>取消</Button>
+          <Button
+            type="primary"
+            loading={save.isPending}
+            disabled={remove.isPending}
+            onClick={() => {
+              void form.validateFields().then((values) => save.mutateAsync(values));
+            }}
+          >
+            保存
+          </Button>
+        </>
+      }
     >
       <Form form={form} layout="vertical" requiredMark>
         {!course && <p className="course-form-lead">由课程负责人填写。</p>}

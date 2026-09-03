@@ -139,7 +139,7 @@ describe('讲师表单', () => {
     renderModal(lecturer({ poolState: POOL_OUT, removedReason: null }));
 
     expect(await screen.findByText('移出原因')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '保 存' }));
+    fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
     expect(await screen.findByText('移出讲师池时必须填写移出原因')).toBeTruthy();
   });
 
@@ -178,6 +178,12 @@ describe('讲师表单', () => {
     expect(screen.getByText('备注')).toBeTruthy();
     expect(screen.queryByText('在池状态')).toBeNull();
     expect(screen.queryByText('移出原因')).toBeNull();
+    expect(screen.queryByRole('button', { name: /删\s*除/ })).toBeNull();
+  });
+
+  it('编辑时底栏出现删除', async () => {
+    renderModal(lecturer({}));
+    expect(await screen.findByRole('button', { name: /删\s*除/ })).toBeTruthy();
   });
 
   it('头像区同时提供上传与 60 张现成图', async () => {

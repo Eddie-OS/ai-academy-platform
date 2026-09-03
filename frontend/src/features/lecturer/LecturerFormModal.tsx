@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App, Col, DatePicker, Form, Input, Modal, Row, Select } from 'antd';
+import { App, Button, Col, DatePicker, Form, Input, Modal, Row, Select } from 'antd';
 import type { UploadFile } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -15,6 +15,7 @@ import {
   useEmployees,
   useFieldEnums,
 } from './lecturerMeta';
+import '@/shared/theme/form-modal-v2.css';
 import './lecturerFormModal.css';
 
 /**
@@ -32,6 +33,7 @@ interface LecturerFormModalProps {
   onClose: () => void;
   onCreated?: (id: number) => void;
   onUpdated?: () => void;
+  onDeleted?: () => void;
 }
 
 interface FormValues {
@@ -58,8 +60,9 @@ export function LecturerFormModal({
   onClose,
   onCreated,
   onUpdated,
+  onDeleted,
 }: LecturerFormModalProps) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const employees = useEmployees();
   const fieldEnums = useFieldEnums();
@@ -165,6 +168,15 @@ export function LecturerFormModal({
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败，请重试'),
   });
 
+  const remove = useMutation({
+    mutationFn: () => lecturerApi.remove(lecturer!.id),
+    onSuccess: () => {
+      message.success('讲师已删除');
+      onDeleted?.();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '删除失败，请重试'),
+  });
+
   const fillFromEmployee = (nextEmployeeNo: string) => {
     const employee = employees.data?.records.find((item) => item.employeeNo === nextEmployeeNo.trim());
     if (employee) {
@@ -183,21 +195,52 @@ export function LecturerFormModal({
     <Modal
       open={open}
       title={lecturer ? `编辑讲师 ${lecturer.lecturerNo}` : '新建讲师基础档案'}
-      okText="保存"
-      cancelText="取消"
-      width={1120}
+      width={1100}
       centered
-      className="lecturer-form-modal"
+      zIndex={1200}
+      className="lecturer-form-modal crs-form-modal"
+      rootClassName="crs-form-modal-root"
       destroyOnHidden
-      confirmLoading={save.isPending}
       onCancel={onClose}
-      onOk={() => {
-        void form
-          .validateFields()
-          .then((values) => save.mutateAsync(values))
-          .catch(() => undefined);
-      }}
-      styles={{ body: { paddingTop: 8 } }}
+      footer={
+        <>
+          {lecturer ? (
+            <Button
+              className="crs-form-modal-delete"
+              danger
+              disabled={save.isPending}
+              loading={remove.isPending}
+              onClick={() =>
+                modal.confirm({
+                  title: `删除讲师「${lecturer.lecturerNo}」？`,
+                  content:
+                    '删除后讲师不再出现在讲师池。已排的培训场次和试讲记录仍保留，授课讲师继续显示原姓名。',
+                  okText: '删除',
+                  cancelText: '取消',
+                  okButtonProps: { danger: true },
+                  onOk: () => remove.mutateAsync(),
+                })
+              }
+            >
+              删除
+            </Button>
+          ) : null}
+          <Button onClick={onClose}>取消</Button>
+          <Button
+            type="primary"
+            loading={save.isPending}
+            disabled={remove.isPending}
+            onClick={() => {
+              void form
+                .validateFields()
+                .then((values) => save.mutateAsync(values))
+                .catch(() => undefined);
+            }}
+          >
+            保存
+          </Button>
+        </>
+      }
     >
       <Form form={form} layout="vertical" requiredMark>
         {!lecturer && <p className="lecturer-form-lead">由运营填写讲师基础档案。</p>}

@@ -272,6 +272,11 @@ export function TrainingCockpitPage() {
             setEditing(false);
             void queryClient.invalidateQueries({ queryKey: ['training-plans'] });
           }}
+          onDeleted={() => {
+            setEditing(false);
+            void queryClient.invalidateQueries({ queryKey: ['training-plans'] });
+            closePanel();
+          }}
         />
       )}
 

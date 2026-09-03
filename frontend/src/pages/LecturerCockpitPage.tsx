@@ -357,7 +357,7 @@ export function LecturerCockpitPage() {
                     </Button>
                     <Popconfirm
                       title="删除这名讲师？"
-                      description="上过课或试讲过的讲师不能删除。若只是不再安排授课，请改在池状态为「已移出」并填写移出原因——那条路径保留全部历史。"
+                      description="删除后讲师不再出现在讲师池。已排的培训场次和试讲记录仍保留，授课讲师继续显示原姓名。"
                       okText="删除"
                       cancelText="取消"
                       okButtonProps={{ danger: true, loading: remove.isPending }}
@@ -459,6 +459,11 @@ export function LecturerCockpitPage() {
           onUpdated={() => {
             setEditing(false);
             void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
+          }}
+          onDeleted={() => {
+            setEditing(false);
+            void queryClient.invalidateQueries({ queryKey: ['lecturers'] });
+            navigate('/lecturers');
           }}
         />
       )}

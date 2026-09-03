@@ -1,6 +1,7 @@
 /*
  * 产品培训详情：外壳与需求详情弹窗同一套（1100×1200、居中、四周留 24px）。
- * 新建计划弹窗仍走 trainingPlanFormModal.css 的 vw/vh，这里只覆盖详情。
+ * 新建计划弹窗现在也是这一档，由 shared/theme/form-modal-v2.css 给；
+ * 这里只覆盖详情自己的那部分。
  * 内部排版对齐需求：13px 正文、浅框分组、标签左列、行间分隔线。
  */
 .training-product-detail-root .ant-modal-wrap {
@@ -25,9 +26,11 @@
   border-radius: var(--radius-card);
 }
 
+/* 高度写绝对值：.ant-modal 与 .ant-modal-content 之间那层无类名的 rc-dialog 包装是
+   auto 高度，百分比在这里会退化成 auto，正文于是撑出圆角边框外面（同 form-modal-v2.css） */
 .training-product-detail-root.training-plan-form-modal-root .ant-modal-content {
-  height: 100%;
-  max-height: 100%;
+  height: min(1200px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
   border-radius: var(--radius-card);
   box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
 }
@@ -111,6 +114,17 @@
   font-size: var(--type-table-size);
   line-height: var(--lh-22);
   text-align: center;
+}
+
+.trn-prod-info-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-v2-2);
+}
+
+.trn-prod-info-head .trn-prod-section-title {
+  margin-bottom: 0;
 }
 
 .trn-prod-info,

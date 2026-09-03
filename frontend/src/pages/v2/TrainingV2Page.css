@@ -241,8 +241,10 @@
   color: var(--text-placeholder);
 }
 
+/* 字段名与下拉之间 4px：与课程同值，比控件之间的 8px 紧一档，
+   两者同为 8px 时「培训计划状态」看不出是左边那格的名还是右边那格的名 */
 html:not([data-regression]) .trn-filter-select {
-  gap: 6px;
+  gap: var(--space-v2-1);
   cursor: default;
 }
 
@@ -250,6 +252,7 @@ html:not([data-regression]) .trn-filter-label {
   color: var(--text-tertiary);
 }
 
+/* 下拉与箭头几何照抄课程的 .crs-filter-select select：14px 箭头贴右、留 18px 让位 */
 html:not([data-regression]) .trn-filter-select select {
   appearance: none;
   min-width: 72px;
@@ -257,14 +260,14 @@ html:not([data-regression]) .trn-filter-select select {
   border: 0;
   outline: none;
   background: transparent;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0 center;
-  background-size: 12px;
-  padding-right: 16px;
+  background-size: 14px;
+  padding-right: 18px;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: var(--type-caption-size);
+  font-size: var(--type-table-size);
   cursor: pointer;
 }
 
@@ -1400,9 +1403,91 @@ html:not([data-regression]) .trn-kpi-baseline {
   white-space: nowrap;
 }
 
+/*
+ * 产品工具条对齐需求／课程两个基准（用户口径：以 P02、P03 为标准）。
+ *
+ * 这一行比另外三页多了视图切换、日历翻页与全屏三组控件，<b>控件组不动</b>，
+ * 只把几何与字号收到同一档：行高「8 + 控件 + 8」、控件 28px、字号 13px、
+ * 内边距 8px、圆角 8px、字段名与下拉间距 4px。
+ *
+ * 原先是 48px 行 + 32px 控件 + 12px caption，比需求／课程各大一档：
+ * 四个驾驶舱切着看时，只有培训这一行的控件明显更胖、字明显更小。
+ * 48px 的来源是回归画布的实测值，回归态仍按 48px 锁死，这里只改产品模式。
+ */
 html:not([data-regression]) .trn-toolbar {
   width: auto;
-  flex: 0 0 48px;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: calc(var(--space-v2-2) * 2 + var(--control-compact-h));
+  margin-top: 18px;
+  padding: var(--space-v2-2) var(--card-pad);
+}
+
+/*
+ * 一行里所有控件同高。
+ *
+ * <b>box-sizing 必须一起写。</b>这一行的控件除按钮外都是 content-box，
+ * 只给 height 会让带边框的搜索框与下拉实际高 30px、只有按钮是 28px ——
+ * 差的 2px 全在边框上，看图时表现为「下拉比按钮胖一点」，量出来却是同一个 height。
+ */
+html:not([data-regression]) .trn-view-switch,
+html:not([data-regression]) .trn-nav-btn,
+html:not([data-regression]) .trn-today,
+html:not([data-regression]) .trn-search,
+html:not([data-regression]) .trn-select,
+html:not([data-regression]) .trn-create,
+html:not([data-regression]) .trn-import,
+html:not([data-regression]) .trn-fullscreen {
+  box-sizing: border-box;
+  height: var(--control-compact-h);
+}
+
+/* 方形图标钮按控件高取宽，才不会在 28px 的一行里显得扁 */
+html:not([data-regression]) .trn-nav-btn,
+html:not([data-regression]) .trn-fullscreen {
+  width: var(--control-compact-h);
+}
+
+html:not([data-regression]) .trn-fullscreen {
+  flex: 0 0 var(--control-compact-h);
+}
+
+/*
+ * 视图切换是分段控件：外壳占满一格控件高（28），2px 内衬，内层按钮 24。
+ * 外壳做成 28+4=32 时它就是全行最高的那一个，整行被它顶到 50px，
+ * 又比需求／课程的 46 高一档 —— 这一行的高度得由控件档位定，不由分段控件定。
+ * 内层圆角取 --radius-tag（4px），原先是硬编码的 4px，同值。
+ */
+html:not([data-regression]) .trn-view-switch {
+  align-items: center;
+}
+
+html:not([data-regression]) .trn-view-btn {
+  height: calc(var(--control-compact-h) - 4px);
+  border-radius: var(--radius-tag);
+  padding: 0 var(--space-v2-2);
+}
+
+html:not([data-regression]) .trn-search,
+html:not([data-regression]) .trn-select,
+html:not([data-regression]) .trn-today {
+  padding: 0 var(--space-v2-2);
+}
+
+html:not([data-regression]) .trn-create,
+html:not([data-regression]) .trn-import {
+  padding: 0 var(--control-pad-x);
+  gap: var(--space-v2-1);
+}
+
+/* 字号统一到 13px：另外三页的筛选控件全在这一档，培训原先是 12px。
+   搜索框那一档写在 <label> 上而不是只写 input，否则图标与占位文案不同步长大 */
+html:not([data-regression]) .trn-select,
+html:not([data-regression]) .trn-search,
+html:not([data-regression]) .trn-today,
+html:not([data-regression]) .trn-create,
+html:not([data-regression]) .trn-import {
+  font-size: var(--type-table-size);
 }
 
 html:not([data-regression]) .trn-main {
@@ -1430,6 +1515,30 @@ html:not([data-regression]) .panel.trn-list {
   height: auto;
   flex: 242 1 0;
   min-height: 242px;
+  max-height: 320px;
+  overflow: hidden;
+}
+
+html:not([data-regression]) .trn-list-head {
+  flex: 0 0 auto;
+  margin-bottom: var(--space-v2-2);
+}
+
+html:not([data-regression]) .trn-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+html:not([data-regression]) .trn-table-product {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+html:not([data-regression]) .trn-table-product thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 html:not([data-regression]) .panel.trn-detail {
@@ -1442,6 +1551,15 @@ html:not([data-regression]) .panel.trn-detail {
 
 html:not([data-regression]) .trn-table {
   width: 100%;
+}
+
+html:not([data-regression]) .trn-table-product .trn-plan-name {
+  padding: 0;
+  font-size: inherit;
+}
+
+html:not([data-regression]) .trn-table-product td[data-col='action'] {
+  width: 56px;
 }
 
 /* ===========================================================================

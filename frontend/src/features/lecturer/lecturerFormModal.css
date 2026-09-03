@@ -1,34 +1,12 @@
-/**
- * 与课程新建弹窗同一套锁视口：标题与底栏不跟着滚，只有表单区滚动。
+/*
+ * 外框、字号与分隔线走 shared/theme/form-modal-v2.css（四个驾驶舱的新建弹窗同一套）。
+ * 这里只留讲师独有的引导语与头像选择区。
  */
-.lecturer-form-modal {
-  padding-bottom: 0;
-  max-height: calc(100vh - 48px);
-}
-
-.lecturer-form-modal .ant-modal-content {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 48px);
-  overflow: hidden;
-}
-
-.lecturer-form-modal .ant-modal-header,
-.lecturer-form-modal .ant-modal-footer {
-  flex-shrink: 0;
-}
-
-.lecturer-form-modal .ant-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-}
-
 .lecturer-form-lead {
-  margin: 0 0 16px;
-  color: var(--color-neutral-600);
-  font-size: 14px;
-  line-height: 22px;
+  margin: 0 0 var(--space-v2-3);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
 }
 
 .lecturer-avatar-field {
@@ -51,10 +29,10 @@
 }
 
 .lecturer-avatar-presets-caption {
-  margin: 0 0 4px;
-  color: var(--color-neutral-600);
-  font-size: 12px;
-  line-height: 20px;
+  margin: 0 0 var(--space-v2-1);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
 }
 
 .lecturer-avatar-presets-scroll {
@@ -69,10 +47,10 @@
 
 .lecturer-avatar-preset-label {
   display: block;
-  margin-bottom: 4px;
-  color: var(--color-neutral-700);
-  font-size: 12px;
-  line-height: 20px;
+  margin-bottom: var(--space-v2-1);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
 }
 
 .lecturer-avatar-grid {
@@ -85,17 +63,18 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border: var(--border-v2);
+  border-radius: var(--radius-tag);
   overflow: hidden;
   cursor: pointer;
-  background: #fff;
+  background: var(--bg-page);
   line-height: 0;
 }
 
+/* 选中态跟着 V2.0 的交互主色，不留 V1.1 的 #4E70DB —— 同一屏里两个蓝很难被看成同一个状态 */
 .lecturer-avatar-preset[data-selected='true'] {
-  border-color: #4e70db;
-  box-shadow: 0 0 0 2px #4e70db;
+  border-color: var(--brand-action);
+  box-shadow: 0 0 0 2px var(--brand-action);
 }
 
 .lecturer-avatar-preset img {

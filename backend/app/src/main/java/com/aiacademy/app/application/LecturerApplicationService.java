@@ -20,9 +20,7 @@ import com.aiacademy.business.lecturer.service.CultivationService;
 import com.aiacademy.business.lecturer.service.LecturerService;
 import com.aiacademy.business.lecturer.service.LevelLogService;
 import com.aiacademy.business.training.domain.TrainingEnums;
-import com.aiacademy.common.api.ErrorCode;
 import com.aiacademy.common.api.PageResult;
-import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
 import com.aiacademy.platform.audit.AuditLog;
 import com.aiacademy.platform.audit.AuditSnapshotSource;
@@ -165,22 +163,14 @@ public class LecturerApplicationService implements AuditSnapshotSource {
     }
 
     /**
-     * 逻辑删除（SEC2）。被引用时拒绝。
+     * 逻辑删除（SEC2）。场次与试讲仍保留 {@code lecturer_id}，姓名按已删记录回查，
+     * 日历和场次列表不会变成空讲师。
      *
-     * <p><b>「删除」不是「移出讲师池」。</b>讲师上过课就不该被删掉——培训场次与试讲记录都拿
-     * {@code lecturer_id} 做外键，删掉之后那些页面上会出现一个查不到的讲师ID。运营真正想做的
-     * 通常是把在池状态改成「已移出」并填移出原因，那条路径保留全部历史（需求 10.3 第 14 项）。
+     * <p>不再因「上过课／有试讲」拒绝。运营要清演示数据或录错的人时，移出讲师池不够——
+     * 人还在池里。删除只是从池里拿掉，不级联删场次。
      */
     @Transactional
     public void softDelete(long id) {
-        int sessions = board.countSessions(id);
-        int trials = board.countTrials(id);
-        if (sessions > 0 || trials > 0) {
-            throw new BizException(ErrorCode.BIZ_RULE_VIOLATED,
-                    ("该讲师已关联 %d 个培训场次、%d 条试讲记录，不能删除。"
-                            + "如果只是不再安排授课，请把在池状态改为「已移出」并填写移出原因")
-                            .formatted(sessions, trials));
-        }
         lecturers.softDelete(id);
     }
 

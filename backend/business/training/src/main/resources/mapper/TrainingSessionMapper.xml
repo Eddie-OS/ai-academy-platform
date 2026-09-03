@@ -81,7 +81,9 @@
                  WHERE a.session_id = s.id AND a.deleted = FALSE
                    AND a.attend_status = #{presentStatus}) AS actual_attendee_count,
                EXISTS (SELECT 1 FROM dtl_attendance a
-                        WHERE a.session_id = s.id AND a.deleted = FALSE) AS attendance_imported
+                        WHERE a.session_id = s.id AND a.deleted = FALSE) AS attendance_imported,
+               (SELECT ROUND(AVG(f.score), 1) FROM dtl_training_feedback f
+                 WHERE f.session_id = s.id AND f.deleted = FALSE) AS average_score
           FROM biz_training_session s
           JOIN biz_training_plan p ON p.id = s.plan_id
         <include refid="sessionWhere"/>

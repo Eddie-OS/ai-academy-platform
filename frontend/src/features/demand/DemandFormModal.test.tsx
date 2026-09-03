@@ -58,5 +58,68 @@ describe('DemandFormModal', () => {
     expect(screen.getByPlaceholderText(/【背景】/)).toBeInTheDocument();
     expect(document.querySelector('.demand-form-modal')).toBeTruthy();
     expect(screen.getByRole('button', { name: /保\s*存/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /删\s*除/ })).toBeNull();
+  });
+
+  it('编辑时底栏出现删除，新建没有', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <App>
+          <DemandFormModal
+            open
+            demand={{
+              id: 1,
+              demandNo: 'XQ202609001',
+              demandName: '测试需求',
+              domainCode: '零售',
+              proposerNo: '张三',
+              proposerName: '张三',
+              proposerDept: null,
+              ownerNo: '李四',
+              ownerName: '李四',
+              proposedDate: '2026-09-01',
+              expectFinishDate: '2026-09-30',
+              description: '描述',
+              demandSource: null,
+              demandType: null,
+              priority: 'P1（重要）',
+              reviewState: '待评审',
+              reviewDate: null,
+              reviewConclusion: null,
+              reviewOpinion: null,
+              outlet: null,
+              solutionState: null,
+              solutionName: null,
+              devState: null,
+              currentProcessState: null,
+              firstOnlineDate: null,
+              latestOnlineDate: null,
+              optimizeCount: null,
+              deliveryMark: null,
+              deliveredAt: null,
+              archivedAt: null,
+              acceptanceState: null,
+              acceptorName: null,
+              acceptedAt: null,
+              acceptanceOpinion: null,
+              acceptanceRemark: null,
+              acceptanceRound: null,
+              courseCount: null,
+              hasCourse: null,
+              lastStateChangedAt: null,
+              updatedAt: '2026-09-01T10:00:00+08:00',
+              updatedBy: 'operator',
+              version: 0,
+              light: 'NONE',
+              lightDays: null,
+              lightReason: null,
+            }}
+            onClose={() => undefined}
+          />
+        </App>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole('button', { name: /删\s*除/ })).toBeInTheDocument();
   });
 });

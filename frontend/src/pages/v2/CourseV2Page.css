@@ -117,9 +117,11 @@ html:not([data-regression]) .crs-filter-select select {
   background-position: right 6px center;
 }
 
+/* 内边距 8px 而不是基线的 10px：与需求的 .dmd-search、讲师／培训的搜索同值 */
 html:not([data-regression]) .crs-search {
   flex: 1 1 auto;
   min-width: 108px;
+  padding: 0 var(--space-v2-2);
 }
 
 html:not([data-regression]) .crs-create,

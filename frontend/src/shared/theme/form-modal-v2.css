@@ -1,0 +1,246 @@
+/*
+ * 四个驾驶舱「新建／编辑」弹窗共用的外框与排版，基准是需求驾驶舱的详情弹窗
+ * （panel.css 的 .crs-modal + DemandV2Page.css 的 .dmd-* 那一套）。
+ *
+ * ## 为什么要抽这一层
+ *
+ * 四个弹窗原先各写一份 CSS，量出来是四套尺寸：需求／课程／讲师是 1120px 居中、
+ * 培训计划是 59.8vw × 70.2vh 按红框绝对定位；字号则整体落在 AntD 默认的 14px 上，
+ * 比详情弹窗的 13px 大一档。四个弹窗从同一个驾驶舱的同一排按钮打开，
+ * 尺寸与字号却三套口径 —— 每次切换都要重新找标题和「保存」在哪。
+ *
+ * 抽成一个文件而不是各改一遍，是因为「统一」只有单一来源时才成立：
+ * 四份拷贝里改三份，剩下那一份不会报错，只会在下次有人打开它时对不上。
+ *
+ * ## 与详情弹窗对齐的四项
+ *
+ * | 项       | 取值                                                     | 来源              |
+ * |----------|----------------------------------------------------------|-------------------|
+ * | 外框     | 1100 × 1200 上限，视口各留 24px；圆角 12px；同一档投影    | .crs-modal        |
+ * | 字号     | 表单面 13/20，说明与计数 12/18，标题 18/28/600            | --type-table-*    |
+ * | 分隔     | 标题下、底栏上各 1px；表单区一个 8px 圆角的浅框           | .dmd-tabs/.dmd-group |
+ * | 底栏按钮 | 高 28、字号 12、圆角 8                                    | .dmd-detail-actions .ant-btn |
+ *
+ * 尺寸写成 min(1100px, 100vw - 48px) 而不是裸 1100：1440 基准窗口下两者相同，
+ * 而窗口再窄时裸值会让弹窗左右贴边、关闭按钮压在视口外。
+ *
+ * 字号一律走 Token（--type-unit 计价），不写死 px —— 产品模式下字号随窗口按画布比例
+ * 长大，写死的那一档在大屏上会显得越来越小（见 tokens-v2.css 末尾那一节）。
+ */
+
+/* 遮罩与详情弹窗同色。AntD 默认的 rgb(0 0 0 / 45%) 偏冷灰，两种弹窗叠在一起时底色会跳 */
+.crs-form-modal-root .ant-modal-mask {
+  background: rgb(15 23 42 / 45%);
+}
+
+/*
+ * AntD 把 width 写成 .ant-modal 的行内样式，行内样式盖得住选择器，所以这里必须 !important
+ * 才能接管窄窗口下的收缩。四个弹窗的 width prop 已统一为 1100，两处取值一致，
+ * 这一行只负责 min() 那半边。
+ */
+.crs-form-modal-root .ant-modal.crs-form-modal {
+  top: 0;
+  width: min(1100px, calc(100vw - 48px)) !important;
+  max-width: none;
+  /* 高度锁死：四个弹窗字段数不同（培训 13 项、讲师 17 项），按内容自适应时
+     同一排按钮会弹出三种高度的窗口，底栏「保存」每次都在不同的位置 */
+  height: min(1200px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  padding-bottom: 0;
+}
+
+/*
+ * 高度必须写成与外框相同的绝对值，不能写 height: 100%。
+ *
+ * rc-dialog 在 .ant-modal 与 .ant-modal-content 之间还有一层无类名的 div，它是
+ * display:block、高度 auto。百分比高度要向上找到一个确定高度的父级，中间这层 auto
+ * 会让 100% 退化成 auto —— 表体于是按内容展开，底栏被顶到视口外面（实测 top:1316，
+ * 视口只有 1000）。而外框仍是 952，看起来"弹窗尺寸是对的"，只有「保存／取消」不见了。
+ */
+.crs-form-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  height: min(1200px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
+  /* 内边距下沉到 header／body／footer 各自身上：留在 content 上时，
+     标题下与底栏上的那两条 1px 分隔线会缩进 24px，画不到弹窗两侧边界 */
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
+}
+
+/* 右侧多留出 44px 给关闭按钮：长标题（「编辑培训计划 JH202607001」）会顶到关闭钮下面 */
+.crs-form-modal .ant-modal-header {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 16px 44px 12px 20px;
+  border-bottom: var(--border-v2);
+  border-radius: 0;
+  background: transparent;
+}
+
+.crs-form-modal .ant-modal-title {
+  color: var(--text-primary);
+  font-size: var(--type-panel-title-size);
+  font-weight: var(--type-panel-title-weight);
+  line-height: var(--type-panel-title-line);
+}
+
+/* 与 .crs-modal-close 同一枚：24×24、距角 10px、hover 才出灰底 */
+.crs-form-modal .ant-modal-close {
+  top: 10px;
+  inset-inline-end: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+}
+
+.crs-form-modal .ant-modal-close:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.crs-form-modal .ant-modal-close-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: var(--fs-14);
+  line-height: 1;
+}
+
+/*
+ * 表单区 = 详情弹窗的 .dmd-group：8px 圆角浅框 + 8px/12px 内边距。
+ *
+ * 边框挂在滚动容器自己身上而不是里面的 <form> 上 —— 挂在 form 上时框会跟着内容滚，
+ * 上边框滚出视野后，剩下的两条竖线看起来像页面裂了一道缝。
+ */
+.crs-form-modal .ant-modal-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 12px 20px;
+  padding: 8px 12px;
+  border: var(--border-v2);
+  border-radius: var(--radius-control);
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-size: var(--type-table-size);
+  line-height: var(--type-table-line);
+}
+
+.crs-form-modal .ant-modal-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-v2-2);
+  margin: 0;
+  padding: 8px 20px 12px;
+  border-top: var(--border-v2);
+}
+
+/* 删除靠左，保存／取消仍在右。只在编辑态出现，新建底栏不受影响 */
+.crs-form-modal .ant-modal-footer .crs-form-modal-delete {
+  margin-right: auto;
+}
+
+/* 与详情弹窗底栏同一档紧凑按钮（h28 / 12px），不是 AntD 默认的 h36 / 14px */
+.crs-form-modal .ant-modal-footer .ant-btn {
+  height: calc(var(--type-unit) * 28);
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-12);
+  line-height: calc(var(--type-unit) * 26);
+}
+
+/*
+ * 栅格兜底：两列布局里任一列的内容（长下拉选项、addonAfter 的输入框）撑爆列宽时，
+ * 整张表会横向溢出。body 已 overflow-x:hidden，溢出的那半列不是"要横向滚一下"，
+ * 而是直接看不见、也点不到。
+ */
+.crs-form-modal .ant-form,
+.crs-form-modal .ant-row,
+.crs-form-modal .ant-col {
+  max-width: 100%;
+}
+
+.crs-form-modal .ant-col {
+  min-width: 0;
+}
+
+.crs-form-modal .ant-select,
+.crs-form-modal .ant-picker,
+.crs-form-modal .ant-input-number {
+  max-width: 100%;
+}
+
+/* 行距 12px（间距阶梯的一档）。竖排间距统一交给它，Row 的 gutter 只管列间距 */
+.crs-form-modal .ant-form-item {
+  margin-bottom: var(--space-v2-3);
+}
+
+.crs-form-modal .ant-form-vertical .ant-form-item-label {
+  padding-bottom: var(--space-v2-1);
+}
+
+/* AntD 给 label 写死 height:32px；不改成 auto 时 13px 的标签仍占 32px 行高，
+   四个弹窗的字段行会比详情弹窗高出一档 */
+.crs-form-modal .ant-form-item-label > label {
+  height: auto;
+  color: var(--text-secondary);
+  font-size: var(--type-table-size);
+  font-weight: var(--type-body-medium-weight);
+  line-height: var(--type-table-line);
+}
+
+/* 表单面全部 13/20，与详情弹窗 .dmd-detail-body 同一档 */
+.crs-form-modal .ant-input,
+.crs-form-modal .ant-input-affix-wrapper,
+.crs-form-modal .ant-input-textarea textarea,
+.crs-form-modal .ant-input-number,
+.crs-form-modal .ant-input-number-input,
+.crs-form-modal .ant-select-selector,
+.crs-form-modal .ant-select-selection-item,
+.crs-form-modal .ant-select-selection-placeholder,
+.crs-form-modal .ant-select-selection-search-input,
+.crs-form-modal .ant-picker,
+.crs-form-modal .ant-picker-input > input,
+.crs-form-modal .ant-input-group-addon,
+.crs-form-modal .ant-modal-body .ant-btn,
+.crs-form-modal .ant-upload,
+.crs-form-modal .ant-upload-text,
+.crs-form-modal .ant-empty-description {
+  font-size: var(--type-table-size);
+}
+
+.crs-form-modal .ant-input,
+.crs-form-modal .ant-input-affix-wrapper,
+.crs-form-modal .ant-input-number,
+.crs-form-modal .ant-select-selector,
+.crs-form-modal .ant-picker {
+  border-radius: var(--radius-control);
+}
+
+/*
+ * 字段说明、校验文案与字数计数降一档到 12/18。
+ *
+ * 与标签同字号时二者只靠颜色分层，而说明文字往往比标签长得多，扫读时会先读到说明；
+ * 详情弹窗里承担同样角色的元素（.dmd-tab、.dmd-detail-id、.dmd-value-tag）也都在这一档。
+ */
+.crs-form-modal .ant-form-item-extra,
+.crs-form-modal .ant-form-item-explain,
+.crs-form-modal .ant-form-item-explain-error,
+.crs-form-modal .ant-input-show-count-suffix,
+.crs-form-modal .ant-input-data-count {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+
+.crs-form-modal .ant-form-item-extra {
+  color: var(--text-tertiary);
+}

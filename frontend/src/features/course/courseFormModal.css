@@ -1,32 +1,10 @@
-/**
- * 与需求登记弹窗同一套锁视口：标题与底栏不跟着滚，只有表单区滚动。
+/*
+ * 外框、字号与分隔线走 shared/theme/form-modal-v2.css（四个驾驶舱的新建弹窗同一套）。
+ * 这里只留课程独有的那一句引导语。
  */
-.course-form-modal {
-  padding-bottom: 0;
-  max-height: calc(100vh - 48px);
-}
-
-.course-form-modal .ant-modal-content {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 48px);
-  overflow: hidden;
-}
-
-.course-form-modal .ant-modal-header,
-.course-form-modal .ant-modal-footer {
-  flex-shrink: 0;
-}
-
-.course-form-modal .ant-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-}
-
 .course-form-lead {
-  margin: 0 0 16px;
-  color: var(--color-neutral-600);
-  font-size: 14px;
-  line-height: 22px;
+  margin: 0 0 var(--space-v2-3);
+  color: var(--text-tertiary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
 }

@@ -25,6 +25,15 @@ import { metricsApi } from '@/shared/api/metrics';
 import { trainingApi } from '@/shared/api/trainings';
 import { TrainingPlanFormModal } from '@/features/training/TrainingPlanFormModal';
 import { TrainingProductDetail } from '@/features/training/TrainingProductDetail';
+import { TRAINING_PRODUCT_DETAIL_TABS } from '@/fixtures/training';
+
+type ProductTab = (typeof TRAINING_PRODUCT_DETAIL_TABS)[number];
+
+interface OpenedDetail {
+  sessionId?: string;
+  planId?: number;
+  tab?: ProductTab;
+}
 import { useIsOperator } from '@/shared/store/authStore';
 import { formatKpiDelta, formatMetricInt, monthOverMonth } from '@/shared/metrics/cockpitMetrics';
 import {
@@ -104,7 +113,7 @@ export function TrainingV2Page() {
   const [month, setMonth] = useState(anchor.month);
   const [selectedDay, setSelectedDay] = useState(anchor.selectedDay);
   const [selectedId, setSelectedId] = useState(TRAINING_SELECTED_SESSION_ID);
-  const [openedId, setOpenedId] = useState<string | null>(null);
+  const [opened, setOpened] = useState<OpenedDetail | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [filters, setFilters] = useState<TrainingProductFilter>(EMPTY_TRAINING_FILTER);
   const [creating, setCreating] = useState(false);
@@ -199,7 +208,11 @@ export function TrainingV2Page() {
 
   const selectSession = (id: string) => {
     setSelectedId(id);
-    if (!regression) setOpenedId(id);
+    if (!regression) setOpened({ sessionId: id });
+  };
+
+  const openPlan = (planId: number, tab: ProductTab = '培训场次记录') => {
+    setOpened({ planId, tab });
   };
 
   return (
@@ -240,20 +253,34 @@ export function TrainingV2Page() {
           {regression && !calendarFullscreen && (
             <PlanListPanel selectedId={selectedId} onSelect={setSelectedId} />
           )}
+          {!regression && !calendarFullscreen && (
+            <LivePlanListPanel
+              filters={filters}
+              fixture={fixture}
+              onSelectSession={selectSession}
+            />
+          )}
         </div>
         {regression && !calendarFullscreen && <DetailPanel selectedId={selectedId} />}
       </div>
-      {!regression && openedId && (
-        <TrainingProductDetail sessionId={openedId} onClose={() => setOpenedId(null)} />
+      {!regression && opened && (
+        <TrainingProductDetail
+          sessionId={opened.sessionId}
+          planId={opened.planId}
+          initialTab={opened.tab}
+          onClose={() => setOpened(null)}
+        />
       )}
       {!regression && (
         <TrainingPlanFormModal
           open={creating}
           onClose={() => setCreating(false)}
-          onCreated={() => {
+          onCreated={(id) => {
             setCreating(false);
             void queryClient.invalidateQueries({ queryKey: ['training-sessions'] });
+            void queryClient.invalidateQueries({ queryKey: ['training-plans'] });
             void queryClient.invalidateQueries({ queryKey: ['metrics'] });
+            openPlan(id, '培训场次记录');
           }}
         />
       )}
@@ -998,6 +1025,182 @@ function StateTag({ state }: { state: SessionState }) {
     <span className="trn-state" data-state={state} data-testid="session-state">
       {state}
     </span>
+  );
+}
+
+/** 产品列表列。回归 R6 仍用 {@link PLAN_LIST_COLUMNS}，这里不要去改那张冻表。 */
+const PRODUCT_PLAN_LIST_COLUMNS = [
+  { id: 'planName', label: '培训计划名称' },
+  { id: 'session', label: '培训场次' },
+  { id: 'course', label: '培训课程' },
+  { id: 'lecturer', label: '授课讲师' },
+  { id: 'sessionState', label: '场次授课状态' },
+  { id: 'satisfaction', label: '综合满意度' },
+  { id: 'action', label: '查看' },
+] as const;
+
+interface ProductPlanListRow {
+  id: string;
+  planName: string;
+  sessionLabel: string;
+  courseName: string;
+  lecturerName: string;
+  sessionState: string;
+  averageScore: string | null;
+}
+
+function sessionListLabel(sessionName: string | null, sessionNo: string): string {
+  const named = sessionName?.trim();
+  return named || sessionNo;
+}
+
+function satisfactionText(score: string | number | null | undefined): string | null {
+  if (score == null || score === '') return null;
+  return String(score);
+}
+
+function fixtureProductListRows(): ProductPlanListRow[] {
+  return PLAN_LIST_ROWS.map((row) => {
+    const cal = CALENDAR_SESSIONS.find((session) => session.id === row.id);
+    return {
+      id: row.id,
+      planName: row.planName,
+      sessionLabel: row.sessionLabel,
+      courseName: row.course,
+      lecturerName: row.lecturer,
+      sessionState: cal?.state ?? '—',
+      averageScore: row.feedback,
+    };
+  });
+}
+
+/**
+ * 产品模式：一场一行。点计划名或「详情」打开培训详情弹窗。
+ *
+ * <p>筛选项与顶栏一致，但不跟日历日期区间——列表是目录，月历是当月排期。
+ */
+function LivePlanListPanel({
+  filters,
+  fixture,
+  onSelectSession,
+}: {
+  filters: TrainingProductFilter;
+  fixture: boolean;
+  onSelectSession: (id: string) => void;
+}) {
+  const LIST_PAGE_SIZE = 50;
+  const sessions = useQuery({
+    queryKey: ['training-sessions', 'v2-list', filters],
+    queryFn: () =>
+      trainingApi.sessions(
+        {
+          keyword: filters.keyword || null,
+          planState: filters.planState || null,
+          sessionState: filters.sessionState || null,
+          archived: filters.archived === '' ? null : filters.archived === 'true',
+        },
+        1,
+        LIST_PAGE_SIZE,
+      ),
+    enabled: !fixture,
+  });
+  const rows: ProductPlanListRow[] = fixture
+    ? fixtureProductListRows()
+    : (sessions.data?.records ?? []).map((row) => ({
+        id: String(row.id),
+        planName: row.planName,
+        sessionLabel: sessionListLabel(row.sessionName, row.sessionNo),
+        courseName: row.courseName?.trim() || '—',
+        lecturerName: row.lecturerName?.trim() || '—',
+        sessionState: row.sessionState,
+        averageScore: satisfactionText(row.averageScore),
+      }));
+  const total = fixture ? rows.length : (sessions.data?.total ?? rows.length);
+
+  return (
+    <section className="panel trn-list" data-region="R6" aria-label="培训计划列表">
+      <header className="panel-head trn-list-head">
+        <h2 className="panel-title">培训计划列表</h2>
+        <span className="panel-count" data-testid="plan-list-total">
+          {total}
+        </span>
+      </header>
+      {sessions.isLoading && !fixture ? (
+        <p className="trn-week-empty">正在读取培训计划…</p>
+      ) : rows.length === 0 ? (
+        <p className="trn-week-empty">还没有培训场次。点「新建培训计划」后可在这里排场次。</p>
+      ) : (
+        <div className="trn-list-scroll">
+        <table className="trn-table trn-table-product" data-testid="plan-list-table">
+          <thead>
+            <tr>
+              {PRODUCT_PLAN_LIST_COLUMNS.map((column) => (
+                <th key={column.id} data-col={column.id}>
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.id}
+                data-testid="plan-row"
+                onClick={() => onSelectSession(row.id)}
+              >
+                <td data-col="planName" title={row.planName}>
+                  <button
+                    type="button"
+                    className="trn-plan-name trn-link"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectSession(row.id);
+                    }}
+                  >
+                    {row.planName}
+                  </button>
+                </td>
+                <td data-col="session" title={row.sessionLabel}>
+                  {row.sessionLabel}
+                </td>
+                <td data-col="course" title={row.courseName}>
+                  {row.courseName}
+                </td>
+                <td data-col="lecturer" title={row.lecturerName}>
+                  {row.lecturerName}
+                </td>
+                <td data-col="sessionState">
+                  <StateTag state={row.sessionState as SessionState} />
+                </td>
+                <td data-col="satisfaction">
+                  {row.averageScore == null ? (
+                    '—'
+                  ) : (
+                    <span className="trn-feedback">
+                      <Star size={12} fill="#16a34a" color="#16a34a" aria-hidden />
+                      {row.averageScore}
+                    </span>
+                  )}
+                </td>
+                <td data-col="action">
+                  <button
+                    type="button"
+                    className="trn-link"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectSession(row.id);
+                    }}
+                  >
+                    详情
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      )}
+    </section>
   );
 }
 

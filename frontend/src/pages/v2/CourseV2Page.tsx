@@ -1492,7 +1492,12 @@ function CourseDetailModal({
         <button className="crs-modal-close" type="button" aria-label="关闭课程详情" onClick={requestClose}>
           <X size={16} aria-hidden />
         </button>
-        <DetailPanel card={card} regression={regression || usesFixtureData()} initialTab={initialTab} />
+        <DetailPanel
+          card={card}
+          regression={regression || usesFixtureData()}
+          initialTab={initialTab}
+          onRecordDeleted={requestClose}
+        />
       </div>
     </div>
   );
@@ -1521,10 +1526,12 @@ function DetailPanel({
   card,
   regression,
   initialTab,
+  onRecordDeleted,
 }: {
   card: CourseCard;
   regression: boolean;
   initialTab?: LiveDetailTab;
+  onRecordDeleted?: () => void;
 }) {
   return (
     <section className="panel crs-detail" data-testid="course-detail" aria-label="课程详情">
@@ -1583,13 +1590,21 @@ function DetailPanel({
           <ModuleGrid />
         </>
       ) : (
-        <LiveDetailTabs card={card} initialTab={initialTab} />
+        <LiveDetailTabs card={card} initialTab={initialTab} onRecordDeleted={onRecordDeleted} />
       )}
     </section>
   );
 }
 
-function LiveDetailTabs({ card, initialTab }: { card: CourseCard; initialTab?: LiveDetailTab }) {
+function LiveDetailTabs({
+  card,
+  initialTab,
+  onRecordDeleted,
+}: {
+  card: CourseCard;
+  initialTab?: LiveDetailTab;
+  onRecordDeleted?: () => void;
+}) {
   const [activeTab, setActiveTab] = useState<LiveDetailTab>(initialTab ?? '基本信息');
   const liveId = (card as LiveCourseCard).liveId;
   const live = Number.isFinite(liveId) && liveId > 0;
@@ -1633,6 +1648,7 @@ function LiveDetailTabs({ card, initialTab }: { card: CourseCard; initialTab?: L
               courseId={detail.data.id}
               course={detail.data}
               onEnteredSelfCheck={() => setActiveTab('自检')}
+              onRecordDeleted={onRecordDeleted}
             />
           ) : (
             <MockTabBody tab={activeTab} />
@@ -1648,15 +1664,17 @@ function LiveTabBody({
   courseId,
   course,
   onEnteredSelfCheck,
+  onRecordDeleted,
 }: {
   tab: LiveDetailTab;
   courseId: number;
   course: Course;
   onEnteredSelfCheck?: () => void;
+  onRecordDeleted?: () => void;
 }) {
   switch (tab) {
     case '基本信息':
-      return <CourseBasicInfo course={course} />;
+      return <CourseBasicInfo course={course} onDeleted={onRecordDeleted} />;
     case '立项':
       return <CourseInitiateTab course={course} />;
     case '开发':

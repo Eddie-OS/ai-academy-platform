@@ -196,6 +196,9 @@ describe('P04 成长建议的模式开关', () => {
     expect(screen.getByText('试讲合格讲师数')).toBeTruthy();
     expect(screen.getByText('可上岗讲师数')).toBeTruthy();
     expect(screen.getByText('讲师综合评分')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /^查看全部$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: '上一页' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '下一页' })).toBeNull();
   });
 
   it('产品模式讲师卡含培养与认证展示，综合评分在最下，没有授课次数', () => {
