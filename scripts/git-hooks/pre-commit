@@ -11,17 +11,21 @@
 # 提交前跑全套太慢，慢到一定会被 --no-verify 绕过，那就又回到没有门禁的状态。
 #
 # 启用方式（clone 后执行一次）：
-#   git config core.hooksPath ai-academy-platform/scripts/git-hooks
+#   git config core.hooksPath scripts/git-hooks
+#
+# 下面两处路径以仓库根为基准。改仓库结构时必须同步改这里：路径对不上时钩子不会报错，
+# 它会因为 grep 匹配不到而静默 exit 0——一个永远放行的门禁比没有门禁更危险，
+# 因为提交记录看起来是被检查过的。
 
 set -e
 
 changed=$(git diff --cached --name-only --diff-filter=ACM)
 
-if ! echo "$changed" | grep -q '^ai-academy-platform/frontend/'; then
+if ! echo "$changed" | grep -q '^frontend/'; then
   exit 0
 fi
 
-cd ai-academy-platform/frontend
+cd frontend
 
 if [ ! -d node_modules ]; then
   echo "pre-commit：frontend/node_modules 不存在，跳过类型检查。请先 npm install。" >&2

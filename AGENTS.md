@@ -48,7 +48,7 @@
 clone 后执行一次，装上版本化的 `pre-commit` 钩子：
 
 ```
-git config core.hooksPath ai-academy-platform/scripts/git-hooks
+git config core.hooksPath scripts/git-hooks
 ```
 
 暂存区里有 `frontend/` 改动时它跑一遍 `tsc --noEmit`，不过不让提交。提交前跑全套用

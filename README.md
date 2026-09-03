@@ -181,7 +181,7 @@ ai-academy-platform/
 │     ├─ shared/api/         HTTP 客户端与接口契约类型
 │     └─ pages/              页面
 ├─ docker/                   Dockerfile 与 Nginx 配置
-├─ scripts/                  造数、备份、构建、部署
+├─ scripts/                  前置检查、造数、备份、构建、部署
 └─ docs/                     阶段自检报告
 ```
 
@@ -241,9 +241,30 @@ BCrypt 哈希含 `$`，而 Docker Compose 会把 `.env` 值里的 `$xxx` 当变�
 
 ```powershell
 Copy-Item .env.example .env    # 填写口令哈希、数据库口令与宿主机目录
+powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1 -CreateDirs  # 前置检查，顺带建目录
 powershell -ExecutionPolicy Bypass -File scripts\build.ps1   # 跑测试 + 构建镜像
 powershell -ExecutionPolicy Bypass -File scripts\deploy.ps1  # 起服务，Flyway 自动迁移
 ```
+
+**宿主机只需要 Docker。** JDK 17 与 Gradle 在 `docker/app/Dockerfile` 的构建段里，Node 在
+`docker/web/Dockerfile` 的构建段里，PostgreSQL 15 是 compose 的一个容器——上面「一、本地启动」
+那张 JDK／Node 版本表是给本地开发的，**不是部署前提**。仓库不会自动检测或安装宿主机环境。
+
+`bootstrap.ps1` 是只读的前置检查（`-CreateDirs` 时才会创建附件与日志目录），`deploy.ps1`
+起容器前也会自动跑它一遍，不通过就不做任何部署动作。它检查工具链、物理内存对得上 compose
+的 29GB 限额、80 端口空闲、`.env` 五个必填项、两个哈希的结构，以及宿主机目录是不是盘符路径。
+
+加这一道的理由是它拦的两类错误**在部署当时完全没有征兆**，健康检查对它们都是绿的：
+
+- **`.env` 里 bcrypt 哈希的 `$` 未转义**，被 Docker Compose 当变量插值吃掉中间一段。应用照常
+  启动、`/actuator/health` 返回 UP，只是登录永远失败，日志里没有任何线索指向 `.env`。脚本会
+  先模拟一遍 Compose 的插值再比对——直接看 `.env` 里的字面量是看不出问题的，那时它还完好。
+- **`ATTACHMENT_DIR` 写成 `/data/...`**，Docker 会把它当 WSL2 虚拟机内部的路径挂上去。容器
+  读写附件全部正常，只有宿主机上的 `backup.ps1` 与外置硬盘永远看不到这些文件，直到某次真要
+  恢复附件时才发现它们从没被备份过。
+
+哈希校验用的正则与后端 `SharedAccountCredentialsCheck` 逐字一致（规则 SEC5）。**两处要一起改**：
+这里放过的应用启动时照样会拒，这里比应用宽松就等于没检。
 
 **备份必须在上线前配好，不能留到上线后。** 台式机作为服务器有三个结构性缺陷：无 RAID、
 无冗余电源、无远程管理卡。外置硬盘每日备份是唯一兜底。
