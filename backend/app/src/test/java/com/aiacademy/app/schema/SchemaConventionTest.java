@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import com.aiacademy.platform.dict.service.DictQuery;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +58,19 @@ class SchemaConventionTest {
             // 表清单未列，阶段 4 新增三张（见 V4_002／V4_003／V4_004 的表头注释）：
             // 催办配置是需求 13.9.5 的配置中心第五个 Tab；导出任务表承载 >2000 行的异步导出
             // 状态与过期清理；任务运行日志是四个定时任务的统一落点（开发 5.11.2）
-            "cfg_escalation", "sys_export_task", "sys_job_run_log"));
+            "cfg_escalation", "sys_export_task", "sys_job_run_log",
+            /*
+             * 表清单未列，阶段 5 讲师档案明细新增三张（见 V5_024／V5_025 的表头注释）。
+             *
+             * 三张都是「只记录运营在编辑页录入的结果」的台账，没有引擎、没有审批、不自动改档案
+             * 上的等级与培养状态，本表改值也不写状态流转日志（TS2）。这与原则一一致：
+             * 决策在线下，平台只记录结果。
+             *
+             * 与 N6「不做认证粒度与有效期」不冲突——不做的是认证流程与认证体系（复认证、
+             * 自动判级、指标「认证讲师数」），这里只是把线下已经发生的认证结果记下来。
+             * 同一处口径见 docs/文档待修清单.md 的 V-10 部分推翻说明。
+             */
+            "dtl_lecturer_cultivation", "dtl_lecturer_certification", "dtl_lecturer_level_log"));
 
     /**
      * 公共字段模板（6.1.2）的豁免表及理由。
@@ -98,6 +113,67 @@ class SchemaConventionTest {
         assertThat(actual)
                 .describedAs("与开发实施文档 6.2 表清单的差异（多出或缺少）")
                 .containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
+    }
+
+    /**
+     * 字典类型的两张手工清单必须一致：{@link DictQuery#ALL_TYPES}（决定 {@code /api/meta/dicts}
+     * 下发哪些）与表上的 {@code ck_dict_type} 约束（决定库里允许存哪些）。
+     *
+     * <p>这道门禁是补的，因为漏一类的表现不是报错：{@code /api/meta/dicts} 少下发一类，
+     * 前端对应的下拉框<b>安静地空掉</b>——按 STK-1 前端不许自己写枚举字面量，所以它没有兜底，
+     * 而空下拉框看起来像「这个字典还没配」，不像「接口没给」。
+     *
+     * <p>真实发生过：阶段 5 的课程工作台加了 12 类字典并逐个放开了 CHECK 约束，
+     * 而 {@code MetaController.dicts()} 里还是一条条 put 的那两类，12 类一类都没下发。
+     * 立项、评审、自检、试讲四个台账页因此拿不到选项，4 个「元数据下发…」用例是唯一的信号，
+     * 而它们此前恰好因为字典无种子而以另一个原因失败，把这条掩盖掉了。
+     */
+    @Test
+    @DisplayName("字典类型：ALL_TYPES 与 ck_dict_type 约束逐项一致")
+    void 字典类型清单与约束一致() {
+        List<String> rows = MigratedSchema.query(
+                "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'ck_dict_type'");
+        assertThat(rows)
+                .describedAs("找不到 ck_dict_type 约束，这条门禁什么都没检查")
+                .hasSize(1);
+
+        // 约束形如 CHECK (((dict_type)::text = ANY ((ARRAY['作战单元'::character varying, …])::text[])))
+        Set<String> allowed = new TreeSet<>();
+        Matcher matcher = Pattern.compile("'([^']+)'::character varying").matcher(rows.get(0));
+        while (matcher.find()) {
+            allowed.add(matcher.group(1));
+        }
+        assertThat(allowed)
+                .describedAs("从约束里没解析出取值，正则与 PostgreSQL 的输出格式对不上了")
+                .isNotEmpty();
+
+        assertThat(new TreeSet<>(DictQuery.ALL_TYPES))
+                .describedAs("DictQuery.ALL_TYPES 与 ck_dict_type 不一致。"
+                        + "新增字典类型要同时改三处：迁移脚本放开 CHECK、ALL_TYPES 登记、"
+                        + "R__seed_dict_initial_values.sql 给初始值")
+                .containsExactlyInAnyOrderElementsOf(allowed);
+    }
+
+    /**
+     * 每个字典类型都得有初始值。
+     *
+     * <p>空字典不是「等运营去配」：后端会拿提交上来的编码回查字典，查不到就 PARAM_INVALID。
+     * 课程分类空着时，<b>全新库里连第一门课都建不出来</b>，而错误信息说的是「「INDIVIDUAL」
+     * 不在课程分类字典中」——读的人会去找这个取值哪里写错了，不会想到整张字典是空的。
+     */
+    @Test
+    @DisplayName("每个字典类型都有 R__ 种子给出的初始值")
+    void 字典类型都有初始值() {
+        List<String> empty = DictQuery.ALL_TYPES.stream()
+                .filter(type -> MigratedSchema.query(
+                        "SELECT count(*) FROM dict_item WHERE deleted = FALSE AND dict_type = '"
+                                + type + "'").get(0).equals("0"))
+                .toList();
+
+        assertThat(empty)
+                .describedAs("这些字典类型在全新库里是空的，对应页面的下拉框没有可选项，"
+                        + "且任何提交都会被判成非法取值。请在 R__seed_dict_initial_values.sql 里补初始值")
+                .isEmpty();
     }
 
     @Test

@@ -98,7 +98,7 @@ class StateLiteralGuardTest {
             String code = stripComments(read(file));
             for (String literal : stringLiterals(code)) {
                 for (String state : stateValues) {
-                    if (literal.contains(state)) {
+                    if (containsAsWholeValue(literal, state)) {
                         violations.add("%s：字符串 %s 含状态值「%s」".formatted(file.getFileName(), literal, state));
                     }
                 }
@@ -134,7 +134,7 @@ class StateLiteralGuardTest {
             for (Matcher matcher = Pattern.compile("'([^']{2,64})'").matcher(code); matcher.find(); ) {
                 String literal = matcher.group(1);
                 for (String state : stateValues) {
-                    if (literal.contains(state)) {
+                    if (containsAsWholeValue(literal, state)) {
                         violations.add("%s：SQL 字面量 '%s' 含状态值「%s」".formatted(
                                 file.getFileName(), literal, state));
                     }
@@ -193,6 +193,43 @@ class StateLiteralGuardTest {
         assertThat(statesOf(TaskStateMachine.task()))
                 .describedAs("任务状态常量必须出现在任务状态机的转换表里")
                 .contains(TaskStateMachine.STATE_PENDING, TaskStateMachine.STATE_IN_PROGRESS);
+    }
+
+    /**
+     * 状态值是否以「完整取值」的形态出现在字面量里，而不是恰好成为另一个词的前缀或后缀。
+     *
+     * <p>直接用 {@code contains} 会误报：任务状态里有「已完成」，而讲师的<b>培养计划</b>状态
+     * 有「已完成培养」（{@code LecturerEnums.PLAN_DONE}）。两者是不同枚举的取值，
+     * 培养计划也不走状态机（规则 TS2），但前者是后者的前缀，于是枚举定义处被判成违规。
+     *
+     * <p>这类误报的代价不只是一次报红：唯一的消解办法是把整个文件加进
+     * {@code ALLOWED_FILES}，而那会让该文件里<b>真正的</b>状态判断也一起免检——
+     * 门禁越不准，白名单就越长，最后挡不住任何东西。
+     *
+     * <p>因此要求匹配处两侧不是汉字。危险写法一条不漏：
+     * {@code if ("已完成".equals(state))} 的字面量恰好等于状态值，两侧无字符；
+     * SQL 文本里的 {@code = '已完成'} 两侧是引号。而「已完成培养」后面跟着「培」，被排除。
+     */
+    private static boolean containsAsWholeValue(String literal, String state) {
+        int from = 0;
+        while (true) {
+            int at = literal.indexOf(state, from);
+            if (at < 0) {
+                return false;
+            }
+            int before = at - 1;
+            int after = at + state.length();
+            boolean 左侧粘连 = before >= 0 && isChinese(literal.charAt(before));
+            boolean 右侧粘连 = after < literal.length() && isChinese(literal.charAt(after));
+            if (!左侧粘连 && !右侧粘连) {
+                return true;
+            }
+            from = at + 1;
+        }
+    }
+
+    private static boolean isChinese(char c) {
+        return Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN;
     }
 
     private static Set<String> statesOf(StateMachineDef machine) {

@@ -36,9 +36,9 @@ public abstract class IntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", PostgresContainer::jdbcUrl);
-        registry.add("spring.datasource.username", PostgresContainer::username);
-        registry.add("spring.datasource.password", PostgresContainer::password);
+        registry.add("spring.datasource.url", TestPostgres::jdbcUrl);
+        registry.add("spring.datasource.username", TestPostgres::username);
+        registry.add("spring.datasource.password", TestPostgres::password);
 
         // 用 {noop} 而不是 {bcrypt}：SharedAccountCredentialsCheck 只在 prod profile 生效，
         // 这里是 test profile，没有它把关。而 bcrypt 的代价因子会给每个测试类多加一次

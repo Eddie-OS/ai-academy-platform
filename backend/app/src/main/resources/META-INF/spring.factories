@@ -1,0 +1,17 @@
+# EnvironmentPostProcessor 的注册必须写在这里，不能写成
+# META-INF/spring/org.springframework.boot.env.EnvironmentPostProcessor.imports。
+#
+# .imports 那套机制（ImportCandidates）只服务于自动配置
+# （org.springframework.boot.autoconfigure.AutoConfiguration.imports），
+# EnvironmentPostProcessor 走的仍是 SpringFactoriesLoader → spring.factories。
+# spring-boot 3.2.11 自己的 ConfigDataEnvironmentPostProcessor 等六个实现也都注册在
+# 它的 META-INF/spring.factories 里，整个 jar 里没有一个 .imports 形式的 EPP 注册。
+#
+# 写错位置不会报任何错，只会让 EmbeddedPostgresBootstrap 不被加载，
+# 于是内嵌数据库不启动、应用去连 prod 里那个默认的 postgres:5432，
+# 报「Unable to obtain connection from database: 尝试连线已失败」——
+# 这条报错里没有任何一处提到嵌入式数据库。已经踩过一次，见
+# EmbeddedPostgresBootstrapRegistrationTest。
+
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.aiacademy.app.support.EmbeddedPostgresBootstrap

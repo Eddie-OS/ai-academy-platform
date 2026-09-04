@@ -143,7 +143,7 @@ class EscalationIntegrationTest extends IntegrationTest {
     }
 
     private String 造人员(String name) {
-        String no = "E4" + System.nanoTime() % 100000000L;
+        String no = "E4" + System.nanoTime();
         employees.create(new EmployeeForm(
                 no, name, "AI中心", "工程师", no + "@example.com", "学员", "在职", null));
         return no;

@@ -12,13 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.aiacademy.app.support.PostgresContainer;
+import com.aiacademy.app.support.TestPostgres;
 import org.flywaydb.core.Flyway;
 
 /**
  * 在真实 PostgreSQL 上跑一遍全部 Flyway 迁移，并把结果 schema 读成内存结构供断言。
  *
- * <p>容器来自 {@link PostgresContainer}（全 JVM 共用一个）。迁移在本类初始化时跑一次：
+ * <p>实例来自 {@link TestPostgres}（全 JVM 共用一个）。迁移在本类初始化时跑一次：
  * 44 张表不到一秒。Spring 集成测试启动时 Flyway 会再跑一次，那时全部脚本已是「已应用」状态，
  * 不会重复建表。
  */
@@ -34,9 +34,9 @@ final class MigratedSchema {
     private static final Map<String, String> COLUMN_TYPES;
 
     static {
-        JDBC_URL = PostgresContainer.jdbcUrl();
-        USERNAME = PostgresContainer.username();
-        PASSWORD = PostgresContainer.password();
+        JDBC_URL = TestPostgres.jdbcUrl();
+        USERNAME = TestPostgres.username();
+        PASSWORD = TestPostgres.password();
 
         // 用 url/user/password 而不是 DataSource 对象：PostgreSQL 驱动在本模块是 runtimeOnly，
         // 测试编译期看不到 PGSimpleDataSource。为一个测试基座把驱动提到编译期依赖不值得。

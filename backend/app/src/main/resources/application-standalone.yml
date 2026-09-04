@@ -1,0 +1,47 @@
+# 单机交付模式（无 Docker）。内网机器装不了 Docker，见 EmbeddedPostgresBootstrap 的类注释。
+#
+# 【这是交付方式，不是环境】必须与 prod 一起激活：
+#
+#     SPRING_PROFILES_ACTIVE=prod,standalone
+#
+# 拆成两个 profile 而不是做一个大而全的 standalone，是为了不把 prod 的安全姿态丢掉：
+# SharedAccountCredentialsCheck 是 @Profile("prod")，它保证两个共享账号的口令必须是 BCrypt
+# 哈希（规则 SEC5）。如果 standalone 自成一套环境，这道启动自检就不生效了——而共享账号模型下
+# 「口令外泄即全量写权限泄露」且系统内没有第二道防线（需求 AC4、SEC6），这道检查不能少。
+#
+# 因此 standalone 只回答一个问题：数据库从哪来。其余一切仍由 prod 决定。
+# 下面 spring.datasource 一行都没有——连接参数由 EmbeddedPostgresBootstrap 在运行时写入
+# 最高优先级属性源，prod 里那份 ${DB_HOST} 等占位符会被整体遮蔽，因此无需设置 DB_* 环境变量。
+
+aiacademy:
+  embedded-db:
+    enabled: true
+    # 刻意不用 5432：本机可能已装 PostgreSQL 服务，或 docker-compose.local.yml 映射着那个端口。
+    # 撞端口时最坏的情况不是起不来，是连上了一个不相干的库并开始在上面跑 Flyway 迁移
+    port: 15432
+    # 与 aiacademy.storage.root 同在 data/ 下，备份时打包一个目录即可。
+    # 相对路径按进程工作目录解析，启动脚本会切到仓库根；实际路径会打进启动日志
+    data-dir: data/pgdata
+  storage:
+    root: ./data
+
+  # 首次启动、且 19 张业务表全空时灌一份演示数据（598 行，见 DemoDataSeeder）。
+  #
+  # 【正式使用前把这里改成 false】它是为了让新装的机器打开就有东西看——空库下前端会
+  # 显示「讲师池有卡但顶部指标是 0」这类自相矛盾的画面。一旦开始录真实数据就该关掉。
+  #
+  # 忘了关也不会覆盖你的数据：判空按「含已逻辑删除的行」计数，任何一张表有行就整体跳过。
+  demo-data:
+    enabled: true
+
+logging:
+  file:
+    # 覆盖 prod 的 /var/log/aiacademy/app.log。那是 Linux 容器内的挂载点，
+    # 在 Windows 上会被解析成 C:\var\log\aiacademy\ ——能写进去，所以不会报错，
+    # 只是没人想得到去那儿找日志
+    name: logs/app.log
+
+server:
+  # 单机模式下 Spring Boot 直接对外，前面没有 nginx 了。
+  # 80 端口在 Windows 上不需要管理员权限（与 Linux 不同），可以直接用
+  port: 80

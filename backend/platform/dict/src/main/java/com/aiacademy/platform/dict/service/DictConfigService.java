@@ -144,13 +144,21 @@ public class DictConfigService implements AuditSnapshotSource {
     }
 
     /**
-     * 一期只有两类字典（{@code dict_item} 上的 CHECK 约束同样只允许这两类）。
+     * 字典类型白名单，与 {@code dict_item} 上的 {@code ck_dict_type} 约束同一套取值。
      *
      * <p>自检 CheckList 清单项虽然在需求 13.9.3 的表格里与它们并列，但因为要快照题目文本而单独
-     * 建了表（开发 6.3.9），走 {@code SelfcheckConfigService}。
+     * 建了表（开发 6.3.9），走 {@code SelfcheckConfigService}，不在这份清单里。
+     *
+     * <p><b>这里曾经写死「只有作战单元与课程分类两类」</b>，注释还说「CHECK 约束同样只允许这两类」。
+     * 阶段 5 的课程工作台加了 12 类并逐个放开了 CHECK，这个方法没跟上，于是
+     * {@code GET /api/meta/dicts} 一旦下发那 12 类就整个请求 400——注意<b>坏掉的是整个接口</b>，
+     * 不是缺一类：前端拿不到任何字典，所有下拉框一起空掉。
+     *
+     * <p>改成查 {@link DictQuery#ALL_TYPES}，这样新增一类字典只需改那一处；
+     * 那份清单与 CHECK 约束由 {@code SchemaConventionTest} 交叉验证。
      */
     private String requireKnownType(String dictType) {
-        if (DictQuery.TYPE_COMBAT_UNIT.equals(dictType) || DictQuery.TYPE_COURSE_CATEGORY.equals(dictType)) {
+        if (DictQuery.ALL_TYPES.contains(dictType)) {
             return dictType;
         }
         throw new BizException(ErrorCode.PARAM_INVALID, "未知的字典类型：" + dictType);

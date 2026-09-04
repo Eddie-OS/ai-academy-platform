@@ -88,18 +88,23 @@ public class MetaController {
     }
 
     /**
-     * 三类字典的当前值。
+     * 全部字典的当前值。
      *
      * <p>7.5 写的是「4 类字典」，那是 V1.1 的口径——激励类型字典已随 N20（激励推二期）删除，
-     * 现存三类：作战单元、课程分类、自检 CheckList 清单项。
+     * 而阶段 5 的课程工作台又加了 12 类（立项、评审、自检、试讲四组）。因此这里不再逐条列举，
+     * 改为遍历 {@link DictQuery#ALL_TYPES}，另加一项来源不同的自检 CheckList 清单项
+     * （它在 {@code cfg_selfcheck_item} 而不是 {@code dict_item}）。
+     *
+     * <p><b>改成遍历是为了修一个具体缺陷：</b>先前这里一条条 put，只 put 了作战单元与课程分类，
+     * 阶段 5 那 12 类一类都没下发。前端按 STK-1 不许自己写枚举字面量，所以立项、评审、自检、
+     * 试讲四个台账页的下拉框没有数据来源——而缺了下发不会报错，只是下拉框安静地空掉。
      *
      * <p>只下发<b>启用中</b>的项：停用项仅在配置中心可见（规则 DC1「仅在新建时不再可选」）。
      */
     @GetMapping("/dicts")
     public R<Map<String, List<DictOption>>> dicts() {
         Map<String, List<DictOption>> result = new LinkedHashMap<>();
-        result.put(DictQuery.TYPE_COMBAT_UNIT, options(DictQuery.TYPE_COMBAT_UNIT));
-        result.put(DictQuery.TYPE_COURSE_CATEGORY, options(DictQuery.TYPE_COURSE_CATEGORY));
+        DictQuery.ALL_TYPES.forEach(type -> result.put(type, options(type)));
         result.put("自检CheckList清单项", selfchecks.list().stream()
                 .filter(item -> Boolean.TRUE.equals(item.enabled()))
                 .map(item -> new DictOption(String.valueOf(item.id()), item.itemText(), null))

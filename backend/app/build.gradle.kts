@@ -39,6 +39,28 @@ dependencies {
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.flyway.postgresql)
 
+    // 嵌入式 PostgreSQL（standalone profile）：内网机器装不了 Docker，也不想装 PG 服务。
+    // 这里是 implementation 而不是 testImplementation —— 它要进 bootJar，是生产运行路径的一部分。
+    // 二进制约 25MB，换来的是「拷一个 jar 就能跑」，见 application-standalone.yml。
+    implementation(platform(libs.zonky.postgres.binaries.bom))
+    implementation(libs.zonky.embedded.postgres) {
+        /*
+         * embedded-postgres 默认把四个平台的二进制全拉进来（windows／linux／darwin／alpine），
+         * 每个 14～22MB。只保留实际用得到的两个：
+         *
+         *   - windows-amd64：部署目标是内网 Windows 台式机（决策 C13）
+         *   - linux-amd64：CI 与将来可能的 Linux 主机
+         *
+         * 顺带修掉一个具体故障：阿里云镜像里没有 alpine 那个构件，
+         * 解析时报「Could not find embedded-postgres-binaries-linux-amd64-alpine-15.19.0.jar」。
+         * 这两个平台本项目都不部署，拉进来只是让离线依赖包多背 30 多 MB。
+         */
+        exclude(group = "io.zonky.test.postgres", module = "embedded-postgres-binaries-darwin-amd64")
+        exclude(group = "io.zonky.test.postgres", module = "embedded-postgres-binaries-linux-amd64-alpine")
+    }
+    implementation(libs.zonky.postgres.binaries.windows)
+    implementation(libs.zonky.postgres.binaries.linux)
+
     testImplementation(libs.spring.security.test)
     testImplementation(libs.archunit.junit5)
 
@@ -46,10 +68,15 @@ dependencies {
     // 手工拼 OOXML 或提交二进制夹具文件都会让「模板改了但夹具没改」变成不可见的失败
     testImplementation(libs.easyexcel)
 
-    // 建库脚本必须在真实 PostgreSQL 上验证：生成列、部分索引、GIN + pg_trgm、TIMESTAMPTZ
-    // 这些用到的都是 PostgreSQL 专有能力，H2 一类的内存库跑不了，跑通了也证明不了什么。
-    testImplementation(libs.testcontainers.postgresql)
-    testImplementation(libs.testcontainers.junit)
+    // 建库脚本必须在真实 PostgreSQL 上验证：生成列、部分索引、GIN + pg_trgm、TIMESTAMPTZ、
+    // 以及 plpgsql 写的 calc_light。这些都是 PostgreSQL 专有能力，H2 一类的内存库跑不了，
+    // 跑通了也证明不了什么。真实 PG 由上面那套嵌入式二进制提供（见 TestPostgres），
+    // 与生产同一条交付路径。
+    //
+    // 这里曾经是 Testcontainers。换掉的原因是部署目标为装不了 Docker 的内网机器，
+    // 而「测试要 Docker、生产没有 Docker」意味着测的不是生产那条路。
+    // 依赖也一并删掉而不是留着不用：删了之后「不依赖 Docker」由编译器保证——
+    // 谁再写一个基于容器的测试会直接编译不过，而不是在内网机器上运行时才发现。
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

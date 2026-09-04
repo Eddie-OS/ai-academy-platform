@@ -20,7 +20,7 @@ AI学院运营记录与可视化平台。**平台记录线下已经发生的事�
 |---|---|---|
 | **JDK** | **17** | **必须真实安装，不能靠 Gradle toolchain 自动下载**：Gradle 守护进程自身需要 JVM 17+ 才能加载 Spring Boot 插件，toolchain 只管编译。`winget install --source winget Microsoft.OpenJDK.17` |
 | Node.js | 20 或更高 | — |
-| **Docker Desktop** | 4.80 或更高 | 需含 `docker compose` v2 |
+| **Docker Desktop** | 4.80 或更高 | 需含 `docker compose` v2。**只有本地起开发库与三容器部署需要它**：后端测试改用嵌入式 PostgreSQL（`TestPostgres`），`gradlew :app:test` 不再依赖 Docker；内网无 Docker 的部署路径见第六节末 |
 | Git | 2.x | — |
 
 若 `JAVA_HOME` 仍指向旧版 JDK，在终端里先设置：
@@ -296,6 +296,10 @@ powershell -ExecutionPolicy Bypass -File scripts\deploy.ps1  # 起服务，Flywa
 `docker/web/Dockerfile` 的构建段里，PostgreSQL 15 是 compose 的一个容器——上面「一、本地启动」
 那张 JDK／Node 版本表是给本地开发的，**不是部署前提**。仓库不会自动检测或安装宿主机环境。
 
+> **内网机器装不了 Docker 的，跳到本节末尾的「单机交付包」**：那条路的运行时前提只有一个
+> JRE 17，数据库仍是 PostgreSQL 15（二进制打在 jar 里），不需要 Docker、不需要装 PG、
+> 不需要管理员权限。
+
 `bootstrap.ps1` 是只读的前置检查（`-CreateDirs` 时才会创建附件与日志目录），`deploy.ps1`
 起容器前也会自动跑它一遍，不通过就不做任何部署动作。它检查工具链、物理内存对得上 compose
 的 29GB 限额、80 端口空闲、`.env` 五个必填项、两个哈希的结构，以及宿主机目录是不是盘符路径。
@@ -338,11 +342,66 @@ Register-ScheduledTask -TaskName 'aiacademy-backup' -Action $action -Trigger $tr
 一块常驻挂载的备份盘在这两种场景下和主盘一起完蛋。
 `.env` 里的 `BACKUP_DISK_NUMBER` 留空则跳过联机／脱机，按盘符已挂载处理。
 
-### 只有一种部署方式，没有纯前端演示站
+### 内网装不了 Docker：单机交付包（无 Docker、无外部数据库）
 
-生产部署只有上面那一种：单机三容器（C13／BLOCK-03）。**整套系统不能部署到 Vercel 这类
-静态／函数托管**——没有 Java 运行时，而且会话在 JVM 内存里（不做项第 18 条禁 Redis）、
-附件在本地磁盘、定时任务要常驻进程，这三样在无状态的函数运行时上都不成立。
+三容器那条路要求宿主机有 Docker Desktop。**部分内网机器装不了 Docker**（无 WSL2、无管理员
+权限、或安全基线不允许）。这种环境走单机交付包，运行时前提只剩一个 **JRE 17**。
+
+换掉的**只是 PostgreSQL 的交付方式，不是数据库本身**。库仍是官方 PostgreSQL 15，二进制打在
+`app.jar` 里，启动时解包并拉起一个真实的 postmaster 进程（`EmbeddedPostgresBootstrap`）。
+
+**没有改成 SQLite，这一条不是偷懒。** 本项目的 SQL 深度依赖 PG 专有能力：三色灯 `calc_light`
+是 plpgsql 存储函数、79 个带 `WHERE` 的部分索引、`GIN + pg_trgm`、132 处 `TIMESTAMPTZ`、
+35 处 `jsonb`（宪法第二节「刻意使用专有语法、不做数据库隔离」）。换库等于重写数据层与三色灯
+引擎，且**在别的库上跑通证明不了生产能跑通**——54 个指标 SQL 的验证会整体作废。
+
+在联网的开发机上打包：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\standalone\package.ps1
+```
+
+产出 `dist-standalone/`（约 190MB）：`app.jar`、`web/`、`start.ps1`、`hash.ps1`、
+`.env.example`、`README.txt`。拷到内网机器上，三步：
+
+```powershell
+copy .env.example .env
+.\hash.ps1        # 两个账号各跑一次，把哈希填进 .env
+.\start.ps1       # 首次启动约 1～2 分钟（initdb + 49 个迁移），之后 20 秒内
+```
+
+浏览器打开 `http://localhost`。前后端同源同端口，因此**没有 nginx、没有反向代理配置，
+也没有 CORS 与 Cookie 域这两处配置面**（静态托管见 `StandaloneWebConfig`）。
+
+几处与三容器形态不同、值得先知道的：
+
+- **`.env` 只填两个口令哈希**，没有 `DB_USER` / `DB_PASSWORD`。内嵌实例只监听 localhost、
+  由本进程独占、trust 认证，没有连接口令这回事。
+- **哈希直接粘贴，不要把 `$` 转义成 `$$`。** `$$` 那种写法是给 Docker Compose 的变量插值用的，
+  `start.ps1` 读 `.env` 时不做插值。`hash.ps1` 已经把那个变体滤掉了，只输出该填的那一行。
+- **全部状态都在 `data\` 一个目录里**（`data\pgdata\` 是库，同级放附件）。备份就是停服务、
+  打包这个目录；恢复就是解回去。**不要在运行时拷 `data\pgdata`**，会拷到不一致的快照。
+- **profile 必须是 `prod,standalone` 两个一起**，`start.ps1` 已经设好。拆成两个 profile 是为了
+  不丢掉 prod 的安全姿态：`SharedAccountCredentialsCheck` 是 `@Profile("prod")`，它保证两个共享
+  账号的口令必须是 BCrypt 哈希（规则 SEC5）。standalone 只回答「数据库从哪来」这一个问题。
+- **首次启动会灌 598 行演示数据**，方便新机器打开就有东西看。开始录真实数据前把
+  `application-standalone.yml` 的 `aiacademy.demo-data.enabled` 改成 `false`；忘了改也不会覆盖
+  已有数据——判空按「含已逻辑删除的行」计数，任何一张表有行就整体跳过。
+- **应用被强杀后（任务管理器结束进程、掉电）postmaster 会残留**，它还锁着 `data\pgdata`。
+  `start.ps1` 认得出这种情况并直接给出该结束的 PID——此时「换个端口」是错的，换了照样起不来。
+
+测试侧同样不再需要 Docker：Testcontainers 已整体移除，改用同一套嵌入式 PostgreSQL
+（`TestPostgres`）。因此**跑后端测试的前提也只是 JDK 17**。
+
+### 部署形态只有这两种，都没有纯前端演示站
+
+生产部署只有两种形态：**单机三容器**（C13／BLOCK-03，宿主机有 Docker 时的默认路径）与
+上面的**单机交付包**（内网无 Docker 时）。两者的数据库都是 PostgreSQL 15，迁移脚本、指标 SQL
+与业务代码完全共用，差别只在 PG 怎么起来、静态文件由 nginx 还是 Spring Boot 托管。
+
+**整套系统不能部署到 Vercel 这类静态／函数托管**——没有 Java 运行时，而且会话在 JVM 内存里
+（不做项第 18 条禁 Redis）、附件在本地磁盘、定时任务要常驻进程，这三样在无状态的函数运行时
+上都不成立。
 
 曾经有过一个「演示构建」：只发前端、数据全走 `src/fixtures`、**登录态直接给一个冻结的运营账号**。
 它已整体删除（`demoMode.ts`、`DemoBanner`、`vercel.json` 一并删掉）。删的理由是那个跳过登录的

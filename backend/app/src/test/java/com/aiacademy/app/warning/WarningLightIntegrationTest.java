@@ -218,7 +218,7 @@ class WarningLightIntegrationTest extends IntegrationTest {
     }
 
     private String 造人员(String name) {
-        String no = "L" + System.nanoTime() % 100000000L;
+        String no = "L" + System.nanoTime();
         employees.create(new EmployeeForm(
                 no, name, "AI中心", "工程师", no + "@example.com", "学员", "在职", null));
         return no;

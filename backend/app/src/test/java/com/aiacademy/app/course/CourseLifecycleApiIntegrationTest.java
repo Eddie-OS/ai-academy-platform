@@ -385,7 +385,7 @@ class CourseLifecycleApiIntegrationTest extends IntegrationTest {
     }
 
     private String 造人员(String name) {
-        String no = "E" + System.nanoTime() % 100000000L;
+        String no = "E" + System.nanoTime();
         jdbc.update("""
                 INSERT INTO org_employee (employee_no, employee_name, dept_name, person_type,
                                           person_state, created_by)
@@ -396,7 +396,7 @@ class CourseLifecycleApiIntegrationTest extends IntegrationTest {
 
     private long 造讲师(String name) {
         // JSFIX 前缀不匹配 LecturerMapper 取号用的 ^JS[0-9]+$，夹具因此不会挤占真实讲师编号
-        String no = "JSFIX" + System.nanoTime() % 100000000L;
+        String no = "JSFIX" + System.nanoTime();
         return jdbc.queryForObject("""
                 INSERT INTO biz_lecturer (lecturer_no, lecturer_name, employee_no, source_dept,
                                           expertise_domains, teaching_direction, join_type,

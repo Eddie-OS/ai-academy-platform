@@ -72,7 +72,7 @@
 | API 文档 | springdoc-openapi | 2.x | 生成 OpenAPI 3 |
 | 定时任务 | Spring Scheduling | — | 单实例，**不引 ShedLock** |
 | 文件存储 | 本地磁盘 + `FileStorage` 接口 | — | **全项目唯一保留接口隔离的地方**（STK-2） |
-| 后端测试 | JUnit 5 + Testcontainers + MockMvc | — | **禁止用 H2 测指标 SQL**，必须真实 PostgreSQL |
+| 后端测试 | JUnit 5 + 嵌入式 PostgreSQL（zonky）+ MockMvc | — | **禁止用 H2 测指标 SQL**，必须真实 PostgreSQL。夹具见 `TestPostgres`；**Testcontainers 已移除**，跑测试不再需要 Docker |
 | 架构约束 | ArchUnit | 1.x | AR-1～AR-7 作为 CI 门禁 |
 | 前端框架 | React + TypeScript | 18 / 5.x | — |
 | 构建 | Vite | 5.x | — |
@@ -84,7 +84,7 @@
 | 富文本 | wangEditor 5 | 5.x | 仅案例正文使用 |
 | 前端测试 | Vitest + Testing Library + Playwright | — | — |
 | 反向代理 | Nginx | — | 配合 200MB 分片上传设置 `client_max_body_size` |
-| 容器 | Docker Compose 单文件 | — | **三个容器：app + postgres + nginx** |
+| 容器 | Docker Compose 单文件 | — | **三个容器：app + postgres + nginx**。内网装不了 Docker 时走单机交付包：同一个 PostgreSQL 15 由 `app.jar` 内置启动、前端由 Spring Boot 托管，无 nginx（见 README 第六节末与 `EmbeddedPostgresBootstrap`）。**数据库仍是 PostgreSQL，不换 SQLite** |
 
 **同一件事只允许一个库。** 例如工具类统一用一个（不要一处 Hutool、一处 Apache Commons）；日期时间统一 `java.time`。新增任何依赖前先检查本表。
 

@@ -17,11 +17,27 @@
         </encoder>
     </appender>
 
+    <!--
+      日志文件位置由 logging.file.name 决定，这里不写死。
+
+      原先两处硬编码 /var/log/aiacademy/app.log。那是三容器形态下容器内的挂载点，
+      单机模式（Windows，profile 为 prod,standalone）下这个路径会被解析成
+      「当前盘符 + \var\log\aiacademy\」——能创建、能写入，所以不报错，
+      只是没人想得到去那儿找日志，而 application-standalone.yml 里那句
+      logging.file.name: logs/app.log 看起来生效了，实际被这个文件整体旁路：
+      自定义 logback 配置一旦不引用 LOG_FILE，Spring Boot 的 logging.file.* 就是死配置。
+
+      LOG_FILE 是 Spring Boot 从 logging.file.name 推出来的标准变量（LoggingSystemProperties），
+      不是自造的属性名。defaultValue 只在两个 profile 都没给值时兜底。
+    -->
+    <springProperty scope="context" name="LOG_FILE" source="logging.file.name"
+                    defaultValue="/var/log/aiacademy/app.log"/>
+
     <springProfile name="prod">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>/var/log/aiacademy/app.log</file>
+            <file>${LOG_FILE}</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>/var/log/aiacademy/app.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.gz</fileNamePattern>
                 <maxHistory>30</maxHistory>
                 <totalSizeCap>10GB</totalSizeCap>
             </rollingPolicy>

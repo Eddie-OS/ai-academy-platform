@@ -3,7 +3,7 @@ package com.aiacademy.app.support;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,7 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import javax.sql.DataSource;
 
 /**
- * 本地开发环境的演示数据装载（仅 local profile）。
+ * 演示数据装载（由 {@code aiacademy.demo-data.enabled} 开关控制，local 与单机交付模式都会开）。
  *
  * <p>解决的是一个具体的坏体验：从 GitHub 克隆下来的库<b>只有表结构没有业务数据</b>
  * （49 个迁移脚本里只有字典、阈值、自检项、派生规则四类配置种子）。而前端在库为空时
@@ -36,8 +36,19 @@ import javax.sql.DataSource;
  * 把 {@code deleted} 置真而行仍留在表里，所以下面的计数<b>刻意不加</b>
  * {@code WHERE deleted = false} —— 删过的库在这里仍然算「非空」，不会被再灌一次。
  */
+/*
+ * 开关从 profile 改成显式属性（aiacademy.demo-data.enabled）。
+ *
+ * 原先是 @Profile("local")，于是单机交付模式（prod,standalone）不会装载演示数据，
+ * 内网新装一台机器打开就是空库——而空库正是「讲师池 60 张卡、顶部指标显示 0」那一类
+ * 现象的源头。用属性而不是再加一个 profile，是因为「要不要演示数据」与「跑在哪个环境」
+ * 是两件独立的事：同一台内网机器，演示时要数据，正式录入前要清空。
+ *
+ * matchIfMissing = false：没写这个属性就不装。两处显式打开——application-local.yml 与
+ * application-standalone.yml。默认关掉是因为「往库里灌 598 行数据」不该是省略配置时的行为。
+ */
 @Component
-@Profile("local")
+@ConditionalOnProperty(name = "aiacademy.demo-data.enabled", havingValue = "true")
 public class DemoDataSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);

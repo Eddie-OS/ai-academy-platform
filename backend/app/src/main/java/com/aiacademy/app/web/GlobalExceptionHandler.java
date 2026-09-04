@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -47,8 +48,23 @@ public class GlobalExceptionHandler {
                 .body(R.fail(ErrorCode.PARAM_INVALID, first, Map.of("fieldErrors", fieldErrors)));
     }
 
-    @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<R<Object>> handleNoHandler(NoHandlerFoundException e) {
+    /**
+     * 找不到处理器与找不到静态资源，都是 404。
+     *
+     * <p>{@link NoResourceFoundException} 是 Spring 6.1 起静态资源未命中抛的异常，它<b>不是</b>
+     * {@link NoHandlerFoundException} 的子类，因此原先会一路落到下面兜底的
+     * {@code Exception} 分支：一个普通的地址拼错变成 {@code 500 INTERNAL_ERROR}，
+     * 还带 traceId 和一整段堆栈写进 ERROR 日志。
+     *
+     * <p>两个后果都不轻：前端按 404 走空状态页的分支永远走不到（拿到的是 500 通用错误页）；
+     * ERROR 日志被扫描器和拼错的收藏夹地址刷满，真实故障淹在里面。
+     *
+     * <p>单机模式下这条特别容易撞上——静态文件改由 Spring Boot 托管（见
+     * {@code StandaloneWebConfig}），原先由 nginx 直接返回的 404 现在都进了 Spring MVC。
+     */
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<R<Object>> handleNotFound(Exception e) {
+        log.debug("未命中任何处理器或静态资源：{}", e.getMessage());
         return ResponseEntity.status(ErrorCode.NOT_FOUND.httpStatus())
                 .body(R.fail(ErrorCode.NOT_FOUND, ErrorCode.NOT_FOUND.defaultMessage(), null));
     }

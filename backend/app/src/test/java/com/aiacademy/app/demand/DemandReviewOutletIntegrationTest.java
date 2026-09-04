@@ -378,7 +378,7 @@ class DemandReviewOutletIntegrationTest extends IntegrationTest {
     }
 
     private String 造人员(String name) {
-        String no = "E" + System.nanoTime() % 100000000L;
+        String no = "E" + System.nanoTime();
         jdbc.update("""
                 INSERT INTO org_employee (employee_no, employee_name, dept_name, person_type,
                                           person_state, created_by)

@@ -108,15 +108,28 @@ abstract class ImportTestBase extends IntegrationTest {
         return no;
     }
 
+    /**
+     * 造一门课作为导入测试的引用数据。
+     *
+     * <p>{@code initiation_no}（立项单号）必须显式给值：{@code V5_013} 把它加成了 NOT NULL
+     * 且<b>没有默认值</b>——单号由 {@code CourseService} 在建课时生成，而这里是裸 SQL，
+     * 绕过了服务层。漏掉它的报错是 {@code null value in column "initiation_no" … violates
+     * not-null constraint}，出现在 19 个导入用例里，而失败信息一个字都不提「立项」，
+     * 读的人会以为导入框架坏了。
+     *
+     * <p>同一个缺陷也让 {@code scripts/seed/seed-demo.sql} 整体跑不通（见 README 的说明），
+     * 那份脚本也是裸 SQL。<b>凡是不走服务层往 biz_course 插行的地方都要给这一列。</b>
+     */
     protected long 造课程(String ownerNo) {
+        String no = "KC" + System.nanoTime();
         return jdbc.queryForObject("""
                 INSERT INTO biz_course (course_no, course_name, review_track, domain_code, owner_no,
                                         initiated_date, expect_publish_date, validity_period,
-                                        main_state, created_by)
+                                        main_state, initiation_no, created_by)
                 VALUES (?, '导入测试用课程', '内部端到端课程', 'COURSE', ?, CURRENT_DATE,
-                        CURRENT_DATE + 30, '长期有效', '立项', 'OPS')
+                        CURRENT_DATE + 30, '长期有效', '立项', ?, 'OPS')
                 RETURNING id
-                """, Long.class, "KC" + System.nanoTime(), ownerNo);
+                """, Long.class, no, ownerNo, "LX" + no);
     }
 
     protected long 造讲师(String employeeNo, String name, String trainingState) {

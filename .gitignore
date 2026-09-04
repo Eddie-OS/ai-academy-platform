@@ -47,6 +47,10 @@ cookies.txt
 logs/
 data/
 
+# 单机交付包（scripts/standalone/package.ps1 的产物，约 190MB：
+# app.jar 里打着 PostgreSQL 二进制，web/ 里有 200 多张头像图）
+dist-standalone/
+
 # 操作系统
 .DS_Store
 Thumbs.db

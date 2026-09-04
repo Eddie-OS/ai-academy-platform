@@ -4,8 +4,15 @@
 -- 种子一旦记进 flyway_schema_history，之后谁用 prod profile 连同一个库，都会因为
 -- 「已应用的迁移在本地解析不到」而启动失败。而演示数据本来也不该出现在生产库里。
 --
--- 谁加载它：DemoDataSeeder，只在 local profile 且业务表为空时执行一次。
+-- 谁加载它：DemoDataSeeder，在 aiacademy.demo-data.enabled=true 且业务表为空时执行一次
+-- （local 与单机交付模式 prod,standalone 都开着）。
 -- 灌完就不再碰 —— 在界面上删掉的记录不会在下次启动时复活。
+--
+-- 【日期是写死的绝对值，不是相对 NOW() 算的】整份数据从一个自洽的库里导出，1300 多处
+-- 2026-xx-xx 原样保留。因此换一台机器灌同一份种子，看到的行、数量指标与效率指标完全一致；
+-- 但三色灯的「剩余 N 天／逾期 N 天」与红黄分布是拿当天日期实时算的（规则 C14、U2：
+-- 实时计算不做预聚合），日子往后走，灯色分布会跟着变。这不是缺陷——要让画面回到「刚好
+-- 在窗口内」的状态，用 scripts/dump-demo-data.ps1 重新导一份，而不是去改灯的算法。
 --
 -- 为什么是 --column-inserts 而不是 pg_dump 默认的 COPY：
 -- COPY ... FROM stdin 是 psql 的客户端特性，走 JDBC 执行不了，脚本会在第一张表就停下。
