@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   CircleCheck,
@@ -72,15 +72,29 @@ export function TaskV2Page() {
   const liveRows = useMemo(() => (live.data?.records ?? []).map(mapTask), [live.data]);
 
   /*
-   * 接口无数据时立刻回落冻结数据（含请求进行中），避免 KPI 全「—」、表格 0 条的空白页。
-   * 与 P08／P09 同一策略。
+   * 产品模式一律以接口为准：没有任务就显示没有任务。
+   *
+   * 这里原先在接口回空或报错时（含请求进行中）退回 TASK_ROWS 那批冻结行，理由写的是
+   * 「避免 KPI 全「—」、表格 0 条的空白页」。代价是<b>一屏假数据看不出是假的</b>：
+   * 表头「任务清单 1,268」下面铺着 8 条别人的任务，运营会把它当成自己的待办去处理。
+   * 更糟的是接口报错也走这条路——真出故障时界面显示得一切正常。
+   *
+   * 想看设计稿那批行：URL 加 ?fixture=1 走视觉回归模式。
    */
-  const useMock = regression || live.isError || liveRows.length === 0;
-  const rows = useMock ? TASK_ROWS : liveRows;
-  const total = useMock ? MOCK_TOTAL : (live.data?.total ?? 0);
+  const rows = regression ? TASK_ROWS : liveRows;
+  const total = regression ? MOCK_TOTAL : (live.data?.total ?? 0);
+
+  /*
+   * 产品模式下把选中项挪到第一条真实任务上。selectedId 的初值是冻结数据里那条的 id，
+   * 库里不会有它——不挪的话，右侧详情按 rows[0] 显示第一条，而表格里没有任何一行是高亮的。
+   */
+  useEffect(() => {
+    if (regression || rows.length === 0) return;
+    if (!rows.some((row) => row.id === selectedId)) setSelectedId(rows[0]!.id);
+  }, [regression, rows, selectedId]);
 
   return (
-    <div className="tsk v2-page" data-mock={useMock ? 'true' : 'false'}>
+    <div className="tsk v2-page">
       <div className="tsk-main">
         <TaskTabs
           tab={tab}
@@ -90,18 +104,25 @@ export function TaskV2Page() {
           regression={regression}
         />
         <KpiRow
-          useMock={useMock}
+          regression={regression}
           total={total}
           overdue={rows.filter((row) => row.overdue !== '—').length}
         />
         <FilterBar />
-        <TaskTable selectedId={selectedId} onSelect={setSelectedId} rows={rows} total={total} />
+        <TaskTable
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          rows={rows}
+          total={total}
+          loading={!regression && live.isPending}
+          failed={!regression && live.isError}
+        />
         <div className="tsk-bottom">
           <WeeklyFocus />
           <EmptyState />
         </div>
       </div>
-      <DetailPanel selectedId={selectedId} rows={rows} />
+      <DetailPanel selectedId={selectedId} rows={rows} regression={regression} />
     </div>
   );
 }
@@ -182,11 +203,11 @@ const KPI_ICONS: Record<string, LucideIcon> = {
 };
 
 function KpiRow({
-  useMock,
+  regression,
   total,
   overdue,
 }: {
-  useMock: boolean;
+  regression: boolean;
   total: number;
   overdue: number;
 }) {
@@ -201,7 +222,7 @@ function KpiRow({
          * 也不用当前页的 50 条去算「待处理 12」——那是分页数不是全量数。
          */
         let value: string = kpi.value;
-        if (!useMock) {
+        if (!regression) {
           if (kpi.id === 'all') value = formatMetricInt(total);
           else if (kpi.id === 'overdue') value = formatMetricInt(overdue);
           else value = '—';
@@ -219,7 +240,7 @@ function KpiRow({
               <p className="tsk-kpi-label">{kpi.label}</p>
               <p className="tsk-kpi-value"><AnimatedNumber value={value} duration={520} /></p>
               {/* 环比是冻结数据里的设计稿数值，接口没有同比口径，真实数据下整行不渲染 */}
-              {useMock && (
+              {regression && (
                 <p className="tsk-kpi-delta" data-warn={warn}>
                   <span>{kpi.delta}</span>
                   <span className="tsk-kpi-period">{kpi.period}</span>
@@ -261,11 +282,15 @@ function TaskTable({
   onSelect,
   rows,
   total,
+  loading,
+  failed,
 }: {
   selectedId: string;
   onSelect: (id: string) => void;
   rows: TaskRow[];
   total: number;
+  loading: boolean;
+  failed: boolean;
 }) {
   return (
     <section className="panel tsk-table-panel" data-region="R6" aria-label="任务表格">
@@ -295,14 +320,30 @@ function TaskTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <TaskTableRow
-                key={row.id}
-                row={row}
-                selected={row.id === selectedId}
-                onSelect={onSelect}
-              />
-            ))}
+            {rows.length === 0 ? (
+              /*
+               * 三种「表里没行」要说三句不同的话。都写「暂无任务」的话，接口 500 与
+               * 真的没有待办在界面上完全一样，运营会以为今天没事做。
+               */
+              <tr data-testid="task-empty">
+                <td colSpan={TASK_COLUMNS.length}>
+                  {loading
+                    ? '正在载入任务…'
+                    : failed
+                      ? '任务清单加载失败，请刷新重试'
+                      : '没有符合条件的任务。任务由状态变更与灯色变化自动派生（需求 13.1.2），也可手动新建。'}
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <TaskTableRow
+                  key={row.id}
+                  row={row}
+                  selected={row.id === selectedId}
+                  onSelect={onSelect}
+                />
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -432,11 +473,20 @@ interface TaskDetailView {
 /**
  * 详情内容。设计稿选中行有完整的冻结详情，其余行只能从列表字段拼一份 ——
  * 任务详情接口一期没有，拼出来的那份不编造评论与处理记录。
+ *
+ * <p><b>那份冻结详情只在回归模式下用。</b>先前不分模式，只要 {@code selectedId} 等于
+ * 冻结数据里那一条的 id 就返回它——而 {@code selectedId} 的初值正是那个 id，于是产品模式
+ * 一进页面，右侧详情写的就是设计稿里那条任务的说明、评论与处理记录，直到用户点了另一行才换掉。
+ *
+ * <p>取不到行时回 {@code null}，由调用方渲染空态。原先这里是 {@code ?? rows[0]!}：
+ * 库里没有任务时 {@code rows} 是空数组，那个非空断言骗过了编译，运行时读 {@code row.id}
+ * 抛错，整个内容区被 ErrorBoundary 换成错误摘要。
  */
-function resolveDetail(selectedId: string, rows: TaskRow[]): TaskDetailView {
-  if (selectedId === TASK_DETAIL.id) return TASK_DETAIL;
+function resolveDetail(selectedId: string, rows: TaskRow[], regression: boolean): TaskDetailView | null {
+  if (regression && selectedId === TASK_DETAIL.id) return TASK_DETAIL;
 
-  const row = rows.find((item) => item.id === selectedId) ?? rows[0]!;
+  const row = rows.find((item) => item.id === selectedId) ?? rows[0];
+  if (!row) return null;
   return {
     id: row.id,
     title: row.title,
@@ -456,8 +506,24 @@ function resolveDetail(selectedId: string, rows: TaskRow[]): TaskDetailView {
   };
 }
 
-function DetailPanel({ selectedId, rows }: { selectedId: string; rows: TaskRow[] }) {
-  const detail = resolveDetail(selectedId, rows);
+function DetailPanel({
+  selectedId,
+  rows,
+  regression,
+}: {
+  selectedId: string;
+  rows: TaskRow[];
+  regression: boolean;
+}) {
+  const detail = resolveDetail(selectedId, rows, regression);
+
+  if (!detail) {
+    return (
+      <aside className="panel tsk-detail" data-region="R9" aria-label="任务详情">
+        <p className="tsk-detail-empty">左侧选中一条任务后，这里显示它的说明与处理记录。</p>
+      </aside>
+    );
+  }
 
   return (
     <aside className="panel tsk-detail" data-region="R9" aria-label="任务详情">

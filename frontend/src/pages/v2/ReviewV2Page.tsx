@@ -41,7 +41,11 @@ import './ReviewV2Page.css';
 
 /**
  * P09 评审记录中心。默认页签选「试讲记录」以确保设计稿指定的试讲选中行有对应的详情。
- * 回归用 fixtures；产品模式接接口，空数据／加载中回落 fixtures 填满版式。
+ *
+ * <p>回归模式读 fixtures；<b>产品模式一律以接口为准</b>，库里没有评审记录就显示没有。
+ * 先前接口空、报错或在途时会回落 fixtures「填满版式」——那批冻结记录带着课程名、
+ * 评审人、评审结论和一致性判定，看起来与真实台账没有区别。评审记录是要被引用来
+ * 回答「这门课谁评过、结论是什么」的，一屏认不出来的假记录比空白危险得多。
  */
 export function ReviewV2Page() {
   const regression = isRegressionMode();
@@ -74,12 +78,7 @@ export function ReviewV2Page() {
     [tab],
   );
 
-  /*
-   * 接口无数据时立刻用模拟台账（含请求进行中），避免 KPI「—」、表格 0 条。
-   * 与 P07／P08 同一策略。
-   */
-  const useMock = regression || live.isError || liveRecords.length === 0;
-  const records = useMock ? fixtureRecords : liveRecords;
+  const records = regression ? fixtureRecords : liveRecords;
 
   useEffect(() => {
     if (records[0] && !records.some((r) => r.id === selectedId)) {
@@ -88,7 +87,7 @@ export function ReviewV2Page() {
   }, [records, selectedId]);
 
   const selected = records.find((record) => record.id === selectedId) ?? records[0];
-  const kpis = useMock
+  const kpis = regression
     ? REVIEW_KPIS
     : [
         {
@@ -119,22 +118,26 @@ export function ReviewV2Page() {
 
   function selectTab(nextTab: ReviewTab) {
     setTab(nextTab);
-    if (useMock) {
+    if (regression) {
       const first = REVIEW_RECORDS.find((record) => record.type === nextTab);
       if (first) setSelectedId(first.id);
     }
+    // 产品模式换页签后由上面那个 effect 选中新页签的首条：这里选不了，
+    // 新页签的数据还没回来
   }
 
   return (
-    <div className="rvw v2-page" data-mock={useMock ? 'true' : 'false'}>
+    <div className="rvw v2-page">
       <TabBar tab={tab} onChange={selectTab} />
       <FilterBar />
-      <KpiRow items={kpis} showDelta={useMock} />
+      <KpiRow items={kpis} showDelta={regression} />
       <ReviewTable
         records={records}
         selectedId={selected?.id ?? ''}
         onSelect={setSelectedId}
-        totalHint={useMock ? 512 : records.length}
+        totalHint={regression ? 512 : (live.data?.total ?? records.length)}
+        loading={!regression && live.isPending}
+        failed={!regression && live.isError}
       />
       {selected ? <DetailPanel record={selected} /> : null}
     </div>
@@ -262,11 +265,15 @@ function ReviewTable({
   selectedId,
   onSelect,
   totalHint,
+  loading,
+  failed,
 }: {
   records: ReviewRecord[];
   selectedId: string;
   onSelect: (id: string) => void;
   totalHint: number;
+  loading: boolean;
+  failed: boolean;
 }) {
   return (
     <section className="rvw-table-panel" data-region="R6" aria-label="评审记录列表">
@@ -287,6 +294,18 @@ function ReviewTable({
             </tr>
           </thead>
           <tbody>
+            {records.length === 0 ? (
+              /* 加载中、加载失败、真的没有记录——三件事各说一句，别都写「暂无数据」 */
+              <tr data-testid="review-empty">
+                <td colSpan={REVIEW_COLUMNS.length}>
+                  {loading
+                    ? '正在载入评审记录…'
+                    : failed
+                      ? '评审记录加载失败，请刷新重试'
+                      : '这个页签下还没有评审记录。评审结论在线下产生，由运营在对应的课程／需求详情里录入后汇总到这里。'}
+                </td>
+              </tr>
+            ) : null}
             {records.map((record) => {
               const consistent = isConsistent(record);
               return (

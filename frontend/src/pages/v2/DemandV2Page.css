@@ -2091,3 +2091,15 @@ html:not([data-regression]) .dmd-feed-illustration {
 .dmd-detail-actions .ant-btn {
   padding-inline: var(--space-v2-1);
 }
+
+/*
+ * 列表空态（加载中／加载失败／真的没有需求）。只在产品模式下出现：
+ * 回归模式读冻结的 8 行，永远非空。
+ */
+html:not([data-regression]) [data-testid='demand-empty'] td {
+  padding: 40px 16px;
+  color: var(--text-tertiary);
+  font-size: var(--type-table-size);
+  line-height: var(--lh-22);
+  text-align: center;
+}

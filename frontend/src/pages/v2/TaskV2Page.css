@@ -888,3 +888,25 @@ html:not([data-regression]) .tsk-empty-art {
   aspect-ratio: 1;
   object-fit: contain;
 }
+
+/*
+ * 「表里没行」与「右侧没选中」两处空态文案。
+ *
+ * 只在产品模式下才可能出现：回归模式读冻结数据，永远有行。因此不写进上面那段
+ * 定位钉死的基线里——那段的每个像素都参与视觉比对。
+ */
+html:not([data-regression]) [data-testid='task-empty'] td {
+  padding: 40px 16px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-13);
+  line-height: var(--lh-20);
+  text-align: center;
+}
+
+html:not([data-regression]) .tsk-detail-empty {
+  margin: auto;
+  color: var(--text-tertiary);
+  font-size: var(--fs-13);
+  line-height: var(--lh-20);
+  text-align: center;
+}

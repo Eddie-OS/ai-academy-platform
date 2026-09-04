@@ -1013,3 +1013,15 @@ html:not([data-regression]) .rvw-detail-body {
 html[data-regression] .rvw-table tbody tr:nth-child(n + 5) {
   display: none;
 }
+
+/*
+ * 空态文案（加载中／加载失败／真的没有记录）。只在产品模式下出现：
+ * 回归模式读冻结台账，每个页签都有行。
+ */
+html:not([data-regression]) [data-testid='review-empty'] td {
+  padding: 40px 16px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-13);
+  line-height: var(--lh-20);
+  text-align: center;
+}

@@ -120,20 +120,17 @@ export function MessageV2Page() {
   const pendingGroups = pendingQ.data?.groups ?? [];
 
   /*
-   * 接口无数据时立刻用模拟台账（含请求进行中），避免 KPI「—」、列表 0 条闪一下。
-   * 图2 那种站内信／渠道／已读能力一期不做（MSG1）；本页只做催办台账。
+   * 产品模式一律以接口为准。图2 那种站内信／渠道／已读能力一期不做（MSG1）；本页只做催办台账。
+   *
+   * 先前接口空、报错或在途时会退回 ESCALATION_RECORDS「避免列表 0 条闪一下」。这一页尤其
+   * 不能这么做：<b>催办台账是「谁在什么时候催过谁」的凭据</b>（需求 13.9）。一屏认不出来的
+   * 假记录会让运营以为某条已经催过——而防重复窗口（URGE_TOO_FREQUENT，默认 24 小时）
+   * 算的是真库里的记录，两边对不上。
    */
-  const useMock =
-    regression ||
-    (tab === 'pending'
-      ? pendingQ.isError || pendingGroups.length === 0
-      : ledgerQ.isError || liveRecords.length === 0);
+  const records = regression ? fixtureRecords : liveRecords;
+  const selected = records.find((record) => record.id === selectedId) ?? records[0];
 
-  const records = useMock ? fixtureRecords : liveRecords;
-  const selected =
-    records.find((record) => record.id === selectedId) ?? records[0] ?? ESCALATION_RECORDS[0]!;
-
-  const kpis = useMock
+  const kpis = regression
     ? ESCALATION_KPIS
     : [
         { id: 'pending', label: '待催办清单', value: String(pendingQ.data?.summary.pendingCount ?? '—'), tone: 'info' },
@@ -154,16 +151,16 @@ export function MessageV2Page() {
 
   const mockSystem = ESCALATION_RECORDS.filter((r) => r.source === '系统生成清单').length;
   const mockManual = ESCALATION_RECORDS.filter((r) => r.source === '运营手动').length;
-  const recent = (useMock ? ESCALATION_RECORDS : records).slice(0, 3);
+  const recent = records.slice(0, 3);
 
   return (
-    <div className="esc v2-page" data-mock={useMock ? 'true' : 'false'}>
+    <div className="esc v2-page">
       <Tabs active={tab} onChange={setTab} />
-      <KpiRow items={kpis} showDelta={useMock} />
+      <KpiRow items={kpis} showDelta={regression} />
       {/* 壳层已经有一个 <main>，这里再套一个会出现两个主区地标（SC 1.3.1）。
           几何靠 .esc-main 这个类，换成 div 不影响任何基线 */}
       <div className="esc-main">
-        {tab === 'pending' && !useMock ? (
+        {tab === 'pending' && !regression ? (
           <PendingList
             groups={pendingGroups}
             selectedKey={selectedPendingKey}
@@ -173,15 +170,27 @@ export function MessageV2Page() {
             }
           />
         ) : (
-          <LedgerList records={records} selectedId={selected.id} onSelect={setSelectedId} />
+          <LedgerList
+            records={records}
+            selectedId={selected?.id ?? ''}
+            onSelect={setSelectedId}
+            loading={!regression && ledgerQ.isPending}
+            failed={!regression && ledgerQ.isError}
+          />
         )}
-        <EscalationDetail record={selected} />
+        {selected ? (
+          <EscalationDetail record={selected} />
+        ) : (
+          <section className="panel esc-detail" data-region="R6" aria-label="催办记录详情">
+            <p className="esc-detail-note">左侧选中一条催办记录后，这里显示它的内容与催办轨迹。</p>
+          </section>
+        )}
         <SummaryPanel
-          weekCount={useMock ? 5 : (pendingQ.data?.summary.urgedThisCycle ?? 0)}
-          systemCount={useMock ? mockSystem : liveRecords.filter((r) => r.source === '系统生成清单').length}
-          manualCount={useMock ? mockManual : liveRecords.filter((r) => r.source === '运营手动').length}
+          weekCount={regression ? 5 : (pendingQ.data?.summary.urgedThisCycle ?? 0)}
+          systemCount={regression ? mockSystem : liveRecords.filter((r) => r.source === '系统生成清单').length}
+          manualCount={regression ? mockManual : liveRecords.filter((r) => r.source === '运营手动').length}
           recent={recent}
-          useDigestGroups={useMock}
+          useDigestGroups={regression}
           digest={records.filter((r) => r.light !== 'BLUE').slice(0, 4)}
         />
       </div>
@@ -379,10 +388,14 @@ function LedgerList({
   records,
   selectedId,
   onSelect,
+  loading,
+  failed,
 }: {
   records: readonly EscalationRecord[];
   selectedId: string;
   onSelect: (id: string) => void;
+  loading: boolean;
+  failed: boolean;
 }) {
   return (
     <section className="panel esc-list" data-region="R5" aria-label="催办记录列表">
@@ -406,6 +419,16 @@ function LedgerList({
         </button>
       </div>
       <div className="esc-list-body">
+        {records.length === 0 ? (
+          /* 加载中、加载失败、真的没有记录——各说一句。都写「暂无」会把接口故障说成没催办过 */
+          <p className="esc-detail-note" data-testid="escalation-empty">
+            {loading
+              ? '正在载入催办记录…'
+              : failed
+                ? '催办记录加载失败，请刷新重试'
+                : '还没有催办记录。到「待催办清单」页签挑对象标记已催办，记录会汇总到这里（系统不发消息，只记台账）。'}
+          </p>
+        ) : null}
         {records.map((record) => (
           <button
             type="button"

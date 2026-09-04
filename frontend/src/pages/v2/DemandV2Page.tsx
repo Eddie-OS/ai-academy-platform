@@ -266,7 +266,10 @@ function moveIndex<T>(list: T[], from: number, to: number): T[] {
 
 interface DemandV2ContextValue {
   regression: boolean;
-  useMock: boolean;
+  /** 列表取数在途。空表要分「还没回来」与「库里就是没有」两句话说。 */
+  listLoading: boolean;
+  /** 列表取数失败。不能与「库里没有需求」同一句文案，否则故障看起来像正常空库。 */
+  listFailed: boolean;
   rows: DemandRowView[];
   total: number;
   pageNum: number;
@@ -521,22 +524,21 @@ export function DemandV2Page() {
   );
 
   /*
-   * 有任意一条真实数据就走接口列表，不再用 8 条演示行垫底。
-   * 想看设计稿那 8 行：URL 加 ?fixture=1。
+   * 产品模式一律以接口为准：库里没有需求就显示没有需求。
+   *
+   * 这里原先在接口报错或回空时退回 DEMAND_ROWS 那 8 条演示行。看着像有数据，实际是一屏
+   * 认不出来的假需求：<b>顶部七张卡读的是 /api/metrics/quantity/demands（数真库）</b>，
+   * 空库时是 0，于是同一屏出现「需求总数 0」和 8 行需求。而且演示行没有真实主键，
+   * 点进去的详情、右列的状态流转日志、催办入口全都对不上。
+   *
+   * 想看设计稿那 8 行：URL 加 ?fixture=1 走视觉回归模式。
    */
-  const useMock =
-    regression || overview.isError || (overview.isSuccess && overviewRecords.length === 0);
-
   const fixtureFiltered = useMemo(
     () => filterFixtureRows(DEMAND_ROWS, filters),
     [filters],
   );
 
-  const total = regression
-    ? DEMAND_PAGINATION.total
-    : useMock
-      ? fixtureFiltered.length
-      : overviewRecords.length;
+  const total = regression ? DEMAND_PAGINATION.total : overviewRecords.length;
 
   const pageSize = regression ? DEMAND_PAGINATION.pageSize : LIVE_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -547,11 +549,7 @@ export function DemandV2Page() {
    * 产品模式一次铺开全部需求，页码只负责把滚动条跳到该页第一条。
    * 回归仍按冻结分页切 8 行，避免打穿 p02。
    */
-  const rows: DemandRowView[] = regression
-    ? DEMAND_ROWS
-    : useMock
-      ? fixtureFiltered
-      : liveRows;
+  const rows: DemandRowView[] = regression ? DEMAND_ROWS : liveRows;
 
   const overviewRows = overviewRecords;
   /*
@@ -593,7 +591,8 @@ export function DemandV2Page() {
 
   const funnelTotal = regression ? DEMAND_PAGINATION.total : Math.max(total, 1);
 
-  const situationRows: readonly SituationRow[] = useMock ? fixtureFiltered : overviewRows;
+  // 底部三张态势图：回归模式喂冻结行，产品模式喂总览全量（不是当前页）
+  const situationRows: readonly SituationRow[] = regression ? fixtureFiltered : overviewRows;
   const reviewFunnel = useMemo(() => {
     const states =
       reviewStates.length > 0
@@ -680,7 +679,8 @@ export function DemandV2Page() {
 
   const ctx: DemandV2ContextValue = {
     regression,
-    useMock,
+    listLoading: !regression && overview.isPending,
+    listFailed: !regression && overview.isError,
     rows,
     total,
     pageNum: regression ? DEMAND_PAGINATION.pageNum : safePageNum,
@@ -1181,7 +1181,6 @@ function DemandTablePanel() {
     pageItems,
     setPageNum,
     regression,
-    useMock,
     pageDemands,
     runCloseLoop,
     closeLoopPendingId,
@@ -1189,11 +1188,13 @@ function DemandTablePanel() {
     listMaximized,
     setListMaximized,
     filters,
+    listLoading,
+    listFailed,
   } = useDemandV2();
   const isOperator = useIsOperator();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const canPage = !regression;
-  const showCloseLoop = !regression && !useMock && isOperator;
+  const showCloseLoop = !regression && isOperator;
   const showPriority = !regression;
   const columnWidths = withPriorityColumn(
     regression ? DEMAND_COLUMN_WIDTHS : showCloseLoop ? LIVE_COLUMN_WIDTHS : PRODUCT_COLUMN_WIDTHS,
@@ -1466,6 +1467,18 @@ function DemandTablePanel() {
                 onCloseLoop={runCloseLoop}
               />
             ))}
+            {displayRows.length === 0 ? (
+              /* 加载中、加载失败、真的没有需求——三句话。都写「暂无数据」会把接口故障说成库是空的 */
+              <tr data-testid="demand-empty">
+                <td colSpan={columnWidths.length}>
+                  {listLoading
+                    ? '正在载入需求…'
+                    : listFailed
+                      ? '需求列表加载失败，请刷新重试'
+                      : '没有符合条件的需求。清空筛选条件看全部，或点右上角「新建需求」开始录入。'}
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
@@ -1872,7 +1885,6 @@ function RegressionAnalysisPanel() {
     trendTabId,
     setTrendTabId,
     regression,
-    useMock,
   } = useDemandV2();
   const activeTrend =
     DEMAND_TREND_TABS.find((tab) => tab.id === trendTabId) ?? DEMAND_TREND_TABS[0]!;
@@ -2039,7 +2051,7 @@ function RegressionAnalysisPanel() {
             <div className="dmd-feed-copy">
               <p className="dmd-feed-title">{DEMAND_FEED.title}</p>
               <p className="dmd-feed-caption">
-                {regression || useMock
+                {regression
                   ? DEMAND_FEED.caption
                   : '一期不发消息；状态变更请看详情里的「状态流转日志」与催办台账'}
               </p>
@@ -2091,7 +2103,6 @@ function DetailPanel() {
   const {
     selected,
     liveDemand,
-    useMock,
     regression,
     activeTab,
     setActiveTab,
@@ -2169,7 +2180,22 @@ function DetailPanel() {
     );
   }
 
-  const showFixtureDetail = useMock || liveDemand === undefined;
+  /*
+   * 产品模式下详情在途时显示一行提示，不再退回冻结详情。
+   *
+   * 原先的条件是 `useMock || liveDemand === undefined`：选中一条真实需求、详情接口还没回来的
+   * 那一段，右列会先铺出设计稿里那条需求的背景、方案、评审结论与状态流转日志，再整体换掉。
+   * 那一瞬间读到的每个字都属于另一条需求，而界面没有任何地方说明这一点。
+   */
+  if (!regression && !liveDemand) {
+    return (
+      <section className="panel dmd-detail" data-region="R7" aria-label="需求详情">
+        <p className="dmd-detail-empty">正在载入需求详情…</p>
+      </section>
+    );
+  }
+
+  const showFixtureDetail = regression;
   const people =
     selected.id === DEMAND_SELECTED_ID
       ? DEMAND_DETAIL_PEOPLE
