@@ -567,7 +567,7 @@ if ($feedbackUpload.Status -eq 200 -and $feedbackPreview.canConfirm -eq $true) {
 } else {
     # 场次是造数脚本写的，不是导入进来的。远端栈上没造过数时这里必然过不去，
     # 报「跳过」而不是「失败」——否则每次打生产栈都会红一片，红灯就不再有意义
-    Write-Host "  SKIP  场次 $sessionNo 不存在，先跑 scripts\seed\seed.ps1 造数（本地）" -ForegroundColor Yellow
+    Write-Host "  SKIP  场次 $sessionNo 不存在。本地库应由 DemoDataSeeder 自动灌好（后端首次以 local profile 启动时）" -ForegroundColor Yellow
     Write-Host "        服务端返回：$($feedbackPreview.errors | ConvertTo-Json -Compress)" -ForegroundColor DarkGray
 }
 

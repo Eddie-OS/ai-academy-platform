@@ -143,6 +143,7 @@ interface LecturerV2ContextValue {
   closePeek: () => void;
   requestEdit: (card: PoolCard) => void;
   poolCards: PoolCard[];
+  poolLoading: boolean;
 }
 
 const LecturerV2Context = createContext<LecturerV2ContextValue | null>(null);
@@ -169,12 +170,23 @@ export function LecturerV2Page() {
     queryFn: () => lecturerApi.page({}, 1, 200),
     enabled: !regression,
   });
+  /**
+   * 产品模式一律以接口为准：库里没有讲师，池子就是空的。
+   *
+   * 这里原先在接口回空时退回 LECTURER_POOL 那 60 张冻结卡片。看着像「有数据」，
+   * 其实是一屏假数据，而且和顶部指标卡对不上——那四张卡读的是
+   * /api/metrics/quantity/lecturers，数的是真库，空库时就是 0。同一屏于是同时出现
+   * 「60 张卡」和「0 人」。更糟的是这些卡片没有 liveId，点编辑只会弹
+   * 「演示数据无法保存」：它们看着可操作，实际什么都点不动。
+   *
+   * 想看设计稿那 60 张，URL 加 ?fixture=1 走视觉回归模式。
+   */
   const poolCards = useMemo<PoolCard[]>(() => {
     if (regression) return LECTURER_POOL;
-    const records = livePool.data?.records;
-    if (records && records.length > 0) return records.map(lecturerToPoolCard);
-    return LECTURER_POOL;
+    return (livePool.data?.records ?? []).map(lecturerToPoolCard);
   }, [regression, livePool.data]);
+  // 接口在途时 poolCards 也是空的，但那和「库里没有讲师」要说不同的话
+  const poolLoading = !regression && livePool.isPending;
 
   const setFilter = useCallback(<K extends keyof LecturerPoolFilters>(key: K, value: LecturerPoolFilters[K]) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -230,8 +242,9 @@ export function LecturerV2Page() {
       closePeek: () => setPeek(null),
       requestEdit,
       poolCards,
+      poolLoading,
     }),
-    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit, poolCards],
+    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit, poolCards, poolLoading],
   );
 
   return (
@@ -598,7 +611,7 @@ function matchesVisibleCard(
 
 /** R5 讲师池：252,264,812,484 */
 function PoolPanel() {
-  const { kpiId, filters, regression, poolCards } = useLecturerV2();
+  const { kpiId, filters, regression, poolCards, poolLoading } = useLecturerV2();
   const visible = poolCards.filter((card) => matchesVisibleCard(card, kpiId, filters, regression));
   const groups = LECTURER_GROUPS.map((group) => ({
     ...group,
@@ -632,6 +645,14 @@ function PoolPanel() {
       <div className="lct-pool-body">
         {regression ? (
           groups.map((group) => <PoolGroup key={group.id} group={group} />)
+        ) : poolLoading ? (
+          <p className="lct-empty">正在载入讲师池…</p>
+        ) : poolCards.length === 0 ? (
+          /*
+           * 空库与「筛选后为空」必须分开说。库里一个讲师都没有时提示「没有符合条件的讲师」，
+           * 人会去反复调筛选条件——而无论怎么调都不会有结果。
+           */
+          <p className="lct-empty">讲师池还没有数据，点右上角「新建讲师」开始录入。</p>
         ) : visible.length === 0 ? (
           <p className="lct-empty">没有符合条件的讲师</p>
         ) : (

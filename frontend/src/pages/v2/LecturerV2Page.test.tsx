@@ -6,6 +6,7 @@ import { LecturerV2Page } from './LecturerV2Page';
 import { resetRegressionModeCache } from '@/app/regressionMode';
 import { requestShellCreate } from '@/app/shell/shellCreate';
 import { LECTURER_POOL, LECTURER_PRODUCT_TABS, lecturerLevelOf } from '@/fixtures/lecturer';
+import { lecturerApi, type Lecturer } from '@/shared/api/lecturers';
 import { avatarUrlOf } from '@/fixtures/people';
 import { FIXTURE_ACCOUNT } from '@/fixtures/account';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -14,6 +15,57 @@ vi.mock('@/features/lecturer/LecturerFormModal', () => ({
   LecturerFormModal: ({ open }: { open: boolean }) =>
     open ? <div data-testid="lecturer-form-modal">新建讲师基础档案</div> : null,
 }));
+
+/**
+ * 产品模式的讲师池数据。
+ *
+ * <p>下面这些用例原先不给任何接口数据：产品模式取数失败后，页面会退回 LECTURER_POOL
+ * 那 60 张冻结卡片，用例就靠这条回退拿到卡片。<b>那条回退已经删了</b> —— 它让顶部指标卡
+ * （读 {@code /api/metrics/quantity/lecturers}，数的是真库）与列表（60 张假卡）在同一屏上
+ * 报出互相矛盾的数字，而且假卡没有 liveId，点编辑只会弹「演示数据无法保存」。
+ *
+ * <p>所以这里把同一批人做成接口会回的形状，由 {@link renderPage} 预置进 QueryClient。
+ * 断言值不变（还是这 60 个人），变的只是它们从哪来。
+ */
+const LIVE_RECORDS: Lecturer[] = LECTURER_POOL.map((card, index) => ({
+  id: index + 1,
+  lecturerNo: card.id,
+  lecturerName: card.name,
+  employeeNo: `E${String(index + 1).padStart(4, '0')}`,
+  sourceDept: card.dept,
+  expertiseDomains: card.domains,
+  teachingDirection: '',
+  joinType: '',
+  joinedDate: '2026-01-01',
+  trainingState: card.cultivationStatus ?? '',
+  trialQualified: card.trialQualified,
+  firstQualifiedDate: null,
+  teachingCount: card.teachingCount,
+  attendeeCount: card.attendees,
+  avgScore: card.avgScore,
+  poolState: '',
+  removedReason: null,
+  importBatchNo: null,
+  avatarAttachmentId: null,
+  avatarPreset: null,
+  lecturerLevel: null,
+  capabilityTags: null,
+  availableTime: null,
+  dutyState: null,
+  scheduleLimit: null,
+  profileMaintainer: null,
+  remark: null,
+  createdAt: '2026-01-01T00:00:00+08:00',
+  updatedAt: '2026-01-01T00:00:00+08:00',
+  updatedBy: null,
+}));
+
+const LIVE_POOL_PAGE = {
+  records: LIVE_RECORDS,
+  total: LIVE_RECORDS.length,
+  pageNum: 1,
+  pageSize: 200,
+};
 
 /**
  * P04 里唯一分模式渲染的东西：R7 底部的「讲师成长建议」。
@@ -35,6 +87,12 @@ function setMode(regression: boolean): void {
 // window.location —— MemoryRouter 自带一份内存历史，?fixture=1 传不进去
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  /*
+   * 直接把池子写进缓存，而不是让 useQuery 去跑一遍再等它 resolve：
+   * 这 16 个用例全是同步断言的，走异步取数就得给每一个加 await，
+   * 而它们要验的是版式与交互，不是加载时序。
+   */
+  client.setQueryData(['lecturers', 'v2-pool'], LIVE_POOL_PAGE);
   return render(
     <QueryClientProvider client={client}>
       <BrowserRouter>
@@ -47,12 +105,22 @@ function renderPage() {
 describe('P04 成长建议的模式开关', () => {
   beforeEach(() => {
     resetRegressionModeCache();
+    /*
+     * 缓存已预置，这两个 spy 是为了拦住 useQuery 的后台重取：jsdom 里没有 fetch，
+     * 真打接口只会产生一堆无人处理的 rejection，把真实失败埋在噪声里。
+     * detail 另外要给「每个详情页签都有编辑」用 —— 点编辑会按 liveId 回查一次。
+     */
+    vi.spyOn(lecturerApi, 'page').mockResolvedValue(LIVE_POOL_PAGE);
+    vi.spyOn(lecturerApi, 'detail').mockImplementation(
+      async (id: number) => LIVE_RECORDS.find((row) => row.id === id) ?? LIVE_RECORDS[0]!,
+    );
   });
 
   afterEach(() => {
     cleanup();
     setMode(false);
     useAuthStore.setState({ account: null, resolved: false });
+    vi.restoreAllMocks();
   });
 
   it('产品模式不渲染成长建议', () => {

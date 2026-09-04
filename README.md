@@ -51,8 +51,8 @@ docker compose -f docker-compose.local.yml up -d
 # 2. 起后端。首次启动时 Flyway 自动建表（规则 DB-1：禁止手工执行 DDL）
 cd backend; .\gradlew.bat :app:bootRun --args='--spring.profiles.active=local'
 
-# 3. 造数（另开一个终端，在仓库根目录执行）
-powershell -ExecutionPolicy Bypass -File scripts\seed\seed.ps1
+# 3. 造数：不用手动跑。上一步首次启动时，若业务表全空，DemoDataSeeder 会自动灌入
+#    db/demo/demo-data.sql。确认它灌了没有，看后端日志里「本地演示数据：已装载 N 行」
 
 # 4. 装前端依赖
 cd frontend; npm install
@@ -95,32 +95,59 @@ Remove-Item Env:HTTP_PROXY,Env:HTTPS_PROXY -ErrorAction SilentlyContinue
 
 ## 二、造数
 
-造数脚本是**后续全部阶段的基础设施，不是可选项**（《阶段 0　工程骨架与决策关闭》范围表）。
+**不需要手动造数。** 后端以 `local` profile 首次启动时，若下列 19 张业务表全空，
+`DemoDataSeeder` 就把 `backend/app/src/main/resources/db/demo/demo-data.sql` 灌进去：
+
+| 目标表 | 行数 | 说明 |
+|---|---|---|
+| `org_employee` | 32 | 工号 `E0001` 起，邮箱一律 `@example.com` |
+| `biz_demand` | 22 | 其中 4 行是已逻辑删除的，**刻意保留**——只有带删除行的库才能验出漏写 `WHERE deleted = false` |
+| `biz_course` | 22 | — |
+| `biz_lecturer` | 20 | 讲师池与顶部四张指标卡读同一份数据，天然联动 |
+| `biz_case` | 20 | — |
+| `biz_training_session` | 20 | 另有 20 条培训计划 |
+| `audit_state_log` | 232 | **必须有**：9 个效率指标算的就是状态变更时间，缺它效率卡全空 |
+| `dtl_attendance` | 132 | 签到明细，喂互动类指标 |
+
+其中有 2 条需求刻意让 `updated_at` 是近日、`last_state_changed_at` 是十几天前。这正是
+需求 L1 与 C6 要区分的场景：对象刚被编辑过（改了个错别字），但状态已停滞，**红灯必须仍然
+亮着**。反向测试 E1-3 用的就是这种数据形态。
+
+判空**刻意按含已逻辑删除的行计数**（不加 `WHERE deleted = false`）。SEC2 的删除是把
+`deleted` 置真而行仍留在表里，所以你在界面上删掉的记录不会在下次启动时被灌回来。
+
+把当前库里的数据重新导成种子（比如你把演示数据调成了更合适的样子）：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\seed\seed.ps1
+pwsh scripts\dump-demo-data.ps1
 ```
 
-脚本先 `docker cp` 再 `psql -f`，而不是把 SQL 文本管道喂给 psql。这不是绕远路：
-Windows PowerShell 5.1 向原生进程传管道文本时会按控制台代码页重新编码，
-`在职` 会被替换成 `??` 并**真的以 `0x3F3F` 存进数据库**——这个坑在阶段 0 踩过一次，
-`encode(convert_to(sample_state,'UTF8'),'hex')` 查出来是 `3f3f`。
-凡是要把含中文的文件内容送进容器，都用 `docker cp`。
+### 为什么种子不走 Flyway
 
-阶段 1 版本生成：
+`application.yml` 里 `validate-on-migrate: true` 且只配了一个 location。种子一旦记进
+`flyway_schema_history`，之后谁用 `prod` profile 连同一个库，都会因为「已应用的迁移在本地
+解析不到」而启动失败。演示数据本来也不该进生产库。
 
-| 数据 | 数量 | 目标表 | 说明 |
-|---|---|---|---|
-| 人员台账 | 100 条 | `org_employee` | 工号 `E0001`～`E0100`，每 5 个里有 1 个离职 |
-| 需求 | 1 条 | `biz_demand` | 刻意让 `updated_at` 是今天、`last_state_changed_at` 是 12 天前 |
+### `scripts/seed/` 下那两个旧脚本已经跑不通了
 
-那条需求的时间设置不是随手写的：它正是需求 L1 与 C6 要区分的场景——对象今天刚被
-编辑过（改了个错别字），但状态已停滞 12 天，**红灯必须仍然亮着**。反向测试 E1-3
-用的就是这种数据形态。离职人员的比例同理：全是在职的话，「离职负责人警告」（需求 14.3）
-这类规则在本地开发时永远走不到。
+`seed.sql` 与 `seed-demo.sql` 是手写的造数脚本，**对不上当前 schema**。实测：
 
-造数脚本直接写表、不走导入接口，因此这些行没有 `import_batch_no`，撤销功能看不到它们。
-要验导入就走导入接口。
+| 脚本 | 失败位置 | 原因 |
+|---|---|---|
+| `seed.sql` | 第 109 行 | `biz_demand` 违反 CHECK 约束 `ck_demand_priority` |
+| `seed-demo.sql` | 第 159 行 | `biz_course.initiation_no` 是 NOT NULL，脚本没给值 |
+
+后来的迁移加了列、紧了约束，而脚本没跟上。两个脚本都整体包在 `BEGIN … COMMIT` 里，
+一报错就全量回滚——**照着旧版 README 跑那一步的人，拿到的是一个彻底空的库**。
+「总看板没数据」「讲师池 60 张卡而顶部指标显示 0」都是从这里来的。
+两个文件暂时留在原地，但别再照着跑。`seed-perf.*` 是性能测试专用的另一条路，不受影响。
+
+### 凡是把含中文的文件送进容器，都用 `docker cp`
+
+不要把 SQL 文本用管道喂给 psql。Windows PowerShell 5.1 向原生进程传管道文本时会按控制台
+代码页重新编码，`在职` 会被替换成 `??` 并**真的以 `0x3F3F` 存进数据库**——这个坑在阶段 0
+踩过一次，`encode(convert_to(sample_state,'UTF8'),'hex')` 查出来是 `3f3f`。
+`dump-demo-data.ps1` 因此也是先 `docker cp` 再读文件，不走管道。
 
 ---
 
