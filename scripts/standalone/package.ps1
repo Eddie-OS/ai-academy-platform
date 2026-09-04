@@ -61,6 +61,17 @@ if (-not $SkipFrontend) {
             & npm ci
             if ($LASTEXITCODE -ne 0) { throw "npm ci 失败（退出码 $LASTEXITCODE）" }
         }
+        <#
+            构建前清空 dist。实测一台开发机的 dist 里堆着 12 份 antd-*.js（每份 1.09MB，
+            时间戳从 08-10 到 09-04）与 8 份 index-*.js，而 index.html 只引用其中一份 ——
+            带哈希的文件名每次构建都换，旧产物就一直留着。交付包因此从 48MB 涨到 88MB，
+            多出来的全是永远不会被加载的死代码。
+
+            更要紧的是它破坏了「换台机器打出来的包应当一致」：全新克隆没有 dist，
+            打出来是干净的；在长期开发机上打出来则夹带几个月的残渣。
+            交付物的内容不该取决于这台机器以前构建过几次。
+        #>
+        if (Test-Path 'dist') { Remove-Item 'dist' -Recurse -Force }
         & npm run build
         if ($LASTEXITCODE -ne 0) { throw "前端构建失败（退出码 $LASTEXITCODE）" }
     } finally { Pop-Location }

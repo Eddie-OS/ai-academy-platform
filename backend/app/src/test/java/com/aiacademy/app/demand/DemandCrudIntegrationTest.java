@@ -177,7 +177,15 @@ class DemandCrudIntegrationTest extends IntegrationTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(e -> assertThat(((BizException) e).errorCode())
                         .isEqualTo(ErrorCode.CONCURRENT_MODIFIED))
-                .hasMessageContaining("已被他人修改");
+                .hasMessageContaining("已被他人修改")
+                // 时间要按东八区、YYYY-MM-DD HH:mm 显示（设计规范 3.3）。这条断言是补上的：
+                // 原先只查「已被他人修改」，于是 message 里那个时间戳在很长时间里是 UTC 的
+                // ISO 串（2026-09-04T11:33:48.166568Z）——比本地时间早 8 小时。这句提示唯一的
+                // 作用是让运营相信真有别人刚改过，而一个没人上班的时点恰好证明了相反的事
+                .satisfies(e -> assertThat(e.getMessage())
+                        .containsPattern("最后修改：\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}）")
+                        .doesNotContain("T")
+                        .doesNotContain("Z"));
     }
 
     // -------------------------------------------------------------------------

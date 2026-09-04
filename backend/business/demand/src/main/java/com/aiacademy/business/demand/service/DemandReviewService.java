@@ -11,6 +11,7 @@ import com.aiacademy.common.api.ErrorCode;
 import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
+import com.aiacademy.common.time.DisplayTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -160,7 +161,7 @@ public class DemandReviewService {
     private static BizException concurrentModified(Demand current) {
         return new BizException(ErrorCode.CONCURRENT_MODIFIED,
                 "该记录已被他人修改（最后修改：%s），请刷新后重试"
-                        .formatted(current.getUpdatedAt() == null ? "未知时间" : current.getUpdatedAt()));
+                        .formatted(DisplayTime.human(current.getUpdatedAt())));
     }
 
     private static String operator() {

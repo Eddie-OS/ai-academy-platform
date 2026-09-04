@@ -48,9 +48,30 @@ record RequirementTransitionCsv(
                 continue;
             }
             List<String> cells = splitCsvLine(lines.get(i));
+            int sourceLine = Integer.parseInt(cells.get(7));
+            if (sourceLine <= 0) {
+                /*
+                 * 行号是解析脚本写进去的需求文档行号，手工添加的行填不出来，只能写 0。
+                 * 这里硬失败而不是跳过：这份 CSV 的全部价值在于它是「独立的、机器抽取的」
+                 * 事实源，一旦有人往里手写，测试就从「引擎与需求文档一致吗」退化成
+                 * 「引擎与某人的记忆一致吗」（纪律 PT-3 点名的风险）。
+                 *
+                 * 真实发生过一次：有人在这里补了 3 行「验收中」——待验收→验收中→验收通过／
+                 * 不通过。需求文档全文没有「验收中」三个字（5.2.5 转换表只有 4 行、3 个状态值），
+                 * 大概是为了凑上 5.13「状态值数」那一列误写的「4」。后果不是红一条，
+                 * 而是红 9 条，且报错文案是「引擎缺少转换」——把矛头指向了正确的一方，
+                 * 排查的人会先去给引擎补一个不存在的状态。
+                 */
+                throw new IllegalStateException(
+                        "第 %d 行的需求文档行号是 %d，说明它是手工加进来的：%s%n"
+                                .formatted(i + 1, sourceLine, lines.get(i))
+                                + "这份 CSV 必须整份由 scripts/statemachine/extract-transitions.mjs 生成。"
+                                + "引擎缺转换要改引擎，需求变了要改需求文档再重跑脚本，"
+                                + "都不是改这里。");
+            }
             rows.add(new RequirementTransitionCsv(
                     cells.get(0), cells.get(1), cells.get(2), cells.get(3),
-                    cells.get(4), cells.get(5), cells.get(6), Integer.parseInt(cells.get(7))));
+                    cells.get(4), cells.get(5), cells.get(6), sourceLine));
         }
         if (rows.isEmpty()) {
             throw new IllegalStateException(

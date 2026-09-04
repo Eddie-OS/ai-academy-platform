@@ -13,6 +13,7 @@ import com.aiacademy.common.api.PageResult;
 import com.aiacademy.common.audit.OperatorContext;
 import com.aiacademy.common.exception.BizException;
 import com.aiacademy.common.exception.NotFoundException;
+import com.aiacademy.common.time.DisplayTime;
 import com.aiacademy.platform.people.domain.Employee;
 import com.aiacademy.platform.people.service.EmployeeService;
 import com.aiacademy.platform.statemachine.domain.machines.DemandStateMachines;
@@ -245,7 +246,7 @@ public class DemandService {
     private static BizException concurrentModified(Demand current) {
         return new BizException(ErrorCode.CONCURRENT_MODIFIED,
                 "该记录已被他人修改（最后修改：%s），请刷新后重试"
-                        .formatted(current.getUpdatedAt() == null ? "未知时间" : current.getUpdatedAt()));
+                        .formatted(DisplayTime.human(current.getUpdatedAt())));
     }
 
     private static String blankToNull(String value) {
