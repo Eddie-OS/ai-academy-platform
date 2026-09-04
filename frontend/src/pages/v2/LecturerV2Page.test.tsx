@@ -7,6 +7,7 @@ import { resetRegressionModeCache } from '@/app/regressionMode';
 import { requestShellCreate } from '@/app/shell/shellCreate';
 import { LECTURER_POOL, LECTURER_PRODUCT_TABS, lecturerLevelOf } from '@/fixtures/lecturer';
 import { lecturerApi, type Lecturer } from '@/shared/api/lecturers';
+import { FIELD_ENUM_KEYS } from '@/features/lecturer/lecturerMeta';
 import { avatarUrlOf } from '@/fixtures/people';
 import { FIXTURE_ACCOUNT } from '@/fixtures/account';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -27,6 +28,15 @@ vi.mock('@/features/lecturer/LecturerFormModal', () => ({
  * <p>所以这里把同一批人做成接口会回的形状，由 {@link renderPage} 预置进 QueryClient。
  * 断言值不变（还是这 60 个人），变的只是它们从哪来。
  */
+/**
+ * 「讲师在池状态」两个取值，顺序即后端 {@code LecturerEnums.POOL_STATES} 的定义顺序。
+ *
+ * <p>页面按下标取「在池」而不是比较这三个字（纪律 STK-1），所以这里的<b>顺序是有意义的</b>：
+ * 两项调换，池子就会默认只列已移出的人。
+ */
+const POOL_STATE_IN = '在池';
+const POOL_STATE_OUT = '已移出';
+
 const LIVE_RECORDS: Lecturer[] = LECTURER_POOL.map((card, index) => ({
   id: index + 1,
   lecturerNo: card.id,
@@ -43,7 +53,7 @@ const LIVE_RECORDS: Lecturer[] = LECTURER_POOL.map((card, index) => ({
   teachingCount: card.teachingCount,
   attendeeCount: card.attendees,
   avgScore: card.avgScore,
-  poolState: '',
+  poolState: POOL_STATE_IN,
   removedReason: null,
   importBatchNo: null,
   avatarAttachmentId: null,
@@ -92,7 +102,15 @@ function renderPage() {
    * 这 16 个用例全是同步断言的，走异步取数就得给每一个加 await，
    * 而它们要验的是版式与交互，不是加载时序。
    */
-  client.setQueryData(['lecturers', 'v2-pool'], LIVE_POOL_PAGE);
+  /*
+   * 字段枚举也得预置：池子的取数等「讲师在池状态」回来才发（默认只列在池的人，
+   * 与顶部「讲师池人数」同一批），枚举拿不到就一张卡都不渲染。
+   * 顺序即后端 LecturerEnums.POOL_STATES 的定义顺序，页面按下标取「在池」（纪律 STK-1）。
+   */
+  client.setQueryData(['meta', 'field-enums'], {
+    [FIELD_ENUM_KEYS.lecturerPoolState]: [POOL_STATE_IN, POOL_STATE_OUT],
+  });
+  client.setQueryData(['lecturers', 'v2-pool', POOL_STATE_IN], LIVE_POOL_PAGE);
   return render(
     <QueryClientProvider client={client}>
       <BrowserRouter>
@@ -382,7 +400,7 @@ describe('P04 成长建议的模式开关', () => {
     expect(screen.queryByLabelText('上岗状态')).toBeNull();
   });
 
-  it('产品模式筛选栏是七项加按讲师ID／姓名搜索', () => {
+  it('产品模式筛选栏是八项加按讲师ID／姓名搜索', () => {
     setMode(false);
     renderPage();
     expect(screen.getByPlaceholderText('搜索ID / 姓名')).toBeTruthy();
@@ -393,9 +411,31 @@ describe('P04 成长建议的模式开关', () => {
     expect(screen.getByLabelText('培养状态')).toBeTruthy();
     expect(screen.getByLabelText('认证状态')).toBeTruthy();
     expect(screen.getByLabelText('上岗状态')).toBeTruthy();
-    expect(screen.getAllByTestId('lecturer-filter')).toHaveLength(7);
+    expect(screen.getByLabelText('在池状态')).toBeTruthy();
+    expect(screen.getAllByTestId('lecturer-filter')).toHaveLength(8);
     expect(screen.queryByPlaceholderText('搜索讲师姓名 / 擅长领域')).toBeNull();
     expect(screen.queryByText('试讲合格标记')).toBeNull();
+  });
+
+  /**
+   * 「在池状态」默认停在「在池」，而不是「全部」。
+   *
+   * <p>钉住它是因为默认值一旦漂成「全部」，界面不会有任何异常：卡片照样铺满，
+   * 只是把已移出的人也铺进来，于是顶部「讲师池人数」（需求 15.1 #11，SQL 带
+   * {@code pool_state = '在池'}）与下面的卡片数<b>安静地对不上</b>——演示库里是 14 对 19。
+   * 这正是这条改动要修的问题本身。
+   */
+  it('产品模式在池状态默认筛「在池」，可切到全部', () => {
+    setMode(false);
+    renderPage();
+
+    const poolStateSelect = screen.getByLabelText('在池状态') as HTMLSelectElement;
+    expect(poolStateSelect.value).toBe(POOL_STATE_IN);
+    // 「全部」这一项必须真能选中：早先在取数处用 `filters.poolState || 在池` 兜底，
+    // 空串会被兜回「在池」，下拉里的「全部」永远不生效
+    expect(
+      Array.from(poolStateSelect.options).map((option) => option.value),
+    ).toEqual(['', POOL_STATE_IN, POOL_STATE_OUT]);
   });
 
   it('产品模式按讲师ID或姓名搜索，并与下拉叠加', () => {

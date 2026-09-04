@@ -79,6 +79,7 @@ import {
   type TrialTimelineItem,
 } from '@/fixtures/lecturer';
 import { LECTURER_CERT_DISPLAY, lecturerCertDisplayOf } from '@/features/lecturer/lecturerDisplay';
+import { FIELD_ENUM_KEYS, useFieldEnums } from '@/features/lecturer/lecturerMeta';
 import './LecturerV2Page.css';
 
 /**
@@ -115,6 +116,8 @@ interface LecturerPoolFilters {
   cultivation: string;
   cert: string;
   duty: string;
+  /** 在池状态。空串表示「全部」；默认值由字段枚举下发，见 {@link POOL_STATE_IN_INDEX}。 */
+  poolState: string;
 }
 
 const EMPTY_POOL_FILTERS: LecturerPoolFilters = {
@@ -126,7 +129,18 @@ const EMPTY_POOL_FILTERS: LecturerPoolFilters = {
   cultivation: '',
   cert: '',
   duty: '',
+  poolState: '',
 };
+
+/**
+ * 「在池」在字段枚举「讲师在池状态」里的下标，与后端 {@code LecturerEnums.POOL_STATES} 的
+ * 定义顺序一致。
+ *
+ * <p><b>按下标取而不是比较「在池」三个字</b>（纪律 STK-1）。写死字面量的后果不是报错：
+ * 后端有朝一日改了措辞，这里就静默地筛不到任何人，池子整个空掉，而没有任何东西会失败。
+ * 讲师表单认「已移出」用的也是下标（见 {@code LecturerFormModal.test.tsx}）。
+ */
+const POOL_STATE_IN_INDEX = 0;
 
 type PoolCard = LecturerCard & { liveId?: number };
 
@@ -144,6 +158,8 @@ interface LecturerV2ContextValue {
   requestEdit: (card: PoolCard) => void;
   poolCards: PoolCard[];
   poolLoading: boolean;
+  /** 「讲师在池状态」字段枚举，由 {@code /api/meta/field-enums} 下发（纪律 STK-1）。 */
+  poolStates: readonly string[];
 }
 
 const LecturerV2Context = createContext<LecturerV2ContextValue | null>(null);
@@ -165,10 +181,37 @@ export function LecturerV2Page() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTarget, setEditTarget] = useState<Lecturer | undefined>();
+  const fieldEnums = useFieldEnums();
+  const poolStates = fieldEnums.data?.[FIELD_ENUM_KEYS.lecturerPoolState];
+  const inPoolState = poolStates?.[POOL_STATE_IN_INDEX];
+  /*
+   * 池子默认只装「在池」的人，与顶部「讲师池人数」卡同一批人。
+   *
+   * 这两个数原先各算一套：卡片读 /api/lecturers（全部未删除的讲师），指标读
+   * 需求 15.1 #11（SQL 里带 pool_state = '在池'）。演示库里 14 人在池、5 人已移出，
+   * 于是顶部写「讲师池人数 14」，下面铺 19 张卡——同一屏两个「讲师池人数」。
+   * #12 试讲合格与 #12a 可上岗的 SQL 也都带同一个条件，所以点 KPI 反筛时同样会差。
+   *
+   * 选择把列表对齐指标、而不是反过来：#11 的口径由需求 15.1 定，总看板讲师入口卡
+   * 读的是同一个键。改指标去数全部讲师，只会把同屏不一致换成跨页不一致。
+   *
+   * 已移出的 5 人不是藏起来了：筛选行新增「在池状态」，切到「全部」或「已移出」就能看。
+   */
+  /*
+   * 枚举回来后把「在池」写进筛选状态，而不是在取数时用 `filters.poolState || inPoolState`
+   * 兜底——那样写，用户在下拉里选「全部」（空串）会被兜回「在池」，全部这一项永远选不中。
+   */
+  const [poolStateReady, setPoolStateReady] = useState(false);
+  useEffect(() => {
+    if (poolStateReady || !inPoolState) return;
+    setFilters((prev) => ({ ...prev, poolState: inPoolState }));
+    setPoolStateReady(true);
+  }, [poolStateReady, inPoolState]);
   const livePool = useQuery({
-    queryKey: ['lecturers', 'v2-pool'],
-    queryFn: () => lecturerApi.page({}, 1, 200),
-    enabled: !regression,
+    queryKey: ['lecturers', 'v2-pool', filters.poolState],
+    queryFn: () => lecturerApi.page({ poolState: filters.poolState || null }, 1, 200),
+    // 等枚举回来再发请求：先发一次不带 poolState 的，池子会闪一下 19 张再跳回 14 张
+    enabled: !regression && poolStateReady,
   });
   /**
    * 产品模式一律以接口为准：库里没有讲师，池子就是空的。
@@ -243,8 +286,9 @@ export function LecturerV2Page() {
       requestEdit,
       poolCards,
       poolLoading,
+      poolStates: poolStates ?? [],
     }),
-    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit, poolCards, poolLoading],
+    [regression, selectedId, setSelectedId, kpiId, filters, setFilter, peek, requestEdit, poolCards, poolLoading, poolStates],
   );
 
   return (
@@ -462,7 +506,7 @@ function RegressionFilterBar() {
 }
 
 function ProductFilterBar() {
-  const { filters, setFilter } = useLecturerV2();
+  const { filters, setFilter, poolStates } = useLecturerV2();
   return (
     <section className="lct-filters" data-region="R4" aria-label="讲师筛选">
       <div className="lct-search">
@@ -524,6 +568,17 @@ function ProductFilterBar() {
         value={filters.duty}
         options={LECTURER_DUTY_STATES}
         onChange={(value) => setFilter('duty', value)}
+      />
+      {/*
+       * 唯一一个走服务端筛选的下拉：其余七项都在已载入的卡片上过滤。
+       * 默认停在「在池」，与顶部「讲师池人数」同一批人；切「全部」才把已移出的一并列出。
+       */}
+      <ProductFilterField
+        id="poolState"
+        label="在池状态"
+        value={filters.poolState}
+        options={poolStates}
+        onChange={(value) => setFilter('poolState', value)}
       />
     </section>
   );
