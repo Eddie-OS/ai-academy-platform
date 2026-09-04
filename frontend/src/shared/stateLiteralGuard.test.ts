@@ -71,8 +71,15 @@ const DESIGN_ONLY_STATES: Record<string, string> = {
   条件通过: '试讲结论只有 合格／不合格（转换表 5.6，需求 N2／5.5／9.6.1 三处明写不支持有条件通过）',
   未通过: '试讲结论用「不合格」；「未通过」一个字都不出现在任何状态机里',
   待定: '评审结论没有「待定」',
-  认证讲师: '讲师认证体系属禁区 F-1，对应的是培养状态「可上岗」',
-  待认证: '同上，对应培养状态「培养中」',
+  /*
+   * 「认证讲师」指的是指标名「认证讲师数」，需求 15 明写它一期算不出来
+   * （N6 不做认证粒度与有效期），替代指标是「可上岗讲师数」（15.1 第 12a 项）。
+   *
+   * 注意它与认证台账是两件事：台账（dtl_lecturer_certification）记的是运营在编辑页
+   * 直接录入的结果——是否认证、认证状态、认证意见都由人填，平台不做判断（原则一）。
+   * 所以「待认证／认证中／已认证」是合法取值，不在这张表里；见下面那条交叉验证。
+   */
+  认证讲师: '指标名「认证讲师数」一期算不出（N6），替代指标是「可上岗讲师数」（15.1 第 12a）',
   // 「进行中」不能进这张表：合法指标名就是「进行中培训场次数」（15.1 第 14 项），
   // 子串命中会把 KPI 标签误杀。场次状态用「已开课」由 p05 spec 的 data-state 断言钉住
   待开始: '培训场次状态用「待开课」；「待开始」一个字都不出现在状态机里',
@@ -88,6 +95,32 @@ const DESIGN_ONLY_STATES: Record<string, string> = {
  * 真正危险的那类写法——把状态名写进条件判断或列定义——用的都是三字以上的状态名。
  */
 const MIN_LENGTH = 3;
+
+/**
+ * 后端五个业务 Enums 里所有字符串字面量，用来反向验证上面那张黑名单。
+ *
+ * <p>解析 Java 源码而不是启动后端调接口，理由同 {@code fieldEnumGuard.test.ts}：
+ * 门禁必须能在没有数据库、没有容器的环境里跑，否则它进不了 CI。
+ */
+const ENUM_SOURCES = [
+  'business/demand/src/main/java/com/aiacademy/business/demand/domain/DemandEnums.java',
+  'business/course/src/main/java/com/aiacademy/business/course/domain/CourseEnums.java',
+  'business/training/src/main/java/com/aiacademy/business/training/domain/TrainingEnums.java',
+  'business/lecturer/src/main/java/com/aiacademy/business/lecturer/domain/LecturerEnums.java',
+  'business/kase/src/main/java/com/aiacademy/business/kase/domain/CaseEnums.java',
+];
+
+function backendEnumLiterals(): Set<string> {
+  const backend = resolve(process.cwd(), '../backend');
+  const values = new Set<string>();
+  ENUM_SOURCES.forEach((relativePath) => {
+    const source = stripComments(readFileSync(resolve(backend, relativePath), 'utf8'));
+    [...source.matchAll(/"([^"]+)"/g)].forEach((match) => {
+      if (match[1]) values.add(match[1]);
+    });
+  });
+  return values;
+}
 
 function stateValues(): string[] {
   const csv = readFileSync(TRANSITIONS_CSV, 'utf8');
@@ -192,6 +225,34 @@ describe('STK-1：前端不得写死状态值', () => {
       violations,
       '业务裁决 V-7：V2.0 冻结数据里的非法状态值一律替换为状态机的合法取值。' +
         '替换只动标签、不动数字与数字的位置——数字宽度参与像素比对。',
+    ).toEqual([]);
+  });
+
+  /**
+   * 黑名单本身的保鲜期检查：里面的词不得是后端认可的合法取值。
+   *
+   * <p>{@link DESIGN_ONLY_STATES} 是手工维护的，而它记录的是「某个词在后端不存在」——
+   * 这个判断会随后端演进过期，且<b>过期的方向是有害的</b>：门禁会持续拦住一个已经合法的取值，
+   * 而失败信息说的是「设计稿凭印象造的状态值」，读的人会照着去改 fixtures，把对的改成错的。
+   *
+   * <p>真实发生过：「待认证」被列为「讲师认证体系属禁区」，但后来的迁移
+   * {@code V5_025__lecturer_cert_and_level.sql} 建了认证台账，
+   * {@code LecturerEnums.CERT_STATES} 把 待认证／认证中／已认证 三值作为字段枚举下发。
+   * 台账记的是运营在编辑页直接录入的结果（是否认证、认证状态、认证意见都由人填，
+   * 平台不做判断——原则一），与 N6 排除的「认证粒度与有效期」不是一回事。
+   * 那条黑名单于此失效，却又拦了很久，因为没有任何东西会在它失效时报错。
+   */
+  it('黑名单里的词都不是后端认可的合法取值', () => {
+    const legal = backendEnumLiterals();
+    expect(legal.size, '后端 Enums 源码没解析出取值，这条门禁什么都没检查').toBeGreaterThan(50);
+
+    const stale = Object.keys(DESIGN_ONLY_STATES).filter((state) => legal.has(state));
+
+    expect(
+      stale,
+      '这些词已经是后端下发的合法取值，不该再留在「设计稿独有」黑名单里。\n' +
+        '请从 DESIGN_ONLY_STATES 删掉它，并确认对应的 fixtures 用的就是后端那个取值——' +
+        '不要反过来去改 fixtures。',
     ).toEqual([]);
   });
 });
