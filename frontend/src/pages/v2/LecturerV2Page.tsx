@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { metricsApi } from '@/shared/api/metrics';
+import { formatMetricInt } from '@/shared/metrics/cockpitMetrics';
 import {
   BadgeCheck,
   ChevronDown,
@@ -304,26 +306,45 @@ const KPI_DELTA_BASELINE = '月度环比（较上月）';
  * 四个语义色不得出现在装饰图形里。产品模式改成与课程工作台同一套：标签顶左、
  * 28px 色底板顶右、大数字、脚注「↑ n% 月度环比（较上月）」。
  */
-function liveKpiValue(id: LecturerKpiId, cards: readonly PoolCard[]): string {
-  if (id === 'poolSize') return String(cards.length);
-  if (id === 'qualified') return String(cards.filter((card) => card.trialQualified).length);
-  if (id === 'readyToTeach') return String(cards.filter(lecturerIsReadyToTeach).length);
-  const scores = cards
-    .map((card) => Number(card.avgScore))
-    .filter((score) => Number.isFinite(score));
-  if (scores.length === 0) return '0.00';
-  return (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(2);
-}
+/**
+ * 卡片 id → {@code /api/metrics/quantity/lecturers} 的键。
+ *
+ * <p>要这张表的唯一理由是 {@code qualified} <b>同名不同义</b>：本页这张卡是「试讲合格讲师数」
+ * （15.1 #12），而接口的 {@code qualified} 是「可上岗」（#12a）——总看板讲师入口卡与旧版
+ * 驾驶舱的 {@code LECTURER_METRICS} 都按可上岗读它，不能改。所以这一页不能像课程／培训
+ * 那样直接 {@code quantity[kpi.id]} 取值，必须显式转一次。
+ *
+ * <p>{@code avgScore} 没有对应键：数量类接口的返回是 {@code Map<String, Long>}，装不下
+ * {@code 4.47} 这样的评分。它此前在前端对已加载的 200 条池子取平均，那是个会随页大小
+ * 变动的数——宁可出「—」，也不出一个看着精确、其实只取样于前 200 人的均值。
+ */
+const KPI_METRIC_KEY: Record<LecturerKpiId, string | null> = {
+  poolSize: 'poolSize',
+  qualified: 'trialQualified',
+  readyToTeach: 'readyToTeach',
+  avgScore: null,
+};
 
 function KpiRow() {
-  const { regression, kpiId, setKpiId, poolCards } = useLecturerV2();
-  const live = !regression && poolCards.some((card) => card.liveId);
+  const { regression, kpiId, setKpiId } = useLecturerV2();
+  /*
+   * 四张卡的数字一律由指标接口给，前端不再对已加载的讲师池自己数。
+   * 旧做法数的是 lecturerApi.page({}, 1, 200) 取回的那 200 条：讲师超过 200 人时
+   * 「讲师池人数」会静默停在 200，而总看板读的是全表计数，两处显示两个值。
+   */
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'lecturers'],
+    queryFn: () => metricsApi.quantity('lecturers'),
+    enabled: !regression,
+  });
   return (
     <section className="lct-kpis" data-region="R3" aria-label="讲师指标概览">
       {LECTURER_KPIS.map((kpi) => {
         const Icon = KPI_ICONS[kpi.icon]!;
-        const value = live ? liveKpiValue(kpi.id, poolCards) : kpi.value;
-        const delta = live ? '—' : kpi.delta;
+        const metricKey = KPI_METRIC_KEY[kpi.id];
+        const value = formatMetricInt(metricKey ? quantity.data?.[metricKey] : undefined);
+        // 环比要后端给上月同口径存量（见 forTrainings 的 *Prev），讲师侧还没有
+        const delta = '—';
         if (regression) {
           return (
             <article className="lct-kpi" key={kpi.id} data-testid="lecturer-kpi" data-kpi={kpi.id}>
@@ -367,7 +388,8 @@ function KpiRow() {
             </div>
             <p className="lct-kpi-value">
               <AnimatedNumber value={value} duration={520} />
-              {'unit' in kpi && <span className="lct-kpi-unit">{kpi.unit}</span>}
+              {/* 取不到数时不出「/ 5」：「— / 5」会读成「评分存在、只是这里没显示」 */}
+              {'unit' in kpi && value !== '—' && <span className="lct-kpi-unit">{kpi.unit}</span>}
             </p>
             <p className="lct-kpi-foot">
               <span className="lct-kpi-delta">{delta}</span>

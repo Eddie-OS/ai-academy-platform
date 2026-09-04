@@ -238,7 +238,18 @@ public class QuantityMetricsService {
 
     /**
      * 驾驶舱三顶部卡：pool／qualified／attendees（15.3 #5）／active（15.3 #7），
-     * 外加总看板讲师卡要的 pendingTrial／cultivating（业务改版 V-70）。
+     * 外加总看板讲师卡要的 pendingTrial／cultivating（业务改版 V-70），
+     * 以及 V2 讲师页四张卡要的 poolSize／trialQualified／readyToTeach。
+     *
+     * <p><b>{@code qualified} 是「可上岗」（#12a），不是「试讲合格」。</b>这个键名有歧义但
+     * 不能改：总看板讲师入口卡（{@code ENTRY_STAT_LABELS.lecturers} 第三格标签「可上岗」）
+     * 与旧版驾驶舱的 {@code LECTURER_METRICS}（标题「可上岗讲师数 · 15.1 12a」）都按可上岗读它。
+     * 而 V2 讲师页恰好把自己的卡 id {@code qualified} 用作「试讲合格讲师数」（#12）——
+     * 同名不同义，所以那一页不能用 {@code quantity[kpi.id]} 直取，映射表在 LecturerV2Page 里。
+     *
+     * <p>{@code trialQualified} 才是试讲合格（#12），此前 {@link #all()} 算了但没往外吐，
+     * 于是 V2 讲师页只能在前端对已加载的池子自己数——那份池子按 200 条一页取，
+     * 讲师超过 200 人时「讲师池人数」会静默停在 200，而总看板显示真实值。
      */
     @Transactional(readOnly = true)
     public CockpitQuantityVO forLecturers() {
@@ -252,7 +263,10 @@ public class QuantityMetricsService {
         QuantitySnapshot snap = all();
         Map<String, Long> out = new LinkedHashMap<>();
         out.put("pool", snap.asLong("11"));
+        out.put("poolSize", snap.asLong("11"));
         out.put("qualified", snap.asLong("12a"));
+        out.put("readyToTeach", snap.asLong("12a"));
+        out.put("trialQualified", snap.asLong("12"));
         // 15.3 #5：公式为 COUNT 场次；中文名「人次」见核对表说明
         out.put("attendees", mapper.countTeachingSessionsInMonth(finished, monthStart, monthEnd));
         out.put("active", mapper.countActiveLecturers(finished, today.minusDays(90)));
