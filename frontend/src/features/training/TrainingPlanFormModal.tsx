@@ -244,7 +244,7 @@ export function TrainingPlanFormModal({
             <Form.Item
               label="培训课程"
               name="courseId"
-              extra="一门计划对应一门课；同一门课可另建计划。计划级不校验课程是否已发布"
+              extra="一门计划对应一门课；同一门课可另建计划。计划级不校验课程的发布状态"
               rules={[{ required: true, message: '请选择培训课程' }]}
             >
               <Select

@@ -46,6 +46,8 @@ import {
   type DemandFilter,
 } from '@/shared/api/demands';
 import { escalationsApi } from '@/shared/api/escalations';
+import { metricsApi } from '@/shared/api/metrics';
+import { formatMetricInt } from '@/shared/metrics/cockpitMetrics';
 import { transitionApi } from '@/shared/api/transitions';
 import { invalidateDemandGraph } from '@/shared/query/invalidateGraph';
 import type { ActionAvailability } from '@/shared/api/types';
@@ -195,11 +197,6 @@ const EMPTY_FILTERS: FilterState = {
   dateFrom: '',
   dateTo: '',
 };
-
-function formatCount(value: number | undefined | null): string {
-  if (value === undefined || value === null) return '—';
-  return value.toLocaleString('en-US');
-}
 
 /** 产品模式按真实总页数画页码，当前页附近可点；回归仍用冻结的 127 页条 */
 function buildPageItems(totalPages: number, current = 1): Array<number | null> {
@@ -408,57 +405,6 @@ interface FunnelItem {
   value: number;
 }
 
-function processStateOf(row: {
-  currentState?: string | null;
-  currentProcessState?: string | null;
-}): string | null {
-  return row.currentProcessState ?? row.currentState ?? null;
-}
-
-/**
- * KPI 卡与状态的对应关系。
- *
- * <p>卡片顺序由 V2.0 冻结（{@link DEMAND_KPIS}），但状态值<b>按下发数组的下标取</b>，
- * 不在这里手写状态名（纪律 STK-1）。下发顺序即后端 {@code DemandStateMachines} 的定义顺序：
- * 评审 [待评审, 评审中, 已评审]；开发 [已立项, 待开发, 开发中, 已上线, 优化中]。
- * 取法与 {@code demandMeta.useOutlets} 一致——元数据没到时下标取到 undefined，
- * 该卡计 0，而不是把另一个状态的数字显示上去。
- */
-const KPI_STATE_SOURCE: Record<string, { field: 'review' | 'dev'; index: number }> = {
-  pendingReview: { field: 'review', index: 0 },
-  reviewing: { field: 'review', index: 1 },
-  reviewed: { field: 'review', index: 2 },
-  approved: { field: 'dev', index: 0 },
-  // 「待开发」在下标 1，没有对应的 KPI 卡，所以开发中／已上线是 2 与 3
-  developing: { field: 'dev', index: 2 },
-  online: { field: 'dev', index: 3 },
-};
-
-function aggregateKpis(
-  rows: Array<{
-    reviewState: string;
-    currentState?: string | null;
-    currentProcessState?: string | null;
-  }>,
-  total: number,
-  reviewStates: string[],
-  devStates: string[],
-) {
-  return DEMAND_KPIS.map((kpi) => {
-    if (kpi.id === 'total') {
-      return { ...kpi, value: formatCount(total), delta: '—' };
-    }
-    const source = KPI_STATE_SOURCE[kpi.id];
-    const state = source && (source.field === 'review' ? reviewStates : devStates)[source.index];
-    const value = state
-      ? rows.filter((row) =>
-          source!.field === 'review' ? row.reviewState === state : processStateOf(row) === state,
-        ).length
-      : 0;
-    return { ...kpi, value: formatCount(value), delta: '—' };
-  });
-}
-
 function toApiFilter(filters: FilterState): DemandFilter {
   return {
     keyword: filters.keyword || null,
@@ -608,12 +554,27 @@ export function DemandV2Page() {
       : liveRows;
 
   const overviewRows = overviewRecords;
+  /*
+   * 顶部七张卡的数字一律由 /api/metrics/quantity/demands 给，前端不再算第二遍。
+   * 这里曾经是 aggregateKpis()：对已加载的列表行做 filter().length。那套算法有两处失真——
+   * 数的是当前筛选后的行（筛掉的不计），且受列表加载上限约束（打不满全表），
+   * 于是同一个「需求总数」在需求驾驶舱和总看板上是两个数。接口键名与卡片 id 一一对应。
+   */
+  const quantity = useQuery({
+    queryKey: ['metrics', 'quantity', 'demands'],
+    queryFn: () => metricsApi.quantity('demands'),
+    enabled: !regression,
+  });
+
   const kpis = useMemo(() => {
     if (regression) return DEMAND_KPIS;
-    const rows = useMock ? fixtureFiltered : overviewRows;
-    const count = useMock ? fixtureFiltered.length : total;
-    return aggregateKpis(rows, count, reviewStates, devStates);
-  }, [regression, useMock, fixtureFiltered, overviewRows, total, reviewStates, devStates]);
+    return DEMAND_KPIS.map((kpi) => ({
+      ...kpi,
+      value: formatMetricInt(quantity.data?.[kpi.id]),
+      // 环比要后端给上月同口径存量（见 forTrainings 的 *Prev），需求侧还没有，先出「—」
+      delta: '—',
+    }));
+  }, [regression, quantity.data]);
 
   /*
    * 下面两个只喂回归版式的四列分析区（RegressionAnalysisPanel）。

@@ -136,18 +136,47 @@ public class QuantityMetricsService {
         return b.build();
     }
 
-    /** 驾驶舱一顶部卡：total／pending／developing（不含 cycle）。 */
+    /**
+     * 驾驶舱一顶部卡：total／pendingReview／reviewing／reviewed／approved／developing／online
+     * （不含 cycle）。
+     *
+     * <p>键名与前端 {@code DEMAND_KPIS} 的卡片 id 一一对应，前端直接按 {@code quantity[kpi.id]}
+     * 取值，与课程／培训两个驾驶舱同一取法。
+     *
+     * <p>原先只吐 total／pending／developing 三个，喂不满 V2 需求驾驶舱冻结的七张卡，于是那边
+     * 改成在前端对已加载的列表行 {@code filter().length} 自己数。<b>那条路数的是「当前筛选后、
+     * 且已加载的那些行」</b>，而总看板数的是全表，同一个「需求总数」在两个页面必然出现两个值。
+     * 补齐这四个键就是为了把前端那套算法删掉。
+     *
+     * <p>{@code pending} 是 {@code pendingReview} 的同值别名，<b>不要删</b>：总看板需求入口卡
+     * （{@code DashboardOverviewApplicationService} 转 {@code ENTRY_LIVE_FIELDS.demands}）与旧版
+     * 驾驶舱的 {@code DEMAND_METRICS} 读的都是这个键。
+     *
+     * <p>七个数字全部取自 {@link #all()} 已经算好的 #2（按评审状态分组）与 #3（按开发状态分组），
+     * 没有新增 SQL、没有新口径。注意 #3 按 15.1 定义只统计出口为「造工具需求开发」的需求，
+     * 前端那套旧算法不分出口——这也是两边数字会差的一处成因。
+     */
     @Transactional(readOnly = true)
     public CockpitQuantityVO forDemands() {
+        StateMachineDef review = DemandStateMachines.review();
+        StateMachineDef development = DemandStateMachines.development();
         QuantitySnapshot snap = all();
-        Map<String, Long> review = snap.asGroup("2");
-        Map<String, Long> dev = snap.asGroup("3");
-        String pendingReview = toState(DemandStateMachines.review(), DemandStateMachines.ACTION_REGISTER);
-        String developing = toState(DemandStateMachines.development(), "START_DEVELOP");
+        Map<String, Long> byReview = snap.asGroup("2");
+        Map<String, Long> byDev = snap.asGroup("3");
+
+        long pendingReview = byReview.getOrDefault(
+                toState(review, DemandStateMachines.ACTION_REGISTER), 0L);
+
         Map<String, Long> out = new LinkedHashMap<>();
         out.put("total", snap.asLong("1"));
-        out.put("pending", review.getOrDefault(pendingReview, 0L));
-        out.put("developing", dev.getOrDefault(developing, 0L));
+        out.put("pendingReview", pendingReview);
+        out.put("pending", pendingReview);
+        out.put("reviewing", byReview.getOrDefault(toState(review, "START_REVIEW"), 0L));
+        out.put("reviewed", byReview.getOrDefault(
+                toState(review, DemandStateMachines.ACTION_RECORD_REVIEW_RESULT), 0L));
+        out.put("approved", byDev.getOrDefault(toState(development, "INITIATE"), 0L));
+        out.put("developing", byDev.getOrDefault(toState(development, "START_DEVELOP"), 0L));
+        out.put("online", byDev.getOrDefault(toState(development, "GO_LIVE"), 0L));
         return CockpitQuantityVO.of(out);
     }
 
