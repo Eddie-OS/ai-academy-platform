@@ -71,6 +71,24 @@ public class DemoDataSeeder {
 
     @EventListener(ApplicationReadyEvent.class)
     public void seedIfEmpty() {
+        try {
+            doSeed();
+        } catch (RuntimeException e) {
+            /*
+             * 装载失败不该把整个应用拖住：这是本地开发的便利设施，不是启动的前置条件。
+             *
+             * 早先没有这层 catch，异常直接从 ApplicationReadyEvent 冒出去。真出过一次：
+             * pg_dump 生成的脚本里带一句 set_config('search_path', '', false)，会话级地
+             * 清空了 search_path，那条连接回到池子后，紧接着用于打日志的计数就报
+             * 「relation "org_employee" does not exist」——数据其实已经提交了，坏的只是
+             * 那句日志，但后端整体启动失败。「有没有演示数据」不该升级成「后端跑不起来」。
+             */
+            log.error("本地演示数据装载失败，应用继续启动。库里现在可能是空的或只有一半，"
+                    + "排查后可用 docker compose -f docker-compose.local.yml down -v 重建库再试", e);
+        }
+    }
+
+    private void doSeed() {
         long existing = countExistingRows();
         if (existing > 0) {
             log.info("本地演示数据：库里已有 {} 行业务数据，跳过装载", existing);

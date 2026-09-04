@@ -22,6 +22,14 @@
 --   snapshot_warning_light     —— 派生数据，由定时任务自己重算
 --   sys_attachment*            —— 附件行指向磁盘上的文件，那些文件不在仓库里
 --
+-- 为什么删掉了 pg_dump 生成的那句 set_config('search_path', '', false)：
+-- 第三个参数 false 表示会话级、不是事务级。脚本自己用 public.xxx 全限定名所以照样跑通，
+-- 但执行它的那条连接会带着空的 search_path 回到 HikariCP 连接池，之后任何用到非限定
+-- 表名的查询都会报「relation does not exist」。实测过一次：DemoDataSeeder 灌完数据后
+-- 再数一遍行数就炸了，异常从 ApplicationReadyEvent 冒出去，整个后端启动失败 ——
+-- 数据其实已经提交了，坏的只是那句日志。下面 598 条 INSERT 全部是 public. 前缀，
+-- 不需要 search_path。dump-demo-data.ps1 会在重新导出时把这一句剥掉。
+--
 -- 重新生成：scripts/dump-demo-data.ps1
 --
 
@@ -39,7 +47,6 @@ SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;

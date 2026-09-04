@@ -39,8 +39,14 @@ $tmp = New-TemporaryFile
 docker cp "${container}:/tmp/demo-data.sql" $tmp.FullName
 docker exec $container rm -f /tmp/demo-data.sql
 
-# 反斜杠开头的是 psql 元命令（\restrict / \unrestrict），JDBC 执行不了，必须剥掉
-$body = (Get-Content $tmp.FullName -Encoding UTF8) | Where-Object { $_ -notmatch '^\\' }
+# 两样东西必须剥掉，否则 DemoDataSeeder 走 JDBC 执行时会出事：
+#   1. 反斜杠开头的 psql 元命令（\restrict / \unrestrict）—— JDBC 根本不认
+#   2. set_config('search_path', '', false) —— 第三个参数 false 是会话级，执行它的连接
+#      会带着空 search_path 回到 HikariCP 连接池，之后所有非限定表名的查询全部报
+#      「relation does not exist」。踩过一次：种子灌完、事务也提交了，却因为紧接着
+#      那句计数日志失败而让整个后端启动不起来。导出的 INSERT 全是 public. 前缀，不需要它。
+$body = (Get-Content $tmp.FullName -Encoding UTF8) |
+    Where-Object { $_ -notmatch '^\\' -and $_ -notmatch "set_config\('search_path'" }
 Remove-Item $tmp.FullName
 
 $existing = Get-Content $target -Encoding UTF8
