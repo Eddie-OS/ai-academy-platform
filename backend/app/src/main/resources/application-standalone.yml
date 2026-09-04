@@ -34,6 +34,16 @@ aiacademy:
   demo-data:
     enabled: true
 
+  # 【单机形态没有每日自动备份】DatabaseBackupJob 调外部 pg_dump，而嵌入式 PostgreSQL
+  # 只解包 initdb / pg_ctl / postgres 三个程序，交付包里没有 pg_dump。开着它的唯一效果是
+  # 每晚 02:00 往日志里抛一次异常，同时让人误以为备份已经配好了 —— 那比明确没有备份危险，
+  # 因为只有真需要恢复的那天才会发现。
+  #
+  # 手工备份：停掉应用，把 data/ 整个目录打包。数据库（data/pgdata）与附件都在里面，
+  # 恢复就是把目录拷回去。停机是必要的：运行中的 PG 数据目录直接复制可能拿到不一致的快照。
+  backup:
+    enabled: false
+
 logging:
   file:
     # 覆盖 prod 的 /var/log/aiacademy/app.log。那是 Linux 容器内的挂载点，

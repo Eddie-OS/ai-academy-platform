@@ -4,6 +4,15 @@
 #
 # 前提：docker-compose.local.yml 起的 aiacademy-postgres-local 正在运行。
 # 用法：pwsh scripts/dump-demo-data.ps1
+#
+# 【这一个脚本仍然只能在 Docker 形态下跑】seed.ps1 与 seed-perf.ps1 已经改成两种形态都支持
+# （走 JDBC，见 scripts/seed/_sql-runner.ps1），但本脚本不行：它要的是 pg_dump，
+# 而嵌入式 PostgreSQL 只解包 initdb / pg_ctl / postgres 三个程序，没有 pg_dump。
+# 灌数据能用 JDBC 替代，导出成 pg_dump 那种带 setval、按依赖排序的 SQL 不能——
+# 自己写等于重造 pg_dump，那不值得。
+#
+# 所以：改演示数据这件事在装了 Docker 的开发机上做。内网交付机只是消费 demo-data.sql，
+# 不需要重新生成它。
 
 $ErrorActionPreference = 'Stop'
 

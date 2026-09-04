@@ -3,6 +3,7 @@ package com.aiacademy.app.schedule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -25,8 +26,20 @@ import java.util.concurrent.TimeUnit;
  *
  * <p><b>E4-5</b>：备份文件必须能恢复到空库才算有效——见
  * {@code docs/备份恢复验证.md}。
+ *
+ * <p><b>为什么加了 {@code aiacademy.backup.enabled} 这个开关：</b>本任务靠外部
+ * {@code pg_dump} 可执行文件工作，Docker 形态下它在 postgres 容器里，单机形态下
+ * <b>根本不存在</b>——嵌入式 PostgreSQL 只解包出 {@code initdb}、{@code pg_ctl}、
+ * {@code postgres} 三个程序。于是单机部署上这个任务每晚 02:00 抛一次异常，
+ * 除日志里一行以外没有任何迹象，而运营会以为每日备份是配好的。
+ *
+ * <p>「备份看起来在跑、其实每晚失败」比「明确没有备份」危险得多：后者会让人去做手工备份，
+ * 前者只会在真需要恢复的那天才发现。因此单机形态显式关掉（见
+ * {@code application-standalone.yml}），要备份就手工停机打包 {@code data/} 目录 ——
+ * 数据库与附件都在那一个目录下。
  */
 @Component
+@ConditionalOnProperty(name = "aiacademy.backup.enabled", matchIfMissing = true)
 public class DatabaseBackupJob {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseBackupJob.class);
