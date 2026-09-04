@@ -1,11 +1,8 @@
-# 集成测试专用配置。数据源由 IntegrationTest 的 @DynamicPropertySource 指向 Testcontainers 容器，
-# 这里只补两个共享账号的口令——SharedAccountCredentialsCheck 要求它们非空（规则 SEC5）。
+# 集成测试专用配置。数据源与两个共享账号的口令都由 IntegrationTest 的
+# @DynamicPropertySource 注入：前者指向 Testcontainers 容器，后者每次运行随机生成。
+#
+# 口令刻意不写在这里：仓库里不留任何看起来能用的口令字符串，哪怕它只用于测试。
 aiacademy:
-  accounts:
-    operator:
-      password-hash: "{noop}operator-test"
-    viewer:
-      password-hash: "{noop}viewer-test"
   storage:
     # 导入原文件、错误报告与附件落临时目录。默认值 ./data 会把测试产物写进模块目录，
     # 而这些文件（尤其 5000 行导入的原文件）不该进工作区，更不该被误提交

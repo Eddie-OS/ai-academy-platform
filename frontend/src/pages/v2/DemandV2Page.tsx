@@ -37,7 +37,6 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { EChartsOption } from 'echarts';
-import { usesFixtureData } from '@/app/fixtureSource';
 import { isRegressionMode } from '@/app/regressionMode';
 import { ApiError } from '@/shared/api/client';
 import {
@@ -524,7 +523,6 @@ function fieldsForRow(row: DemandRowView): typeof DEMAND_DETAIL_FIELDS {
  */
 export function DemandV2Page() {
   const regression = isRegressionMode();
-  const fixture = usesFixtureData();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const domainLabelOf = useDomainLabel();
@@ -566,7 +564,7 @@ export function DemandV2Page() {
   const overview = useQuery({
     queryKey: ['demands', 'v2', 'overview', filters],
     queryFn: () => loadAllDemands(toApiFilter(filters)),
-    enabled: !fixture,
+    enabled: !regression,
   });
 
   const overviewRecords = overview.data ?? [];
@@ -578,10 +576,10 @@ export function DemandV2Page() {
 
   /*
    * 有任意一条真实数据就走接口列表，不再用 8 条演示行垫底。
-   * 想看设计稿那 8 行：URL 加 ?fixture=1。演示构建没有后端，与回归一样直接读冻数。
+   * 想看设计稿那 8 行：URL 加 ?fixture=1。
    */
   const useMock =
-    fixture || overview.isError || (overview.isSuccess && overviewRecords.length === 0);
+    regression || overview.isError || (overview.isSuccess && overviewRecords.length === 0);
 
   const fixtureFiltered = useMemo(
     () => filterFixtureRows(DEMAND_ROWS, filters),
@@ -611,11 +609,11 @@ export function DemandV2Page() {
 
   const overviewRows = overviewRecords;
   const kpis = useMemo(() => {
-    if (regression || fixture) return DEMAND_KPIS;
+    if (regression) return DEMAND_KPIS;
     const rows = useMock ? fixtureFiltered : overviewRows;
     const count = useMock ? fixtureFiltered.length : total;
     return aggregateKpis(rows, count, reviewStates, devStates);
-  }, [regression, fixture, useMock, fixtureFiltered, overviewRows, total, reviewStates, devStates]);
+  }, [regression, useMock, fixtureFiltered, overviewRows, total, reviewStates, devStates]);
 
   /*
    * 下面两个只喂回归版式的四列分析区（RegressionAnalysisPanel）。

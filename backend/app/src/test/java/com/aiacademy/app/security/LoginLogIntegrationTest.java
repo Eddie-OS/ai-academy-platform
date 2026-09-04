@@ -24,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class LoginLogIntegrationTest extends IntegrationTest {
 
-    /** 与 application-test.yml 的 {@code {noop}operator-test} 对应。 */
-    private static final String OPERATOR_PASSWORD = "operator-test";
+    // 口令用继承来的 IntegrationTest.OPERATOR_PASSWORD：它与 @DynamicPropertySource
+    // 注入给应用的是同一个值，不会出现「配置改了、测试里的字面量没改」这种只报「登录失败」的漂移。
 
     @Autowired
     private LoginService loginService;

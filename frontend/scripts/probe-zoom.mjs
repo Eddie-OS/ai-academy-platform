@@ -1,13 +1,20 @@
 import { chromium } from '@playwright/test';
 
 const base = process.env.SHOT_BASE ?? 'http://localhost:5173';
+
+// 口令无默认值：仓库里不留口令字面量。本地填 .env 里的 LOCAL_OPERATOR_PASSWORD。
+const password = process.env.SMOKE_OPERATOR_PASSWORD;
+if (!password) {
+  throw new Error('请先设置 SMOKE_OPERATOR_PASSWORD（本地即 .env 里的 LOCAL_OPERATOR_PASSWORD）');
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, locale: 'zh-CN' });
 
 await page.goto(`${base}/cases`, { waitUntil: 'networkidle' });
 if (await page.locator('input[type="password"]').count()) {
   await page.getByPlaceholder('运营账号或用户账号').fill('operator');
-  await page.locator('input[type="password"]').fill('operator123');
+  await page.locator('input[type="password"]').fill(password);
   await page.getByRole('button', { name: '登 录' }).click();
   await page.waitForTimeout(1500);
   await page.goto(`${base}/cases`, { waitUntil: 'networkidle' });

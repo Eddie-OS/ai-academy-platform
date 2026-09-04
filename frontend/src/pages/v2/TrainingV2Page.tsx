@@ -19,7 +19,6 @@ import {
   X,
 } from 'lucide-react';
 import { isRegressionMode } from '@/app/regressionMode';
-import { usesFixtureData } from '@/app/fixtureSource';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { metricsApi } from '@/shared/api/metrics';
 import { trainingApi } from '@/shared/api/trainings';
@@ -35,7 +34,7 @@ interface OpenedDetail {
   tab?: ProductTab;
 }
 import { useIsOperator } from '@/shared/store/authStore';
-import { formatKpiDelta, formatMetricInt, monthOverMonth } from '@/shared/metrics/cockpitMetrics';
+import { formatMetricInt, monthOverMonth } from '@/shared/metrics/cockpitMetrics';
 import {
   TRAINING_OBJECT_TYPE_CODES,
   TRAINING_STATE_FIELDS,
@@ -44,7 +43,6 @@ import {
 import {
   CALENDAR_PAGE_SIZE,
   EMPTY_TRAINING_FILTER,
-  fixtureCalendarSessions,
   sessionCourseName,
   sessionIntro,
   sessionLecturer,
@@ -117,13 +115,12 @@ export function TrainingV2Page() {
   const [fullscreen, setFullscreen] = useState(false);
   const [filters, setFilters] = useState<TrainingProductFilter>(EMPTY_TRAINING_FILTER);
   const [creating, setCreating] = useState(false);
-  const fixture = usesFixtureData();
   const isOperator = useIsOperator();
   const queryClient = useQueryClient();
   const quantity = useQuery({
     queryKey: ['metrics', 'quantity', 'trainings'],
     queryFn: () => metricsApi.quantity('trainings'),
-    enabled: !regression && !fixture,
+    enabled: !regression,
   });
   const range = useMemo(
     () => visibleDateRange(view, year, month, selectedDay),
@@ -143,13 +140,12 @@ export function TrainingV2Page() {
         1,
         CALENDAR_PAGE_SIZE,
       ),
-    enabled: !regression && !fixture,
+    enabled: !regression,
   });
   const calendarSessions = useMemo(() => {
     if (regression) return CALENDAR_SESSIONS;
-    if (fixture) return fixtureCalendarSessions(filters);
     return (liveSessions.data?.records ?? []).map(toCalendarSession);
-  }, [regression, fixture, filters, liveSessions.data]);
+  }, [regression, liveSessions.data]);
 
   const calendarFullscreen = fullscreen && !regression;
   const monthChipLimit = regression
@@ -254,11 +250,7 @@ export function TrainingV2Page() {
             <PlanListPanel selectedId={selectedId} onSelect={setSelectedId} />
           )}
           {!regression && !calendarFullscreen && (
-            <LivePlanListPanel
-              filters={filters}
-              fixture={fixture}
-              onSelectSession={selectSession}
-            />
+            <LivePlanListPanel filters={filters} onSelectSession={selectSession} />
           )}
         </div>
         {regression && !calendarFullscreen && <DetailPanel selectedId={selectedId} />}
@@ -316,7 +308,6 @@ const KPI_DELTA_BASELINE = '月度环比（较上月）';
  */
 function KpiRow({ quantity }: { quantity?: Record<string, number> }) {
   const regression = isRegressionMode();
-  const fixture = usesFixtureData();
 
   if (regression) {
     return (
@@ -355,10 +346,8 @@ function KpiRow({ quantity }: { quantity?: Record<string, number> }) {
       {TRAINING_PRODUCT_KPIS.map((kpi) => {
         const Icon = KPI_ICONS[kpi.icon]!;
         const tone = PRODUCT_KPI_TONES[kpi.id];
-        const liveValue = fixture ? kpi.value : formatMetricInt(quantity?.[kpi.id]);
-        const liveDelta = fixture
-          ? formatKpiDelta(kpi.deltaPercent)
-          : monthOverMonth(quantity?.[kpi.id], quantity?.[`${kpi.id}Prev`]);
+        const liveValue = formatMetricInt(quantity?.[kpi.id]);
+        const liveDelta = monthOverMonth(quantity?.[kpi.id], quantity?.[`${kpi.id}Prev`]);
         const down = liveDelta.startsWith('↓');
         return (
           <article
@@ -1059,33 +1048,19 @@ function satisfactionText(score: string | number | null | undefined): string | n
   return String(score);
 }
 
-function fixtureProductListRows(): ProductPlanListRow[] {
-  return PLAN_LIST_ROWS.map((row) => {
-    const cal = CALENDAR_SESSIONS.find((session) => session.id === row.id);
-    return {
-      id: row.id,
-      planName: row.planName,
-      sessionLabel: row.sessionLabel,
-      courseName: row.course,
-      lecturerName: row.lecturer,
-      sessionState: cal?.state ?? '—',
-      averageScore: row.feedback,
-    };
-  });
-}
-
 /**
  * 产品模式：一场一行。点计划名或「详情」打开培训详情弹窗。
  *
  * <p>筛选项与顶栏一致，但不跟日历日期区间——列表是目录，月历是当月排期。
+ *
+ * <p>只在产品模式下渲染（回归模式走 {@link PlanListPanel} 的冻结版），所以这里
+ * 一律读接口，没有回落冻结数据的分支。
  */
 function LivePlanListPanel({
   filters,
-  fixture,
   onSelectSession,
 }: {
   filters: TrainingProductFilter;
-  fixture: boolean;
   onSelectSession: (id: string) => void;
 }) {
   const LIST_PAGE_SIZE = 50;
@@ -1102,20 +1077,17 @@ function LivePlanListPanel({
         1,
         LIST_PAGE_SIZE,
       ),
-    enabled: !fixture,
   });
-  const rows: ProductPlanListRow[] = fixture
-    ? fixtureProductListRows()
-    : (sessions.data?.records ?? []).map((row) => ({
-        id: String(row.id),
-        planName: row.planName,
-        sessionLabel: sessionListLabel(row.sessionName, row.sessionNo),
-        courseName: row.courseName?.trim() || '—',
-        lecturerName: row.lecturerName?.trim() || '—',
-        sessionState: row.sessionState,
-        averageScore: satisfactionText(row.averageScore),
-      }));
-  const total = fixture ? rows.length : (sessions.data?.total ?? rows.length);
+  const rows: ProductPlanListRow[] = (sessions.data?.records ?? []).map((row) => ({
+    id: String(row.id),
+    planName: row.planName,
+    sessionLabel: sessionListLabel(row.sessionName, row.sessionNo),
+    courseName: row.courseName?.trim() || '—',
+    lecturerName: row.lecturerName?.trim() || '—',
+    sessionState: row.sessionState,
+    averageScore: satisfactionText(row.averageScore),
+  }));
+  const total = sessions.data?.total ?? rows.length;
 
   return (
     <section className="panel trn-list" data-region="R6" aria-label="培训计划列表">
@@ -1125,7 +1097,7 @@ function LivePlanListPanel({
           {total}
         </span>
       </header>
-      {sessions.isLoading && !fixture ? (
+      {sessions.isLoading ? (
         <p className="trn-week-empty">正在读取培训计划…</p>
       ) : rows.length === 0 ? (
         <p className="trn-week-empty">还没有培训场次。点「新建培训计划」后可在这里排场次。</p>

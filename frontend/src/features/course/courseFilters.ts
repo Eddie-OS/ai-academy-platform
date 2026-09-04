@@ -110,7 +110,7 @@ export function courseToBoardCard(course: Course): LiveCourseCard {
 }
 
 /**
- * 演示站没有课程接口，把看板冻数摊成产品列表要的 {@link Course}。
+ * 回归模式不打接口，把看板冻数摊成产品列表要的 {@link Course}。
  *
  * <p>只填列表会读的字段。其余列保持空／默认，避免在这里编一套第二份业务数据。
  */

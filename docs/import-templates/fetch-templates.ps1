@@ -5,7 +5,9 @@
 $ErrorActionPreference = 'Stop'
 $base = if ($env:PERF_BASE_URL) { $env:PERF_BASE_URL } else { 'http://localhost:8080' }
 $outDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$password = if ($env:SMOKE_OPERATOR_PASSWORD) { $env:SMOKE_OPERATOR_PASSWORD } else { 'operator123' }
+# 无默认值：仓库里不留口令字面量。本地填 .env 里的 LOCAL_OPERATOR_PASSWORD。
+if (-not $env:SMOKE_OPERATOR_PASSWORD) { throw '请先设置 SMOKE_OPERATOR_PASSWORD（本地即 .env 里的 LOCAL_OPERATOR_PASSWORD）' }
+$password = $env:SMOKE_OPERATOR_PASSWORD
 
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 $null = Invoke-WebRequest -Uri "$base/api/meta/enums" -WebSession $session -UseBasicParsing

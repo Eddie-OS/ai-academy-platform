@@ -12,6 +12,12 @@ const width = Number(process.argv[3] ?? 1920);
 const height = Number(process.argv[4] ?? 1080);
 const out = 'shots';
 
+// 口令无默认值：仓库里不留口令字面量。本地填 .env 里的 LOCAL_OPERATOR_PASSWORD。
+const password = process.env.SMOKE_OPERATOR_PASSWORD;
+if (!password) {
+  throw new Error('请先设置 SMOKE_OPERATOR_PASSWORD（本地即 .env 里的 LOCAL_OPERATOR_PASSWORD）');
+}
+
 mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch();
@@ -30,7 +36,7 @@ await page.goto(`${base}${path}`, { waitUntil: 'networkidle' });
 const login = page.locator('input[type="password"]');
 if (await login.count()) {
   await page.getByPlaceholder('运营账号或用户账号').fill('operator');
-  await login.fill('operator123');
+  await login.fill(password);
   await page.getByRole('button', { name: '登 录' }).click();
   await page.waitForURL((url) => !url.pathname.includes('login'), { timeout: 15_000 }).catch(() => {});
   await page.goto(`${base}${path}`, { waitUntil: 'networkidle' });

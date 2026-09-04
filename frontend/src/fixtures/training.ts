@@ -37,7 +37,7 @@ export const TRAINING_KPIS = [
  * 产品模式五张 KPI。卡名与口径来自业务当场表：四张累计、一张当月，都带月度环比。
  *
  * <p>{@code id} 与 {@code GET /api/metrics/quantity/trainings} 的 key 对齐。
- * 冻数只给演示站用；产品构建走接口，环比用上月末存量（累计）／上月同口径（当月）算。
+ * 冻数只给视觉回归用；产品构建走接口，环比用上月末存量（累计）／上月同口径（当月）算。
  */
 export const TRAINING_PRODUCT_KPIS = [
   { id: 'plans', label: '累计培训计划数', value: '128', deltaPercent: 18.2, icon: 'CalendarDays' },

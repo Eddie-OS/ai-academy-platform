@@ -16,7 +16,7 @@ import { Avatar } from '@/shared/ui/v2/Avatar';
 import { AnimatedNumber } from '@/shared/ui/AnimatedNumber/AnimatedNumber';
 import { WarningLight, WarningSummaryCard, redLightReasonOf } from '@/shared/ui/WarningLight';
 import { ASSETS, colorV2 } from '@/shared/theme/designTokensV2';
-import { usesFixtureData } from '@/app/fixtureSource';
+import { isRegressionMode } from '@/app/regressionMode';
 import { formatMetricInt } from '@/shared/metrics/cockpitMetrics';
 import { dashboardApi, type DashboardOverview } from '@/shared/api/dashboard';
 import { objectDetailPath } from '@/shared/routing/objectDetailPath';
@@ -60,10 +60,9 @@ import './DashboardV2Page.css';
  *
  * <p>产品模式请求未回（或失败）时数字落「—」，<b>不回落冻结样例</b>。
  * 冻数是视觉回归基线（需求总数「1,268」），拿它填首屏会先闪假数再跳到库里的真数。
- * 演示构建没有后端，走 {@link usesFixtureData}，与回归模式共用冻数、不打回归标记。
  */
 export function DashboardV2Page() {
-  const fixture = usesFixtureData();
+  const fixture = isRegressionMode();
   const overview = useQuery({
     queryKey: ['dashboard', 'overview'],
     queryFn: () => dashboardApi.overview(),
@@ -219,12 +218,12 @@ function placeholderEntryStats(entry: DashboardEntry): EntryStat[] {
 }
 
 function EntryRow({ data, pending }: LivePanelProps) {
-  const fixture = usesFixtureData();
+  const fixture = isRegressionMode();
 
   return (
     <section className="dash-entries" data-region="R4" aria-label="业务入口">
       {DASHBOARD_ENTRIES.map((entry) => {
-        /* 回归／演示照抄 V2.0 的冻结数。产品模式只用接口；未回时用「—」占位，
+        /* 回归模式照抄 V2.0 的冻结数。产品模式只用接口；未回时用「—」占位，
            不退冻结数——冻数会在真数到达前闪一帧（需求总数「1,268」就是这样来的） */
         const stats = fixture
           ? entry.stats

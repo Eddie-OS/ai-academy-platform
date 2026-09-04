@@ -1,4 +1,3 @@
-import { isDemoMode } from '@/app/demoMode';
 import type { ErrorCode, R } from './types';
 
 /**
@@ -25,18 +24,7 @@ function readCookie(name: string): string | null {
   return match?.[2] ? decodeURIComponent(match[2]) : null;
 }
 
-/** 演示构建里所有接口共用的失败对象。文案要说清是环境缺后端，不是系统故障 */
-const DEMO_UNAVAILABLE = '这是纯前端演示环境，没有连接后端，该功能不可用。';
-
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // 演示构建（静态托管）上 /api 没有对端。不拦的话每个请求都要先跑一趟 404 才失败，
-  // 页面在此期间停在骨架屏；更糟的是静态托管普遍把未命中路径回落成 index.html，
-  // 那会返回 200 + HTML，客户端解析成 JSON 失败后报「服务暂时不可用」——
-  // 对着一个本来就没有后端的环境，这个提示是误导。
-  if (isDemoMode()) {
-    throw new ApiError('INTERNAL_ERROR', DEMO_UNAVAILABLE, null, null);
-  }
-
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
   headers.set('Accept', 'application/json');

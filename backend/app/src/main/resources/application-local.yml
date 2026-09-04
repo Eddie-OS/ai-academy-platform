@@ -5,19 +5,26 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/aiacademy
     username: aiacademy
-    password: aiacademy
+    password: ${LOCAL_DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
 
 aiacademy:
   accounts:
-    # 本地开发口令用 {noop} 明文，方便调试。
-    # 生产环境若出现 {noop}，SharedAccountCredentialsCheck 会让应用启动失败（规则 SEC5）。
+    # 口令从环境变量取，仓库里不留任何口令字面量——包括「仅本地」的那种：
+    # 一个看起来能用的口令一定会被复制到别处，而复制它的人不会知道它只该用于本地。
+    #
+    # 环境变量里放明文，{noop} 前缀写在这里。这样本地设一个普通字符串就行，
+    # 而 {noop} 只出现在 local profile 里，prod profile 下 SharedAccountCredentialsCheck
+    # 会直接拒绝 {noop}（规则 SEC5），所以这个写法不可能被误带上生产。
+    #
+    # 未设置时 Spring 解析占位符失败、应用起不来。这比给个默认值好：默认值会让人
+    # 以为「装好就能登」，然后在某台机器上一直用着那个默认值。
     operator:
-      password-hash: "{noop}operator123"
+      password-hash: "{noop}${LOCAL_OPERATOR_PASSWORD}"
     viewer:
-      password-hash: "{noop}viewer123"
+      password-hash: "{noop}${LOCAL_VIEWER_PASSWORD}"
 
 logging:
   level:

@@ -16,7 +16,6 @@ import {
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { usesFixtureData } from '@/app/fixtureSource';
 import { isRegressionMode } from '@/app/regressionMode';
 import { useDialogMotion } from '@/shared/motion/useDialogMotion';
 import { ActionGuard } from '@/shared/ui/ActionGuard';
@@ -113,7 +112,6 @@ const COURSE_PAGE_SIZE = 20;
 
 export function CourseV2Page() {
   const regression = isRegressionMode();
-  const fixture = usesFixtureData();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
@@ -129,37 +127,37 @@ export function CourseV2Page() {
   const live = useQuery({
     queryKey: ['courses', 'v2', 'page', filters, pageNum, COURSE_PAGE_SIZE],
     queryFn: () => courseApi.page(toCourseApiFilter(filters), pageNum, COURSE_PAGE_SIZE),
-    enabled: !fixture,
+    enabled: !regression,
   });
 
   const quantity = useQuery({
     queryKey: ['metrics', 'quantity', 'courses'],
     queryFn: () => metricsApi.quantity('courses'),
-    enabled: !fixture,
+    enabled: !regression,
   });
 
   const selectedKpi = selectedCourseKpiId(filters);
 
   useEffect(() => {
-    if (regression || fixture || focus) return;
+    if (regression || focus) return;
     const records = live.data?.records ?? [];
     if (records.length === 0) return;
     setSelectedId((current) =>
       records.some((course) => course.courseNo === current) ? current : (records[0]?.courseNo ?? current),
     );
-  }, [live.data, regression, fixture, focus]);
+  }, [live.data, regression, focus]);
 
   useEffect(() => {
     if (regression || !openTrialTab || !focus) return;
-    if (!fixture && live.isLoading) return;
-    const records = fixture ? fixtureCourses : (live.data?.records ?? []);
+    if (!regression && live.isLoading) return;
+    const records = regression ? fixtureCourses : (live.data?.records ?? []);
     const hit = records.find((course) => course.courseNo === focus || course.courseName === focus);
     const card = hit
       ? courseToBoardCard(hit)
       : { id: focus, name: focus, owner: '', light: 'NONE' as const, stalledDays: 0 };
     setSelectedId(card.id);
     setOpened(card);
-  }, [regression, openTrialTab, focus, fixture, fixtureCourses, live.data, live.isLoading]);
+  }, [regression, openTrialTab, focus, fixtureCourses, live.data, live.isLoading]);
 
   const setFilter = useCallback(<K extends keyof CourseWorkbenchFilter>(
     key: K,
@@ -211,8 +209,8 @@ export function CourseV2Page() {
           />
         ) : (
           <CourseTablePanel
-            courses={fixture ? fixtureCourses : (live.data?.records ?? [])}
-            total={fixture ? fixtureCourses.length : (live.data?.total ?? 0)}
+            courses={regression ? fixtureCourses : (live.data?.records ?? [])}
+            total={regression ? fixtureCourses.length : (live.data?.total ?? 0)}
             pageNum={pageNum}
             pageSize={COURSE_PAGE_SIZE}
             selectedId={selectedId}
@@ -284,7 +282,6 @@ function KpiRow({
   onSelect: (id: CourseKpiId) => void;
 }) {
   const frozen = isRegressionMode();
-  const fixture = usesFixtureData();
   const fixtureValues = courseKpiValues(createCourseBoardState());
   return (
     <section className="crs-kpis" data-region="R3" aria-label="课程指标概览">
@@ -304,7 +301,7 @@ function KpiRow({
         }
         const Icon = COURSE_KPI_ICONS[kpi.id];
         const tone = COURSE_KPI_TONES[kpi.id];
-        const liveValue = fixture ? fixtureValue : formatMetricInt(quantity?.[kpi.id]);
+        const liveValue = formatMetricInt(quantity?.[kpi.id]);
         const selected = selectedId === kpi.id;
         return (
           <article
@@ -1038,7 +1035,7 @@ function formatOverviewScope(value: string | null | undefined, mom: string | nul
 
 /** R6：回归模式仍是冻结排期日历；产品模式改为试讲日历，右侧只列试讲。 */
 function CalendarPanel() {
-  const regression = usesFixtureData();
+  const regression = isRegressionMode();
   const { year: baseYear, month: baseMonth, selectedDate, scheduledDays } = COURSE_CALENDAR;
   const defaultDay = Number(selectedDate.slice(-2));
   const today = new Date();
@@ -1394,7 +1391,7 @@ function MonthGrid({
 
 /** R7：回归仍是本周三行冻结数；产品改为本月三指标表（指标 / 口径）。 */
 function OverviewPanel() {
-  const regression = usesFixtureData();
+  const regression = isRegressionMode();
   const live = useQuery({
     queryKey: COURSE_MONTHLY_OVERVIEW_QUERY_KEY,
     queryFn: () => metricsApi.courseMonthlyOverview(),
@@ -1494,7 +1491,7 @@ function CourseDetailModal({
         </button>
         <DetailPanel
           card={card}
-          regression={regression || usesFixtureData()}
+          regression={regression}
           initialTab={initialTab}
           onRecordDeleted={requestClose}
         />

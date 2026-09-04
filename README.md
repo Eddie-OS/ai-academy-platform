@@ -31,6 +31,19 @@ $env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-17.0.20.8-hotspot'
 
 ### 五条命令（出口准则 E0-2）
 
+先准备本地口令。**仓库里不含任何账号口令**，下面三个值自己定，只用于你这台机器：
+
+```powershell
+Copy-Item .env.example .env
+# 编辑 .env，填 LOCAL_DB_PASSWORD / LOCAL_OPERATOR_PASSWORD / LOCAL_VIEWER_PASSWORD
+# 再把它们灌进当前终端。每开一个新终端都要跑一次：docker compose 会自己读 .env，
+# 但 bootRun 读的是进程环境变量，读不到就起不来（占位符解析失败）。
+Get-Content .env | Where-Object { $_ -match '^LOCAL_' } | ForEach-Object {
+    $k, $v = $_ -split '=', 2; [Environment]::SetEnvironmentVariable($k, $v, 'Process') }
+```
+
+然后是五条命令：
+
 ```powershell
 # 1. 起数据库（本地只起 postgres，app 与前端直接跑，见开发实施文档 4.4.2）
 docker compose -f docker-compose.local.yml up -d
@@ -50,10 +63,10 @@ npm run dev
 
 浏览器打开 http://localhost:5173 ，用下列账号登录：
 
-| 账号 | 口令（仅本地） | 权限 |
+| 账号 | 口令 | 权限 |
 |---|---|---|
-| `operator` | `operator123` | 运营账号：全量写权限 |
-| `viewer` | `viewer123` | 用户账号：只读，例外是点赞与评论 |
+| `operator` | `.env` 里的 `LOCAL_OPERATOR_PASSWORD` | 运营账号：全量写权限 |
+| `viewer` | `.env` 里的 `LOCAL_VIEWER_PASSWORD` | 用户账号：只读，例外是点赞与评论 |
 
 登录后应看到：顶栏三中心入口 + 侧栏五驾驶舱 + 总看板壳层，且总看板上的批次数据来自
 `GET /api/imports`——它跑通说明「浏览器 → 后端 → PostgreSQL」整条链路正常。
@@ -203,10 +216,16 @@ ai-academy-platform/
 
 ## 五、配置与敏感信息
 
-| 环境 | 配置 | 口令 |
+**仓库里不含任何账号口令**，两套环境的口令都从环境变量读，一个字面量都不留：
+
+| 环境 | 配置 | 口令来源 |
 |---|---|---|
-| 本地 | `application-local.yml` | `{noop}` 明文，便于调试 |
+| 本地 | `application-local.yml` | `.env` 的 `LOCAL_*` 三项，`{noop}` 前缀由 yml 拼上 |
+| 测试 | `IntegrationTest` 的 `@DynamicPropertySource` | 每次运行随机生成的 UUID |
 | 生产 | `application-prod.yml` + `.env` | **必须是 `{bcrypt}` 哈希**（规则 SEC5） |
+
+连「仅本地」的口令也不写进仓库，理由不是本地库值得保护，而是**一个看起来能用的口令一定会被
+复制到别处，而复制它的人不会知道它只该用于本地**。三处都留成占位符，就没有可复制的东西。
 
 生成口令哈希：
 
@@ -292,28 +311,19 @@ Register-ScheduledTask -TaskName 'aiacademy-backup' -Action $action -Trigger $tr
 一块常驻挂载的备份盘在这两种场景下和主盘一起完蛋。
 `.env` 里的 `BACKUP_DISK_NUMBER` 留空则跳过联机／脱机，按盘符已挂载处理。
 
-### 前端演示站（Vercel）—— 只是给人看界面，不是第二套部署方式
+### 只有一种部署方式，没有纯前端演示站
 
-生产部署只有上面那一种：单机三容器（C13／BLOCK-03）。**整套系统不能部署到 Vercel**——
-Vercel 没有 Java 运行时，而且会话在 JVM 内存里（不做项第 18 条禁 Redis）、附件在本地磁盘、
-定时任务要常驻进程，这三样在无状态的函数运行时上都不成立。
+生产部署只有上面那一种：单机三容器（C13／BLOCK-03）。**整套系统不能部署到 Vercel 这类
+静态／函数托管**——没有 Java 运行时，而且会话在 JVM 内存里（不做项第 18 条禁 Redis）、
+附件在本地磁盘、定时任务要常驻进程，这三样在无状态的函数运行时上都不成立。
 
-能放上去的只有前端，且必须是**演示构建**：数据全部来自 `src/fixtures`，一个接口都不发。
+曾经有过一个「演示构建」：只发前端、数据全走 `src/fixtures`、**登录态直接给一个冻结的运营账号**。
+它已整体删除（`demoMode.ts`、`DemoBanner`、`vercel.json` 一并删掉）。删的理由是那个跳过登录的
+旁路：一个公网可达、打开即是运营身份的站点，其暴露面和把口令写在 README 里没有区别。
+现在**除视觉回归（`?fixture=1`，仅本地截图比对用）之外，任何情况都必须真的登录一次**。
 
-```powershell
-cd frontend
-npx vercel        # 首次会要求登录并创建项目，之后是预览部署
-npx vercel --prod # 发到正式域名
-```
-
-`frontend/vercel.json` 里写死了 `VITE_DEMO_MODE=1`，**这个文件是为演示站存在的**：
-它把该目录的任何 Vercel 部署都固定成演示构建。如果将来要用 Vercel 托管真前端并反代到
-真后端，不要改这里的开关了事——那是另一件事，得先有一个公网可达的后端，
-还要重新处理会话 Cookie 与 200MB 分片上传（Vercel 请求体上限 4.5MB，这条走不通，
-上传必须绕开）。
-
-**fixtures 里的日期会在运行时平移到今天**（`src/fixtures/fixtureClock.ts`）。这不是演示站专属的
-处理：`resolveTrainingCalendar` 早就写着「产品模式反过来必须落在真实当月，否则运营打开就是
+**fixtures 里的日期会在运行时平移到今天**（`src/fixtures/fixtureClock.ts`）。这不是给演示用的：
+`resolveTrainingCalendar` 早就写着「产品模式反过来必须落在真实当月，否则运营打开就是
 一张过期月历」，`fixtureClock` 只是把同一条口径推广到全部 fixture。判定与它一致——
 **`?fixture=1` 的回归模式原样返回冻结值，其余模式一律平移**。文档 0.3 与 15.1 的「不得使用今天」
 约束的是视觉回归，九张基线与多条 spec 断言比对的正是那批冻结值，所以那条分支必须原样保留。
@@ -324,11 +334,6 @@ npx vercel --prod # 发到正式域名
 （`TASK-2024-0612-001`、`AL2024050001`、`ST20240610001` 等）另用**整串匹配**的规则单独挪，
 因为 `T-2405-09`、`JH-D13-01` 这类编号里也有形如日期的数字段，放开边界就会把编号改坏——
 改坏之后仍是一个合法编号，列表照常渲染，只有点开详情才发现对不上。
-
-演示模式的开关在 `src/app/demoMode.ts`，只读构建期变量、**没有任何运行期入口**：
-正式构建不设这个变量，线上没人能靠改地址栏把自己切进演示态。相关代码在正式构建里
-经摇树后零残留（JS 与 CSS 都验过）。它与 `?fixture=1` 的视觉回归模式只共用 fixtures，
-判定各走各的——回归模式会关掉滚动与动画，拿来当演示会得到一个不能滚动的页面。
 
 ---
 

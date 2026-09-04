@@ -11,7 +11,9 @@ services:
     environment:
       POSTGRES_DB: aiacademy
       POSTGRES_USER: aiacademy
-      POSTGRES_PASSWORD: aiacademy
+      # 口令从 .env 取，仓库里不留任何口令字面量。这个容器把 5432 映射到宿主机，
+      # 写死一个人人可读的口令等于本机上任何进程都能连它。
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?本地库口令必须通过 .env 提供，见 .env.example 的「本地开发」段}
       TZ: Asia/Shanghai
       POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
     ports:

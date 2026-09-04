@@ -1,6 +1,7 @@
 package com.aiacademy.app.support;
 
 import com.aiacademy.app.AiAcademyApplication;
+import java.util.UUID;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -18,10 +19,31 @@ import org.springframework.test.context.DynamicPropertySource;
 @ActiveProfiles("test")
 public abstract class IntegrationTest {
 
+    /**
+     * 测试期两个共享账号的口令，每次 JVM 启动随机生成。
+     *
+     * <p>刻意不写进 {@code application-test.yml}：<b>仓库里不留任何看起来能用的口令字符串</b>。
+     * 从 GitHub 下载本项目的人不该在任何文件里读到一个像口令的东西——即便它「只是测试用」，
+     * 也会被顺手复制到别处，而复制的人不会知道它只该用于测试。
+     *
+     * <p>需要明文口令的测试从这里取，不要自己写字面量：写死的字面量与配置一旦不同步，
+     * 失败信息是「登录失败」，看不出是配置漂了。
+     */
+    public static final String OPERATOR_PASSWORD = UUID.randomUUID().toString();
+
+    /** 用户账号的测试口令，理由同 {@link #OPERATOR_PASSWORD}。 */
+    public static final String VIEWER_PASSWORD = UUID.randomUUID().toString();
+
     @DynamicPropertySource
-    static void datasource(DynamicPropertyRegistry registry) {
+    static void properties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", PostgresContainer::jdbcUrl);
         registry.add("spring.datasource.username", PostgresContainer::username);
         registry.add("spring.datasource.password", PostgresContainer::password);
+
+        // 用 {noop} 而不是 {bcrypt}：SharedAccountCredentialsCheck 只在 prod profile 生效，
+        // 这里是 test profile，没有它把关。而 bcrypt 的代价因子会给每个测试类多加一次
+        // 刻意设计成慢的哈希计算，635 个用例累积起来不划算。
+        registry.add("aiacademy.accounts.operator.password-hash", () -> "{noop}" + OPERATOR_PASSWORD);
+        registry.add("aiacademy.accounts.viewer.password-hash", () -> "{noop}" + VIEWER_PASSWORD);
     }
 }

@@ -15,13 +15,18 @@
 
 $ErrorActionPreference = 'Stop'
 
-# 默认打本地开发环境（后端直连 8080，口令是 application-local.yml 里的 {noop} 明文）。
-# 打生产栈时目标改成 http://localhost（走 Nginx），口令用 .env 里那两个哈希对应的原文：
+# 默认打本地开发环境（后端直连 8080）。打生产栈时目标改成 http://localhost（走 Nginx）。
+#
+# 两个口令没有默认值：仓库里不留任何口令字面量。本地填 .env 里 LOCAL_OPERATOR_PASSWORD /
+# LOCAL_VIEWER_PASSWORD 那两个值，打生产栈时填 .env 里两个哈希对应的原文：
 #   $env:SMOKE_BASE_URL='http://localhost'
 #   $env:SMOKE_OPERATOR_PASSWORD='...'; $env:SMOKE_VIEWER_PASSWORD='...'
 $base = if ($env:SMOKE_BASE_URL) { $env:SMOKE_BASE_URL } else { 'http://localhost:8080' }
-$operatorPassword = if ($env:SMOKE_OPERATOR_PASSWORD) { $env:SMOKE_OPERATOR_PASSWORD } else { 'operator123' }
-$viewerPassword = if ($env:SMOKE_VIEWER_PASSWORD) { $env:SMOKE_VIEWER_PASSWORD } else { 'viewer123' }
+if (-not $env:SMOKE_OPERATOR_PASSWORD -or -not $env:SMOKE_VIEWER_PASSWORD) {
+    throw '请先设置 SMOKE_OPERATOR_PASSWORD 与 SMOKE_VIEWER_PASSWORD（本地即 .env 里的 LOCAL_OPERATOR_PASSWORD / LOCAL_VIEWER_PASSWORD）'
+}
+$operatorPassword = $env:SMOKE_OPERATOR_PASSWORD
+$viewerPassword = $env:SMOKE_VIEWER_PASSWORD
 
 $script:pass = 0
 $script:fail = 0
