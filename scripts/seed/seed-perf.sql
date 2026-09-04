@@ -40,6 +40,10 @@ FROM generate_series(1, 20000) AS n;
 -- P1／P6：1 万门课程
 INSERT INTO biz_course (
     course_no, course_name, review_track, domain_code, owner_no,
+    -- initiation_no 在 V5_013 变成 NOT NULL，这份脚本当时没跟着改，于是自那以后
+    -- 整份铺量在第一条 INSERT 就报「null value in column "initiation_no"」——
+    -- 也就是 P1／P2／P3／P6 四项都没能在 1 万门课的真实量级上跑过
+    initiation_no,
     initiated_date, expect_publish_date, validity_period,
     main_state, publish_state,
     created_by, created_at, updated_at, last_state_changed_at, version, deleted)
@@ -49,6 +53,7 @@ SELECT
     '内部端到端课程',
     'AI_DEMAND',
     'E0001',
+    'PERF-LX' || LPAD(n::text, 5, '0'),
     CURRENT_DATE - 60,
     CURRENT_DATE + ((n % 60)),
     '12 个月',
